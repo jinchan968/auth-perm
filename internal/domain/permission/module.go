@@ -9,7 +9,7 @@ import (
 	authService "auth-perm/internal/domain/auth/service"
 	permissionRepo "auth-perm/internal/domain/permission/repo"
 	"auth-perm/internal/domain/permission/service"
-	
+	"auth-perm/internal/infra/code_gen"
 )
 
 // RegisterPermissionDomain 注册权限领域的所有依赖
