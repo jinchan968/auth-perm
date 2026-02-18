@@ -11,8 +11,6 @@ import (
 	"auth-perm/internal/domain/tenant/service"
 )
 
-// dependencies.go 定义了租户领域的依赖注册函数
-
 // RegisterTenantDomain 注册租户领域的所有依赖
 func RegisterTenantDomain(container *dig.Container) error {
 	// -----------------------------------------------------
