@@ -1,0 +1,4 @@
+# pnpm 工作空间配置
+# 用于管理多个包的Monorepo结构
+packages:
+  - 'ui'
