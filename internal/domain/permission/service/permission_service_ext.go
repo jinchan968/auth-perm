@@ -1,0 +1,199 @@
+package service
+
+import (
+	"context"
+
+	"auth-perm/internal/common/errors"
+	"auth-perm/internal/domain/permission/dto"
+	"auth-perm/internal/domain/permission/param"
+)
+
+// CheckAPIPermission 检查API访问权限（支持资源关联）
+// 内部委托给 CheckResourcePermission 统一方法
+func (s *PermissionService) CheckAPIPermission(ctx context.Context, accountID, apiPath string) (bool, error) {
+	params := param.NewCheckResourcePermissionParams(accountID, apiPath, dto.ResourceTypeAPIPath)
+	return s.CheckResourcePermission(ctx, params)
+}
+
+// CheckMenuPermission 检查菜单访问权限（支持资源关联）
+// 内部委托给 CheckResourcePermission 统一方法
+func (s *PermissionService) CheckMenuPermission(ctx context.Context, accountID, menuID string) (bool, error) {
+	params := param.NewCheckResourcePermissionParams(accountID, menuID, dto.ResourceTypeMenu)
+	return s.CheckResourcePermission(ctx, params)
+}
+
+// CheckButtonPermission 检查按钮访问权限（支持资源关联）
+// 内部委托给 CheckResourcePermission 统一方法
+func (s *PermissionService) CheckButtonPermission(ctx context.Context, accountID, buttonID string) (bool, error) {
+	params := param.NewCheckResourcePermissionParams(accountID, buttonID, dto.ResourceTypeButton)
+	return s.CheckResourcePermission(ctx, params)
+}
+
+// CheckFieldPermission 检查字段访问权限（支持资源关联）
+// 内部委托给 CheckResourcePermission 统一方法
+func (s *PermissionService) CheckFieldPermission(ctx context.Context, accountID, fieldID string) (bool, error) {
+	params := param.NewCheckResourcePermissionParams(accountID, fieldID, dto.ResourceTypeField)
+	return s.CheckResourcePermission(ctx, params)
+}
+
+// GetAccountResources 获取账户可访问的资源（支持资源关联）
+func (s *PermissionService) GetAccountResources(ctx context.Context, params *param.GetAccountResourcesParams) ([]string, error) {
+	account, err := s.authService.FindAccountByID(ctx, params.AccountID)
+	if err != nil {
+		return nil, errors.WrapBizError(err, "获取账户失败")
+	}
+
+	// 检查账户状态
+	if !account.IsActive() {
+		return nil, errors.NewBusinessError("账户未激活")
+	}
+
+	// 如果没有资源仓储，返回错误
+	if s.permissionResourceRepo == nil {
+		return nil, errors.NewBusinessError("权限资源服务未初始化")
+	}
+
+	// 获取账户的所有权限
+	permissionCodes, err := s.getAccountPermissions(ctx, params.AccountID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(permissionCodes) == 0 {
+		return []string{}, nil
+	}
+
+	// 获取权限ID列表
+	permissions, err := s.permissionRepo.FindByCodes(ctx, permissionCodes)
+	if err != nil {
+		return nil, errors.WrapBizError(err, "获取权限失败")
+	}
+
+	if len(permissions) == 0 {
+		return []string{}, nil
+	}
+
+	permissionIDs := make([]string, 0, len(permissions))
+	for _, p := range permissions {
+		permissionIDs = append(permissionIDs, p.ID)
+	}
+
+	// 获取权限资源映射
+	resourceMap, err := s.permissionResourceRepo.GetPermissionResourceMap(ctx, permissionIDs)
+	if err != nil {
+		return nil, errors.WrapBizError(err, "获取权限资源失败")
+	}
+
+	// 收集资源ID
+	resourceSet := make(map[string]bool)
+	for _, permID := range permissionIDs {
+		if resources, ok := resourceMap[permID]; ok {
+			for _, r := range resources {
+				// 按资源类型过滤
+				if params.ResourceType != "" && r.ResourceType != params.ResourceType {
+					continue
+				}
+				resourceSet[r.ResourceID] = true
+			}
+		}
+	}
+
+	// 转换为切片
+	result := make([]string, 0, len(resourceSet))
+	for id := range resourceSet {
+		result = append(result, id)
+	}
+
+	return result, nil
+}
+
+// CheckResourcePermission 检查资源权限（统一方法）
+// 支持所有资源类型：api_path, menu, button, field, other
+func (s *PermissionService) CheckResourcePermission(ctx context.Context, params *param.CheckResourcePermissionParams) (bool, error) {
+	if err := params.Validate(); err != nil {
+		return false, errors.NewValidationError(err.Error())
+	}
+
+	account, err := s.authService.FindAccountByID(ctx, params.AccountID)
+	if err != nil {
+		return false, errors.WrapBizError(err, "获取账户失败")
+	}
+
+	// 检查账户状态
+	if !account.IsActive() {
+		return false, errors.NewBusinessError("账户未激活")
+	}
+
+	// 如果没有资源仓储，返回错误
+	if s.permissionResourceRepo == nil {
+		return false, errors.NewBusinessError("权限资源服务未初始化")
+	}
+
+	// 使用统一的 FindResources 方法查找资源（支持通配符）
+	resources, err := s.permissionResourceRepo.FindResources(ctx, params.ResourceType, params.ResourceID, false)
+	if err != nil {
+		return false, errors.WrapBizError(err, "查询权限资源失败")
+	}
+
+	if len(resources) == 0 {
+		return false, nil
+	}
+
+	// 获取账户权限
+	permissionCodes, err := s.getAccountPermissions(ctx, params.AccountID)
+	if err != nil {
+		return false, err
+	}
+
+	// 检查账户是否拥有该权限
+	permissionSet := make(map[string]bool)
+	for _, code := range permissionCodes {
+		permissionSet[code] = true
+	}
+
+	for _, resource := range resources {
+		// 获取权限信息
+		permission, err := s.permissionRepo.FindByID(ctx, resource.PermissionID)
+		if err != nil || permission == nil {
+			continue
+		}
+		if permissionSet[permission.Code] && permission.IsActive {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// GetPermissionWithResources 获取权限及其关联的资源
+func (s *PermissionService) GetPermissionWithResources(ctx context.Context, permissionID string) (*dto.PermissionDTO, []*dto.PermissionResourceDTO, error) {
+	// 获取权限
+	permission, err := s.permissionRepo.FindByID(ctx, permissionID)
+	if err != nil {
+		return nil, nil, errors.WrapBizError(err, "获取权限失败")
+	}
+	if permission == nil {
+		return nil, nil, errors.NewBusinessError("权限不存在")
+	}
+
+	// 转换为 DTO
+	permissionDTO := permission.ToDTO()
+
+	// 如果没有资源仓储，返回空资源列表
+	if s.permissionResourceRepo == nil {
+		return permissionDTO, []*dto.PermissionResourceDTO{}, nil
+	}
+
+	// 获取关联资源
+	resources, err := s.permissionResourceRepo.FindByPermissionID(ctx, permissionID)
+	if err != nil {
+		return nil, nil, errors.WrapBizError(err, "获取权限资源失败")
+	}
+
+	objects := make([]*dto.PermissionResourceDTO, 0, len(resources))
+	for _, r := range resources {
+		objects = append(objects, r.ToDTO())
+	}
+
+	return permissionDTO, objects, nil
+}

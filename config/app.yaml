@@ -1,0 +1,78 @@
+# Auth-Perm 应用配置文件
+
+server:
+  host: localhost
+  port: 8080
+  mode: debug  # debug, release, test
+
+database:
+  host: localhost
+  port: 5432
+  user: test
+  password: 123456
+  dbname: mydb
+  sslmode: disable
+  max_idle_conns: 10
+  max_open_conns: 100
+
+redis:
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+  pool_size: 10
+
+cache:
+  type: redis # redis or memory
+
+token:
+  secret: "your_very_long_and_complex_secret_key_here_at_least_32_characters"
+  expires_in: 24h
+  session_secret: "your_very_long_and_complex_session_secret_here_at_least_32_characters"
+  session_expires_in: 168h
+  cookie_secure: false  # 生产环境设置为 true
+  cookie_http_only: true
+
+log:
+  level: info  # debug, info, warn, error
+  file: logs/app.log
+  max_size: 100      # MB
+  max_backups: 3
+  max_age: 28       # days
+  compress: true
+
+tenant:
+  default_tenant_id: default
+  enable_multi_tenant: true
+
+oauth:
+  github:
+    client_id: your_github_client_id
+    client_secret: your_github_client_secret
+    redirect_url: http://localhost:8080/api/v1/auth/oauth/github/callback
+  google:
+    client_id: your_google_client_id
+    client_secret: your_google_client_secret
+    redirect_url: http://localhost:8080/api/v1/auth/oauth/google/callback
+  wechat:
+    app_id: your_wechat_app_id
+    app_secret: your_wechat_app_secret
+    redirect_url: http://localhost:8080/api/v1/auth/oauth/wechat/callback
+
+smtp:
+  host: localhost
+  port: 587
+  username: ""
+  password: ""
+  from: ""
+  from_name: "Auth-Perm"
+  use_tls: true
+
+monitoring:
+  enable_health_check: true
+  enable_metrics: true
+  enable_alerting: true
+  max_db_connections: 80
+  max_redis_memory_mb: 512
+  max_response_time_ms: 1000
+  alert_webhook_url: ""  # 报警Webhook地址

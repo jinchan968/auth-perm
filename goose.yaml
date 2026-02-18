@@ -1,0 +1,22 @@
+# goose配置文件
+# https://github.com/pressly/goose
+
+# 数据库驱动
+driver: postgres
+
+# 数据库连接字符串
+# 从环境变量DB_URL读取
+dsn: ${DB_URL}
+
+# 迁移文件目录
+migrations_dir: migrations
+
+# 是否启用verbose模式
+verbose: true
+
+# SQL语句分隔符（默认为;）
+sqlfile:
+    delimiter: ";"
+
+# 时区设置
+timezone: "UTC"

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Particle Shapes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            overflow: hidden;
+            background: #0a0a12;
+            font-family: 'Courier New', monospace;
+            cursor: none;
+        }
+        canvas {
+            display: block;
+            background: #0a0a12;
+        }
+        .info {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 10px;
+            letter-spacing: 2px;
+            pointer-events: none;
+        }
+        .shape-indicator {
+            position: fixed;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 11px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+        .custom-cursor {
+            position: fixed;
+            width: 16px;
+            height: 16px;
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 100;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div class="shape-indicator" id="shapeIndicator">SPHERE</div>
+    <div class="info">IDLE TO AUTO CHANGE | CLICK TO CHANGE NOW</div>
+    <div class="custom-cursor" id="cursor"></div>
+    <script>
+        (function() {
+            var canvas = document.getElementById('canvas');
+            var ctx = canvas.getContext('2d');
+            var shapeIndicator = document.getElementById('shapeIndicator');
+            var cursor = document.getElementById('cursor');
+
+            var width, height;
+            var particles = [];
+            var shapes = ['sphere', 'geese', 'sword', 'circle', 'spiral', 'heart', 'wave', 'torus'];
+            var shapeIndex = 0;
+            var currentShape = 'sphere';
+            var isMouseActive = false;
+            var autoChangeTimer = null;
+            var idleTime = 3000;
+
+            var colorThemes = {
+                sphere: { colors: ['rgba(130, 200, 230,', 'rgba(110, 180, 220,', 'rgba(90, 160, 210,'] },
+                geese: { colors: ['rgba(255, 200, 120,', 'rgba(240, 180, 100,', 'rgba(220, 160, 80,'] },
+                sword: { colors: ['rgba(200, 130, 220,', 'rgba(180, 110, 200,', 'rgba(160, 90, 180,'] },
+                circle: { colors: ['rgba(120, 220, 180,', 'rgba(100, 200, 160,', 'rgba(80, 180, 140,'] },
+                spiral: { colors: ['rgba(255, 160, 120,', 'rgba(240, 140, 100,', 'rgba(220, 120, 80,'] },
+                heart: { colors: ['rgba(255, 140, 170,', 'rgba(240, 120, 150,', 'rgba(220, 100, 130,'] },
+                wave: { colors: ['rgba(130, 180, 230,', 'rgba(110, 160, 210,', 'rgba(90, 140, 190,'] },
+                torus: { colors: ['rgba(180, 150, 220,', 'rgba(160, 130, 200,', 'rgba(140, 110, 180,'] }
+            };
+
+            function resize() {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+            }
+
+            function Particle(i, total) {
+                this.i = i;
+                this.total = total;
+                this.x = width / 2;
+                this.y = height / 2;
+                this.z = 0;
+                this.tx = width / 2;
+                this.ty = height / 2;
+                this.tz = 0;
+                this.ox = width / 2;
+                this.oy = height / 2;
+                this.oz = 0;
+                this.size = 0.8 + Math.random() * 0.8;
+                this.baseSize = this.size;
+                this.color = colorThemes.sphere.colors[i % 3];
+                this.phase = Math.random() * Math.PI * 2;
+                this.rotPhase = Math.random() * Math.PI * 2;
+                this.setTarget('sphere');
+            }
+
+            Particle.prototype.setTarget = function(shape) {
+                var cx = width / 2;
+                var cy = height / 2;
+                var scale = Math.min(width, height) / 3.2;
+                var pad = 80;
+
+                this.color = colorThemes[shape].colors[this.i % 3];
+
+                switch(shape) {
+                    case 'sphere':
+                        var phi = Math.acos(-1 + (2 * this.i) / this.total);
+                        var theta = Math.sqrt(this.total * Math.PI) * phi;
+                        this.ox = cx + scale * 0.7 * Math.cos(theta) * Math.sin(phi);
+                        this.oy = cy + scale * 0.7 * Math.sin(theta) * Math.sin(phi);
+                        this.oz = scale * 0.7 * Math.cos(phi);
+                        break;
+                    case 'geese':
+                        var rows = 10;
+                        var row = this.i % rows;
+                        var col = Math.floor(this.i / rows);
+                        var rowOffset = (row - (rows - 1) / 2) * 35;
+                        var colOffset = col * 18;
+                        this.ox = Math.max(pad, Math.min(width - pad, cx + colOffset - 70 + rowOffset));
+                        this.oy = Math.max(pad, Math.min(height - pad, cy - 60 + rowOffset * 0.6));
+                        this.oz = 0;
+                        break;
+                    case 'sword':
+                        var cols = 14;
+                        var c = this.i % cols;
+                        var r = Math.floor(this.i / cols);
+                        this.ox = Math.max(pad, Math.min(width - pad, cx + (c - cols/2) * 28));
+                        this.oy = Math.max(pad, Math.min(height - pad, cy - 80 + r * 22));
+                        this.oz = (c % 3 - 1) * 12;
+                        break;
+                    case 'circle':
+                        var angle = (this.i / this.total) * Math.PI * 2;
+                        this.ox = cx + Math.cos(angle) * scale * 0.55;
+                        this.oy = cy + Math.sin(angle) * scale * 0.55;
+                        this.oz = 0;
+                        break;
+                    case 'spiral':
+                        var sAngle = this.i * 0.05;
+                        var sRadius = 25 + this.i * 0.15;
+                        var sHeight = (this.i / this.total - 0.5) * scale * 1.0;
+                        this.ox = cx + Math.cos(sAngle) * sRadius;
+                        this.oy = cy + Math.sin(sAngle) * sRadius;
+                        this.oz = sHeight;
+                        break;
+                    case 'heart':
+                        var t = (this.i / this.total) * Math.PI * 2;
+                        var hx = 16 * Math.pow(Math.sin(t), 3);
+                        var hy = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+                        this.ox = cx + hx * scale * 0.018;
+                        this.oy = cy + hy * scale * 0.018;
+                        this.oz = 0;
+                        break;
+                    case 'wave':
+                        var wx = (this.i / this.total - 0.5) * scale * 1.6;
+                        var wy = Math.sin(this.i * 0.055) * scale * 0.25;
+                        this.ox = cx + wx;
+                        this.oy = cy + wy;
+                        this.oz = 0;
+                        break;
+                    case 'torus':
+                        var u = (this.i % 45) / 45 * Math.PI * 2;
+                        var v = Math.floor(this.i / 45) / (this.total / 45) * Math.PI * 2;
+                        var TR = scale * 0.38;
+                        var Tr = scale * 0.12;
+                        this.ox = cx + (TR + Tr * Math.cos(v)) * Math.cos(u);
+                        this.oy = cy + (TR + Tr * Math.cos(v)) * Math.sin(u);
+                        this.oz = Tr * Math.sin(v);
+                        break;
+                }
+                this.tx = this.ox;
+                this.ty = this.oy;
+                this.tz = this.oz;
+            };
+
+            Particle.prototype.update = function() {
+                var ease = 0.02;
+                this.x += (this.tx - this.x) * ease;
+                this.y += (this.ty - this.y) * ease;
+                this.z += (this.tz - this.z) * ease;
+
+                this.phase += 0.006;
+                this.rotPhase += 0.002;
+
+                var floatX = Math.sin(this.phase) * 2;
+                var floatY = Math.cos(this.phase * 0.8) * 2;
+                this.x += floatX * 0.015;
+                this.y += floatY * 0.015;
+            };
+
+            Particle.prototype.draw = function() {
+                var perspective = 350;
+                var scaleFactor = perspective / (perspective + this.z);
+                var alpha = 0.6 * scaleFactor;
+                var r = this.size * scaleFactor;
+
+                if (r < 0.3) r = 0.3;
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, r, 0, Math.PI * 2);
+                ctx.fillStyle = this.color + alpha + ')';
+                ctx.fill();
+            };
+
+            function initParticles() {
+                particles = [];
+                var count = 400;
+                for (var i = 0; i < count; i++) {
+                    particles.push(new Particle(i, count));
+                }
+            }
+
+            function changeShape() {
+                shapeIndex = (shapeIndex + 1) % shapes.length;
+                currentShape = shapes[shapeIndex];
+                shapeIndicator.textContent = currentShape.toUpperCase();
+                
+                shapeIndicator.style.opacity = '0';
+                setTimeout(function() {
+                    shapeIndicator.style.opacity = '1';
+                }, 150);
+
+                particles.forEach(function(p) {
+                    p.setTarget(currentShape);
+                });
+
+                resetAutoChangeTimer();
+            }
+
+            function resetAutoChangeTimer() {
+                if (autoChangeTimer) {
+                    clearTimeout(autoChangeTimer);
+                }
+                if (!isMouseActive) {
+                    autoChangeTimer = setTimeout(changeShape, idleTime);
+                }
+            }
+
+            function drawConnections() {
+                var maxDist = 45;
+                for (var i = 0; i < particles.length; i++) {
+                    var p1 = particles[i];
+                    for (var j = i + 1; j < particles.length; j++) {
+                        var p2 = particles[j];
+                        var dx = p1.x - p2.x;
+                        var dy = p1.y - p2.y;
+                        var dist = Math.sqrt(dx*dx + dy*dy);
+                        if (dist < maxDist) {
+                            var a = (1 - dist / maxDist) * 0.06;
+                            ctx.beginPath();
+                            ctx.strokeStyle = 'rgba(255,255,255,' + a + ')';
+                            ctx.lineWidth = 0.3;
+                            ctx.moveTo(p1.x, p1.y);
+                            ctx.lineTo(p2.x, p2.y);
+                            ctx.stroke();
+                        }
+                    }
+                }
+            }
+
+            function animate() {
+                ctx.fillStyle = 'rgba(10, 10, 18, 0.12)';
+                ctx.fillRect(0, 0, width, height);
+
+                particles.forEach(function(p) {
+                    p.update();
+                    p.draw();
+                });
+
+                drawConnections();
+                requestAnimationFrame(animate);
+            }
+
+            window.addEventListener('resize', function() {
+                resize();
+                particles.forEach(function(p) {
+                    p.setTarget(currentShape);
+                });
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                isMouseActive = true;
+                cursor.style.left = e.clientX + 'px';
+                cursor.style.top = e.clientY + 'px';
+                cursor.style.borderColor = 'rgba(255,255,255,0.5)';
+                resetAutoChangeTimer();
+            });
+
+            document.addEventListener('mouseleave', function() {
+                isMouseActive = false;
+                cursor.style.borderColor = 'rgba(255,255,255,0.15)';
+                resetAutoChangeTimer();
+            });
+
+            canvas.addEventListener('click', function() {
+                changeShape();
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.code === 'Space' || e.code === 'Enter') {
+                    e.preventDefault();
+                    changeShape();
+                }
+            });
+
+            resize();
+            initParticles();
+            animate();
+            resetAutoChangeTimer();
+        })();
+    </script>
+</body>
+</html>
