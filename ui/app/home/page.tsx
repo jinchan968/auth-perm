@@ -2,7 +2,6 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
 import { getContactInfo } from '@/hooks/get-contact-info'
 import { useAuthStore } from '@/store/auth-store'
@@ -30,10 +29,6 @@ export default function HomePage() {
 
   const contactInfo = getContactInfo(user)
 
-  const breadcrumbItems = [
-    { label: '首页' },
-  ]
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
       <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
@@ -50,7 +45,6 @@ export default function HomePage() {
       <div className="flex">
         <DashboardSidebar pathname="/home" />
         <main className="flex-1 p-8">
-          <Breadcrumb items={breadcrumbItems} />
           <HomeContent user={user} contactInfo={contactInfo} />
         </main>
       </div>

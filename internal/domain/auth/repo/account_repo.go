@@ -328,6 +328,76 @@ func (r *AccountRepo) SearchAccounts(ctx context.Context, query *dto.AccountSear
 	return accounts, nil
 }
 
+// SearchAccountsWithCount 搜索账户（带总数）
+func (r *AccountRepo) SearchAccountsWithCount(ctx context.Context, query *dto.AccountSearchQueryDTO) ([]*dm.AccountDO, int64, error) {
+	var accounts []*dm.AccountDO
+	var total int64
+
+	// 构建基础查询
+	baseQuery := r.db.WithContext(ctx).Model(&dm.AccountDO{}).Joins("JOIN users ON accounts.user_id = users.id")
+
+	// 应用租户过滤
+	if query.TenantID != "" {
+		baseQuery = baseQuery.Where("accounts.tenant_id = ?", query.TenantID)
+	}
+
+	// 应用关键词搜索（搜索users表的email、phone和username）
+	if query.Keyword != "" {
+		keyword := "%" + query.Keyword + "%"
+		baseQuery = baseQuery.Where("users.email LIKE ? OR users.phone LIKE ? OR users.username LIKE ?", keyword, keyword, keyword)
+	}
+
+	// 应用状态过滤
+	if query.Status != nil {
+		baseQuery = baseQuery.Where("accounts.status = ?", *query.Status)
+	}
+
+	// 应用账户类型过滤
+	if query.AccountType != nil {
+		baseQuery = baseQuery.Where("accounts.account_type = ?", *query.AccountType)
+	}
+
+	// 应用时间范围过滤
+	if query.CreatedAt != nil {
+		baseQuery = baseQuery.Where("accounts.created_at BETWEEN ? AND ?", query.CreatedAt.Start, query.CreatedAt.End)
+	}
+
+	if query.UpdatedAt != nil {
+		baseQuery = baseQuery.Where("accounts.updated_at BETWEEN ? AND ?", query.UpdatedAt.Start, query.UpdatedAt.End)
+	}
+
+	// 先获取总数
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, 0, errors.WrapBizError(err, "统计账户数量失败")
+	}
+
+	// 应用分页和排序
+	db := baseQuery
+	if query.Pagination != nil {
+		db = db.Offset(query.Pagination.GetOffset()).Limit(query.Pagination.GetLimit())
+
+		sortBy := query.Pagination.SortBy
+		if sortBy == "" {
+			sortBy = "accounts.created_at"
+		}
+		order := sortBy
+		if query.Pagination.SortDesc {
+			order += " DESC"
+		} else {
+			order += " ASC"
+		}
+		db = db.Order(order)
+	}
+
+	// 获取账户列表
+	err := db.Find(&accounts).Error
+	if err != nil {
+		return nil, 0, errors.WrapBizError(err, "搜索账户失败")
+	}
+
+	return accounts, total, nil
+}
+
 // GetAccountStats 获取账户统计
 func (r *AccountRepo) GetAccountStats(ctx context.Context, tenantID string) (*dto.AccountStatsDTO, error) {
 	stats := &dto.AccountStatsDTO{

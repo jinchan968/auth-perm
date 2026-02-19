@@ -240,6 +240,16 @@ func registerHandlers(container *dig.Container) error {
 		return err
 	}
 
+	// 注册用户管理处理器
+	if err := container.Provide(func(
+		authService *service.AuthService,
+		registerService *service.RegisterService,
+	) *http.UserHandler {
+		return http.NewUserHandler(authService, registerService)
+	}); err != nil {
+		return err
+	}
+
 	log.Println("HTTP handlers registered successfully")
 
 	return nil
@@ -259,6 +269,7 @@ func registerGinEngine(container *dig.Container) error {
 		permissionResourceHandler *http.PermissionResourceHandler,
 		organizationHandler *http.OrganizationHandler,
 		tenantHandler *tenantHandler.TenantHandler,
+		userHandler *http.UserHandler,
 		authService *service.AuthService,
 		loginService *service.LoginService,
 		permissionService *permissionService.PermissionService,
@@ -288,7 +299,7 @@ func registerGinEngine(container *dig.Container) error {
 		})
 
 		// 注册路由
-		http.RegisterRoutes(engine, authHandler, emailHandler, passwordHandler, totpHandler, oauthHandler, permissionHandler, permissionResourceHandler, organizationHandler, tenantHandler, authService, loginService, permissionService)
+		http.RegisterRoutes(engine, authHandler, emailHandler, passwordHandler, totpHandler, oauthHandler, permissionHandler, permissionResourceHandler, organizationHandler, tenantHandler, userHandler, authService, loginService, permissionService)
 
 		log.Println("Gin engine registered successfully")
 		return engine

@@ -21,6 +21,7 @@ func RegisterRoutes(
 	permissionResourceHandler *PermissionResourceHandler,
 	organizationHandler *OrganizationHandler,
 	tenantHandler *tenantHandler.TenantHandler,
+	userHandler *UserHandler,
 	authService *service.AuthService,
 	loginService *service.LoginService,
 	permService *permissionService.PermissionService,
@@ -39,6 +40,9 @@ func RegisterRoutes(
 
 		// 注册租户相关路由
 		RegisterTenantRoutes(v1, tenantHandler, loginService)
+
+		// 注册用户管理路由
+		RegisterUserRoutes(v1, userHandler, loginService)
 	}
 }
 
@@ -258,5 +262,23 @@ func RegisterTenantRoutes(router *gin.RouterGroup, tenantHandler *tenantHandler.
 
 		// 租户状态管理
 		tenants.POST("/:id/change-status", tenantHandler.ChangeStatus)
+	}
+}
+
+// RegisterUserRoutes 注册用户管理路由
+func RegisterUserRoutes(router *gin.RouterGroup, userHandler *UserHandler, loginService *service.LoginService) {
+	users := router.Group("/users")
+	users.Use(middleware.AuthMiddleware(loginService))
+	{
+		// 用户列表
+		users.GET("", userHandler.ListUsers)
+		// 创建用户
+		users.POST("", userHandler.CreateUser)
+		// 用户详情
+		users.GET("/:id", userHandler.GetUser)
+		// 更新用户状态
+		users.PATCH("/:id/status", userHandler.UpdateUserStatus)
+		// 获取用户的所有账户
+		users.GET("/:id/accounts", userHandler.GetUserAccounts)
 	}
 }

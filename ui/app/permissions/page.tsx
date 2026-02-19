@@ -5,7 +5,9 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { listPermissions } from '@/lib/api/permission'
 import { listRoles, createRole } from '@/lib/api/role'
+import { listUsers } from '@/lib/api/user'
 import { PermissionListItem, RoleListItem } from '@/types/permission'
+import { AccountListItem } from '@/types/user'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -26,7 +28,7 @@ import { useTenant } from '@/lib/tenant-context'
 import { useAuthStore } from '@/store/auth-store'
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
 
-type TabType = 'permissions' | 'roles'
+type TabType = 'permissions' | 'roles' | 'users'
 
 function PermissionsPageContent() {
   const searchParams = useSearchParams()
@@ -36,7 +38,7 @@ function PermissionsPageContent() {
   const { tenants, selectedTenantId, setSelectedTenantId, tenantId, loading: tenantLoading } = useTenant()
 
   // Tab state - read from URL query param
-  const initialTab = searchParams.get('tab') === 'roles' ? 'roles' : 'permissions'
+  const initialTab = searchParams.get('tab') === 'roles' ? 'roles' : searchParams.get('tab') === 'users' ? 'users' : 'permissions'
   const [activeTab, setActiveTab] = useState<TabType>(initialTab)
 
   // Permissions state
@@ -46,6 +48,10 @@ function PermissionsPageContent() {
   // Roles state
   const [roles, setRoles] = useState<RoleListItem[]>([])
   const [rolesLoading, setRolesLoading] = useState(false)
+
+  // Users state
+  const [users, setUsers] = useState<AccountListItem[]>([])
+  const [usersLoading, setUsersLoading] = useState(false)
 
   // Common state
   const [keyword, setKeyword] = useState('')
@@ -100,6 +106,21 @@ function PermissionsPageContent() {
     }
   }
 
+  const fetchUsers = async () => {
+    if (!tenantId) return
+    setUsersLoading(true)
+    setError('')
+    try {
+      const data = await listUsers({ tenant_id: tenantId, keyword, page, page_size: size })
+      setUsers(data.data || [])
+      setTotal(data.total)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch users')
+    } finally {
+      setUsersLoading(false)
+    }
+  }
+
   // 租户过滤 - 当 showAllTenants 变化时重新获取租户列表
   useEffect(() => {
     const fetchFilteredTenants = async () => {
@@ -145,8 +166,10 @@ function PermissionsPageContent() {
 
     if (activeTab === 'permissions') {
       fetchPermissions()
-    } else {
+    } else if (activeTab === 'roles') {
       fetchRoles()
+    } else if (activeTab === 'users') {
+      fetchUsers()
     }
   }, [activeTab, page, tenantId, keyword])
 
@@ -248,18 +271,28 @@ function PermissionsPageContent() {
             >
               角色列表
             </Button>
+            <Button
+              variant={activeTab === 'users' ? 'default' : 'outline'}
+              onClick={() => handleTabChange('users')}
+            >
+              用户列表
+            </Button>
           </div>
 
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">
-              {activeTab === 'permissions' ? '权限列表' : '角色列表'}
+              {activeTab === 'permissions' ? '权限列表' : activeTab === 'roles' ? '角色列表' : '用户列表'}
             </h2>
             {activeTab === 'permissions' ? (
               <Link href="/permissions/new">
                 <Button>新建权限</Button>
               </Link>
-            ) : (
+            ) : activeTab === 'roles' ? (
               <Button onClick={handleOpenRoleModal}>新建角色</Button>
+            ) : (
+              <Link href="/permissions/users">
+                <Button>管理用户</Button>
+              </Link>
             )}
           </div>
 
@@ -402,6 +435,60 @@ function PermissionsPageContent() {
                             <td className="px-4 py-2">{getStatusBadge(role.is_active)}</td>
                             <td className="px-4 py-2">
                               <Link href={`/permissions/roles/${role.id}`}>
+                                <Button variant="ghost" size="sm">查看</Button>
+                              </Link>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Users Table */}
+              {activeTab === 'users' && (
+                <div className="border rounded">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">用户名</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">昵称</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">邮箱</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">手机号</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">状态</th>
+                        <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {usersLoading ? (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                            加载中...
+                          </td>
+                        </tr>
+                      ) : users.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                            暂无数据
+                          </td>
+                        </tr>
+                      ) : (
+                        users.map((user) => (
+                          <tr key={user.account_id} className="border-t">
+                            <td className="px-4 py-2">{user.username || '-'}</td>
+                            <td className="px-4 py-2">{user.nickname || '-'}</td>
+                            <td className="px-4 py-2">{user.email || '-'}</td>
+                            <td className="px-4 py-2">{user.phone || '-'}</td>
+                            <td className="px-4 py-2">
+                              {user.user_status === 'active' ? (
+                                <Badge variant="default">启用</Badge>
+                              ) : (
+                                <Badge variant="secondary">禁用</Badge>
+                              )}
+                            </td>
+                            <td className="px-4 py-2">
+                              <Link href={`/permissions/users/${user.account_id}`}>
                                 <Button variant="ghost" size="sm">查看</Button>
                               </Link>
                             </td>

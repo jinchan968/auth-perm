@@ -241,37 +241,6 @@ export default function RolePermissionsPage() {
         <main className="flex-1 p-8">
           <Breadcrumb items={breadcrumbItems} />
 
-          {/* Tenant Filter */}
-          <div className="mb-4 mt-4 flex gap-2 items-center">
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showAllTenants}
-                onChange={(e) => setShowAllTenants(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300"
-              />
-              显示全部租户
-            </label>
-            <Select
-              value={selectedTenantId || user?.tenant_id || ''}
-              onValueChange={(value) => {
-                setSelectedTenantId(value)
-              }}
-              disabled={tenantLoading}
-            >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="选择租户" />
-              </SelectTrigger>
-              <SelectContent>
-                {(tenantListLoading ? filteredTenants : tenants).map((tenant) => (
-                  <SelectItem key={tenant.id} value={tenant.id}>
-                    {tenant.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           <div className="flex justify-between items-center mb-6 mt-4">
             <h2 className="text-xl font-semibold">角色权限分配 - {role.name}</h2>
             <div className="flex gap-2">

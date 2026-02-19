@@ -103,6 +103,24 @@ func (r *UserRepo) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Delete(&dm.UserDO{}, "id = ?", id).Error
 }
 
+// FindByIDs 根据ID列表批量查找用户
+func (r *UserRepo) FindByIDs(ctx context.Context, ids []string) ([]*dm.UserDO, error) {
+	if len(ids) == 0 {
+		return []*dm.UserDO{}, nil
+	}
+
+	var users []*dm.UserDO
+	err := r.db.WithContext(ctx).
+		Where("id IN ?", ids).
+		Find(&users).Error
+
+	if err != nil {
+		return nil, errors.WrapBizError(err, "批量查找用户失败")
+	}
+
+	return users, nil
+}
+
 // FindByTenantID 根据租户ID查找用户
 func (r *UserRepo) FindByTenantID(ctx context.Context, tenantID string, pagination *model.Pagination) ([]*dm.UserDO, error) {
 	var users []*dm.UserDO
