@@ -164,10 +164,11 @@ func RegisterAuthDomain(container *dig.Container) error {
 	if err := container.Provide(func(
 		userRepo *repo.UserRepo,
 		accountRepo *repo.AccountRepo,
+		sessionRepo *repo.SessionRepo,
 		auditRepo *repo.AuditLogRepo,
 		cache *service.CacheService,
 	) *service.PasswordService {
-		return service.NewPasswordService(userRepo, accountRepo, auditRepo, cache)
+		return service.NewPasswordService(userRepo, accountRepo, sessionRepo, auditRepo, cache)
 	}); err != nil {
 		return err
 	}

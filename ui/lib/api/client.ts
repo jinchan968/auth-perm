@@ -96,7 +96,7 @@ export const addResponseInterceptor = (interceptor: (response: Response) => Resp
 }
 
 // 公开路由列表 - 这些路由收到 401 时不重定向
-const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password']
+const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password', '/unauthorized']
 
 // 处理 401 未授权响应的函数
 function handleUnauthorized(response: Response): Response {
@@ -107,45 +107,20 @@ function handleUnauthorized(response: Response): Response {
 
   // 检查是否是 401 响应
   if (response.status === HTTP_STATUS.UNAUTHORIZED) {
-    // 检查当前是否在公开路由
+    // 检查当前是否在公开路由或已在无权限页面
     const currentPath = window.location.pathname
     const isPublicRoute = PUBLIC_ROUTES.some(route => currentPath.startsWith(route))
+    const isUnauthorizedPage = currentPath === '/unauthorized'
 
-    // 如果是公开路由，不重定向
-    if (isPublicRoute) {
+    // 如果是公开路由或已在无权限页面，不重定向
+    if (isPublicRoute || isUnauthorizedPage) {
       return response
     }
 
-    console.log('ApiClient: Received 401, clearing auth and redirecting to login')
+    console.log('ApiClient: Received 401, redirecting to unauthorized page')
 
-    // 清除 localStorage 中的认证信息
-    try {
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('auth-storage')
-    } catch (e) {
-      console.warn('ApiClient: Failed to clear localStorage:', e)
-    }
-
-    // 清除 Zustand auth store
-    if (authStore) {
-      try {
-        const state = authStore.getState()
-        // 直接设置状态为未认证
-        if (state.setAuth) {
-          state.setAuth(null, false)
-        }
-        // 如果有 logout 方法，调用它（但不等待）
-        if (state.logout) {
-          state.logout()
-        }
-      } catch (e) {
-        console.warn('ApiClient: Failed to clear auth store:', e)
-      }
-    }
-
-    // 重定向到登录页面
-    // 使用 window.location.href 而不是 router.push() 以避免在非 Next.js 环境报错
-    window.location.href = '/login'
+    // 重定向到无权限页面
+    window.location.href = '/unauthorized'
   }
 
   return response

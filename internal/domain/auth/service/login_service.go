@@ -158,7 +158,15 @@ func (s *LoginService) CreateSessionAndToken(
 		expiresIn = commonConstant.TokenExpiryRememberMe
 	}
 
-	sessionParams := param.NewCreateSessionParams(params.User.GetID(), params.Account.ID, params.TenantID, params.IPAddress, params.UserAgent, expiresIn)
+	sessionParams := param.NewCreateSessionParamsWithUsername(
+		params.User.GetID(),
+		params.Account.ID,
+		params.TenantID,
+		params.User.Username, // 传入 username
+		params.IPAddress,
+		params.UserAgent,
+		expiresIn,
+	)
 	session, err := s.CreateSession(params.Context, sessionParams)
 	if err != nil {
 		return nil, errors.WrapBizError(err, "创建会话失败")
@@ -183,7 +191,7 @@ func (s *LoginService) CreateSession(ctx context.Context, params *param.CreateSe
 	}
 
 	// 会话固定攻击防护：在创建新会话前，使该用户在当前租户下的所有旧会话失效
-	if err := s.sessionRepo.InvalidateUserSessions(ctx, params.UserID); err != nil {
+	if err := s.sessionRepo.InvalidateUserTenantSessions(ctx, params.UserID, params.TenantID); err != nil {
 		s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
 			Action:       "invalidate_sessions_error",
 			ResourceType: "session",
@@ -192,9 +200,9 @@ func (s *LoginService) CreateSession(ctx context.Context, params *param.CreateSe
 		})
 	}
 
-	// 如果有缓存，清理该用户的旧会话缓存
+	// 如果有缓存，清理该用户在当前租户下的旧会话缓存
 	if s.cache != nil {
-		oldSessions, err := s.sessionRepo.FindByUserID(ctx, params.UserID, nil)
+		oldSessions, err := s.sessionRepo.FindByUserIDAndTenantID(ctx, params.UserID, params.TenantID)
 		if err == nil && len(oldSessions) > 0 {
 			for _, oldSession := range oldSessions {
 				_ = s.cache.DeleteSession(ctx, oldSession.ID, oldSession.TenantID)
@@ -205,6 +213,7 @@ func (s *LoginService) CreateSession(ctx context.Context, params *param.CreateSe
 
 	// 创建新会话
 	sessionDTO := dto.NewSessionDTO(params.UserID, params.AccountID, params.TenantID, time.Now().Add(params.ExpiresIn))
+	sessionDTO.Username = params.Username // 设置 username 用于超管判断
 
 	// 生成 token 和 tokenHash
 	token, err := dto.GenerateSecureToken(commonConstant.DefaultTokenLength)
@@ -259,34 +268,9 @@ func (s *LoginService) ValidateSession(ctx context.Context, tokenHash string) (*
 		tokenKey := s.cache.keyGenerator.TokenHashCacheKey(tokenHash)
 		dataStr, err := s.cache.Get(ctx, tokenKey)
 		if err == nil {
-			// 缓存命中，解析JSON数据
-			var sessionMap map[string]interface{}
-			if json.Unmarshal([]byte(dataStr), &sessionMap) == nil {
-				if expiresAt, ok := sessionMap["expires_at"].(float64); ok && int64(expiresAt) > time.Now().Unix() {
-					if isActive, ok := sessionMap["is_active"].(bool); ok && isActive {
-						sessionDTO := &dto.SessionDTO{
-							ID:        sessionMap["session_id"].(string),
-							UserID:    sessionMap["user_id"].(string),
-							AccountID: sessionMap["account_id"].(string),
-							TokenHash: tokenHash,
-							IsActive:  true,
-						}
-
-						// 添加TenantID（支持多租户）
-						if tenantID, ok := sessionMap["tenant_id"].(string); ok {
-							sessionDTO.TenantID = tenantID
-						}
-
-						if expiresAtFloat, ok := sessionMap["expires_at"].(float64); ok {
-							sessionDTO.ExpiresAt = time.Unix(int64(expiresAtFloat), 0)
-						}
-						if createdAtFloat, ok := sessionMap["created_at"].(float64); ok {
-							sessionDTO.CreatedAt = time.Unix(int64(createdAtFloat), 0)
-						}
-
-						return sessionDTO, nil
-					}
-				}
+			var cache dto.SessionCache
+			if json.Unmarshal([]byte(dataStr), &cache) == nil && cache.IsValid() {
+				return cache.ToSessionDTO(tokenHash), nil
 			}
 		}
 	}
@@ -311,10 +295,9 @@ func (s *LoginService) ValidateSession(ctx context.Context, tokenHash string) (*
 
 	// 更新最后活动时间
 	sessionDTO.UpdateLastActivity()
-	// TODO: 需要重构sessionDTO转换为sessionDO的逻辑
-	// if err := s.sessionRepo.Save(ctx, transformer.ToSessionDO(sessionDTO)); err != nil {
-	// 	return nil, errors.WrapBizError(err, "更新会话失败")
-	// }
+	if err := s.sessionRepo.Save(ctx, dm.SessionFromDTO(sessionDTO)); err != nil {
+		log.Printf("更新会话最后活动时间失败: %v", err)
+	}
 
 	// 更新缓存（缓存完整session信息）
 	if s.cache != nil {
@@ -362,11 +345,26 @@ func (s *LoginService) RefreshToken(ctx context.Context, refreshToken string) (s
 		return "", errors.WrapBizError(err, "延长会话失败")
 	}
 
-	// 保存会话
-	// TODO: 需要重构sessionDTO转换为sessionDO的逻辑
-	// if err := s.sessionRepo.Save(ctx, transformer.ToSessionDO(sessionDTO)); err != nil {
-	// 	return "", errors.WrapBizError(err, "更新会话失败")
-	// }
+	// 删除旧token的缓存
+	if s.cache != nil {
+		_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())
+		_ = s.cache.Delete(ctx, s.cache.keyGenerator.TokenHashCacheKey(session.TokenHash))
+	}
+
+	// 保存会话到数据库
+	if err := s.sessionRepo.Save(ctx, dm.SessionFromDTO(sessionDTO)); err != nil {
+		return "", errors.WrapBizError(err, "更新会话失败")
+	}
+
+	// 更新缓存（使用新token信息）
+	if s.cache != nil {
+		remainingTTL := time.Until(sessionDTO.ExpiresAt)
+		if remainingTTL > 0 {
+			if err := s.cache.SetSession(ctx, sessionDTO, remainingTTL); err != nil {
+				log.Printf("更新session缓存失败: %v", err)
+			}
+		}
+	}
 
 	// 异步记录审计日志
 	s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{

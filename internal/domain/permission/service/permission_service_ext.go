@@ -107,6 +107,105 @@ func (s *PermissionService) GetAccountResources(ctx context.Context, params *par
 	return result, nil
 }
 
+// GetAccountResourcesDetailed 获取账户可访问的资源（详细信息，含 resource_id、resource_type、resource_name）
+// 用于前端权限控制，返回完整资源列表供菜单/按钮显隐判断
+func (s *PermissionService) GetAccountResourcesDetailed(ctx context.Context, accountID string) ([]*dto.PermissionResourceDTO, error) {
+	account, err := s.authService.FindAccountByID(ctx, accountID)
+	if err != nil {
+		return nil, errors.WrapBizError(err, "获取账户失败")
+	}
+
+	// 检查账户状态
+	if !account.IsActive() {
+		return nil, errors.NewBusinessError("账户未激活")
+	}
+
+	// 如果没有资源仓储，返回错误
+	if s.permissionResourceRepo == nil {
+		return nil, errors.NewBusinessError("权限资源服务未初始化")
+	}
+
+	// 获取账户的所有权限
+	permissionCodes, err := s.getAccountPermissions(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(permissionCodes) == 0 {
+		return []*dto.PermissionResourceDTO{}, nil
+	}
+
+	// 获取权限ID列表
+	permissions, err := s.permissionRepo.FindByCodes(ctx, permissionCodes)
+	if err != nil {
+		return nil, errors.WrapBizError(err, "获取权限失败")
+	}
+
+	if len(permissions) == 0 {
+		return []*dto.PermissionResourceDTO{}, nil
+	}
+
+	permissionIDs := make([]string, 0, len(permissions))
+	for _, p := range permissions {
+		permissionIDs = append(permissionIDs, p.ID)
+	}
+
+	// 获取权限资源映射
+	resourceMap, err := s.permissionResourceRepo.GetPermissionResourceMap(ctx, permissionIDs)
+	if err != nil {
+		return nil, errors.WrapBizError(err, "获取权限资源失败")
+	}
+
+	// 收集所有资源，去重（按 resource_id + resource_type 组合）
+	resourceSet := make(map[string]*dto.PermissionResourceDTO)
+	for _, permID := range permissionIDs {
+		if resources, ok := resourceMap[permID]; ok {
+			for _, r := range resources {
+				key := r.ResourceType + ":" + r.ResourceID
+				if _, exists := resourceSet[key]; !exists {
+					resourceSet[key] = r.ToDTO()
+				}
+			}
+		}
+	}
+
+	// 转换为切片
+	result := make([]*dto.PermissionResourceDTO, 0, len(resourceSet))
+	for _, res := range resourceSet {
+		result = append(result, res)
+	}
+
+	return result, nil
+}
+
+// GetAllResourcesForSuperAdmin 获取所有权限资源（超管专用）
+func (s *PermissionService) GetAllResourcesForSuperAdmin(ctx context.Context) ([]*dto.PermissionResourceDTO, error) {
+	if s.permissionResourceRepo == nil {
+		return nil, errors.NewBusinessError("权限资源服务未初始化")
+	}
+
+	resources, err := s.permissionResourceRepo.FindAllResources(ctx)
+	if err != nil {
+		return nil, errors.WrapBizError(err, "获取全部资源失败")
+	}
+
+	// 去重（按 resource_id + resource_type 组合）
+	resourceSet := make(map[string]*dto.PermissionResourceDTO)
+	for _, r := range resources {
+		key := r.ResourceType + ":" + r.ResourceID
+		if _, exists := resourceSet[key]; !exists {
+			resourceSet[key] = r.ToDTO()
+		}
+	}
+
+	result := make([]*dto.PermissionResourceDTO, 0, len(resourceSet))
+	for _, res := range resourceSet {
+		result = append(result, res)
+	}
+
+	return result, nil
+}
+
 // CheckResourcePermission 检查资源权限（统一方法）
 // 支持所有资源类型：api_path, menu, button, field, other
 func (s *PermissionService) CheckResourcePermission(ctx context.Context, params *param.CheckResourcePermissionParams) (bool, error) {

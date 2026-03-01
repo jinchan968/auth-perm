@@ -18,6 +18,7 @@ type SessionDTO struct {
 	AccountID string `json:"account_id"`
 	TenantID  string `json:"tenant_id"` // 租户ID，支持多租户
 	TokenHash string `json:"token_hash"`
+	Username  string `json:"username"` // 用户名，用于超管判断（从 Redis 缓存读取，避免额外 DB 查询）
 
 	// 设备信息
 	DeviceInfo DeviceInfoDTO `json:"device_info"`
@@ -416,4 +417,64 @@ func GetSessionStats(sessions []*SessionDTO) SessionStats {
 	}
 
 	return stats
+}
+
+// SessionCache Redis 缓存中的会话数据结构
+// 用于替代 map[string]interface{}，提供类型安全的序列化/反序列化
+type SessionCache struct {
+	SessionID string `json:"session_id"`
+	TokenHash string `json:"token_hash"`
+	UserID    string `json:"user_id"`
+	AccountID string `json:"account_id"`
+	TenantID  string `json:"tenant_id"`
+	Username  string `json:"username"`
+	ExpiresAt int64  `json:"expires_at"`
+	IsActive  bool   `json:"is_active"`
+	IPAddress string `json:"ip_address"`
+	UserAgent string `json:"user_agent"`
+	CreatedAt int64  `json:"created_at"`
+	UpdatedAt int64  `json:"updated_at"`
+}
+
+// NewSessionCache 从 SessionDTO 创建缓存对象
+func NewSessionCache(s *SessionDTO) *SessionCache {
+	sc := &SessionCache{
+		SessionID: s.ID,
+		TokenHash: s.TokenHash,
+		UserID:    s.UserID,
+		AccountID: s.AccountID,
+		TenantID:  s.GetTenantID(),
+		Username:  s.Username,
+		ExpiresAt: s.ExpiresAt.Unix(),
+		IsActive:  s.IsActive,
+		CreatedAt: s.CreatedAt.Unix(),
+		UpdatedAt: s.UpdatedAt.Unix(),
+	}
+	if s.IPAddress != nil {
+		sc.IPAddress = *s.IPAddress
+	}
+	if s.UserAgent != nil {
+		sc.UserAgent = *s.UserAgent
+	}
+	return sc
+}
+
+// IsValid 检查缓存的会话是否有效
+func (sc *SessionCache) IsValid() bool {
+	return sc.IsActive && sc.ExpiresAt > time.Now().Unix()
+}
+
+// ToSessionDTO 转换为 SessionDTO
+func (sc *SessionCache) ToSessionDTO(tokenHash string) *SessionDTO {
+	return &SessionDTO{
+		ID:        sc.SessionID,
+		UserID:    sc.UserID,
+		AccountID: sc.AccountID,
+		TenantID:  sc.TenantID,
+		TokenHash: tokenHash,
+		Username:  sc.Username,
+		ExpiresAt: time.Unix(sc.ExpiresAt, 0),
+		CreatedAt: time.Unix(sc.CreatedAt, 0),
+		IsActive:  true,
+	}
 }

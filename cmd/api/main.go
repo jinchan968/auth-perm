@@ -15,9 +15,15 @@ import (
 	"auth-perm/internal/container"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// 加载 .env 文件（如果存在）
+	if err := godotenv.Load(); err != nil {
+		log.Printf(".env file not found or failed to load, using system env: %v", err)
+	}
+
 	// 加载配置
 	cfg, err := config.LoadConfig("config/app.yaml")
 	if err != nil {

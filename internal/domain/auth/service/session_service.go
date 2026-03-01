@@ -185,6 +185,64 @@ func (s *SessionService) logoutWithAllTenants(ctx context.Context, userID string
 	return nil
 }
 
+// InvalidateTenantSessions 使指定租户下的所有会话失效并清理缓存
+// 实现 tenant/service.SessionInvalidator 接口
+func (s *SessionService) InvalidateTenantSessions(ctx context.Context, tenantID string) error {
+	if tenantID == "" {
+		return errors.NewValidationError("租户ID不能为空")
+	}
+
+	// 先查找会话用于清理缓存
+	sessions, err := s.sessionRepo.FindByTenantID(ctx, tenantID)
+	if err != nil {
+		return errors.WrapBizError(err, "查找租户会话失败")
+	}
+
+	if len(sessions) == 0 {
+		return nil
+	}
+
+	// 批量使会话失效
+	if err := s.sessionRepo.InvalidateTenantSessions(ctx, tenantID); err != nil {
+		return errors.WrapBizError(err, "批量失效租户会话失败")
+	}
+
+	// 清理缓存
+	if s.cache != nil {
+		for _, session := range sessions {
+			sessionDTO := session.ToDTO()
+			_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())
+		}
+	}
+
+	return nil
+}
+
+// CleanExpiredSessionsWithCache 清理过期会话（含缓存清理）
+func (s *SessionService) CleanExpiredSessionsWithCache(ctx context.Context) (int64, error) {
+	// 先查找过期会话用于清理缓存
+	expiredSessions, err := s.sessionRepo.FindExpiredSessions(ctx)
+	if err != nil {
+		return 0, errors.WrapBizError(err, "查找过期会话失败")
+	}
+
+	// 清理缓存
+	if s.cache != nil && len(expiredSessions) > 0 {
+		for _, session := range expiredSessions {
+			sessionDTO := session.ToDTO()
+			_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())
+		}
+	}
+
+	// 物理删除过期会话
+	count, err := s.sessionRepo.CleanExpiredSessions(ctx)
+	if err != nil {
+		return 0, errors.WrapBizError(err, "清理过期会话失败")
+	}
+
+	return count, nil
+}
+
 // GetUserSessions 获取用户会话列表
 func (s *SessionService) GetUserSessions(ctx context.Context, params *param.GetSessionsParams) ([]*dto.SessionDTO, *model.Pagination, error) {
 	// 验证参数

@@ -282,11 +282,35 @@ func (s *AuthService) UpdateAccountStatus(ctx context.Context, accountID, tenant
 		return errors.WrapBizError(err, "更新账户状态失败")
 	}
 
-	// 清除缓存
+	// 清除账户缓存
 	if s.cache != nil {
 		if err := s.cache.DeleteAccount(ctx, accountID); err != nil {
 			log.Printf("清除账户缓存失败: %v", err)
 		}
+	}
+
+	// 当账户被禁用/暂停时，使该账户所有会话失效
+	if !status.IsActive() {
+		// 先查找会话用于清理缓存
+		sessions, err := s.sessionRepo.FindByAccountID(ctx, accountID)
+		if err != nil {
+			log.Printf("查找账户会话失败: %v", err)
+		}
+
+		// 批量使会话失效
+		if err := s.sessionRepo.InvalidateAccountSessions(ctx, accountID); err != nil {
+			log.Printf("使账户会话失效失败: %v", err)
+		}
+
+		// 清理会话缓存
+		if s.cache != nil && len(sessions) > 0 {
+			for _, session := range sessions {
+				sessionDTO := session.ToDTO()
+				_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())
+			}
+		}
+
+		log.Printf("账户 %s 已被设置为 %s，所有会话已失效", accountID, status)
 	}
 
 	return nil

@@ -244,9 +244,7 @@ func (p *AssignPermissionToRoleParams) Validate() error {
 	if p.RoleID == "" {
 		return errEmpty("角色ID")
 	}
-	if len(p.PermissionIDs) == 0 {
-		return errEmpty("权限ID列表")
-	}
+	// PermissionIDs 允许为空（表示清空该角色的所有权限）
 	if p.TenantID == "" {
 		return errEmpty("租户ID")
 	}

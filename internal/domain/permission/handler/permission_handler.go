@@ -486,13 +486,19 @@ func (h *PermissionHandler) GetRolePermissions(c *gin.Context) {
 // ==================== Account-Role ====================
 
 func (h *PermissionHandler) AssignRoleToAccount(c *gin.Context) {
+	accountID := c.Param("accountId")
+	if accountID == "" {
+		response.Error(c, http.StatusBadRequest, "请求参数错误", "账户ID不能为空")
+		return
+	}
+
 	var req controllerVo.AssignRoleToAccountRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "请求参数错误", err.Error())
 		return
 	}
 	if err := h.permissionService.AssignRoleToAccount(c.Request.Context(), &param.AssignRoleToAccountParams{
-		AccountID: req.AccountID, RoleIDs: req.RoleIDs, TenantID: req.TenantID,
+		AccountID: accountID, RoleIDs: req.RoleIDs, TenantID: req.TenantID,
 	}); err != nil {
 		response.Error(c, http.StatusInternalServerError, "分配角色失败", err.Error())
 		return
@@ -501,13 +507,21 @@ func (h *PermissionHandler) AssignRoleToAccount(c *gin.Context) {
 }
 
 func (h *PermissionHandler) RemoveRoleFromAccount(c *gin.Context) {
-	var req controllerVo.RemoveRoleFromAccountRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "请求参数错误", err.Error())
+	accountID := c.Param("accountId")
+	roleID := c.Param("roleId")
+	if accountID == "" || roleID == "" {
+		response.Error(c, http.StatusBadRequest, "请求参数错误", "账户ID和角色ID不能为空")
 		return
 	}
+
+	tenantID := c.Query("tenant_id")
+	if tenantID == "" {
+		response.Error(c, http.StatusBadRequest, "请求参数错误", "租户ID不能为空")
+		return
+	}
+
 	if err := h.permissionService.RemoveRoleFromAccount(c.Request.Context(), &param.RemoveRoleFromAccountParams{
-		AccountID: req.AccountID, RoleID: req.RoleID, TenantID: req.TenantID,
+		AccountID: accountID, RoleID: roleID, TenantID: tenantID,
 	}); err != nil {
 		response.Error(c, http.StatusInternalServerError, "移除角色失败", err.Error())
 		return

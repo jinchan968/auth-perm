@@ -9,16 +9,30 @@ import { TenantListItem } from '@/types/tenant'
  * 相同的 state + useEffect 组合。
  *
  * @param fallback - 请求失败时的兜底列表（通常来自 useTenant() 的 tenants）
+ * @param hasShowAllPermission - 是否拥有"显示全部租户"权限（默认 true 保持向后兼容）
  * @returns
  *   - filteredTenants  当前过滤后的租户列表
- *   - showAllTenants   是否显示全部租户
- *   - setShowAllTenants 切换显示模式
+ *   - showAllTenants   是否显示全部租户（无权限时始终为 false）
+ *   - setShowAllTenants 切换显示模式（无权限时调用无效）
  *   - tenantListLoading 租户列表加载状态
  */
-export function useTenantFilter(fallback: TenantListItem[]) {
-  const [showAllTenants, setShowAllTenants] = useState(false)
+export function useTenantFilter(fallback: TenantListItem[], hasShowAllPermission = true) {
+  const [showAllTenants, setShowAllTenantsState] = useState(false)
   const [filteredTenants, setFilteredTenants] = useState<TenantListItem[]>(fallback)
   const [tenantListLoading, setTenantListLoading] = useState(false)
+
+  // 无权限时强制重置为 false
+  useEffect(() => {
+    if (!hasShowAllPermission && showAllTenants) {
+      setShowAllTenantsState(false)
+    }
+  }, [hasShowAllPermission]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 对外暴露的 setter：无权限时调用无效
+  const setShowAllTenants = (value: boolean) => {
+    if (!hasShowAllPermission) return
+    setShowAllTenantsState(value)
+  }
 
   // 当 showAllTenants 切换时重新拉取租户列表
   useEffect(() => {

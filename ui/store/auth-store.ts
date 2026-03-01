@@ -4,6 +4,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { User } from '@/lib/api/auth'
 import { tokenStorage } from '@/lib/services/token-storage'
+import { usePermissionsStore } from '@/hooks/use-permissions'
 
 interface AuthState {
   user: User | null
@@ -59,7 +60,9 @@ export const useAuthStore = create<AuthState>()(
         } finally {
           tokenStorage.clearAll()
           useAuthStore.persist.clearStorage()
-          
+          // 清除权限缓存，避免切换账号时使用旧权限
+          usePermissionsStore.getState().clear()
+
           set({
             user: null,
             isAuthenticated: false,

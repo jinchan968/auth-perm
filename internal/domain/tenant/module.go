@@ -24,9 +24,14 @@ func RegisterTenantDomain(container *dig.Container) error {
 
 	// -----------------------------------------------------
 	// 第二步：注册领域服务层 (Service Layer)
+	// SessionInvalidator 由 auth 域提供，用于租户删除时失效会话
 	// -----------------------------------------------------
-	if err := container.Provide(func(tenantRepo *tenantRepo.TenantRepo, codeGen code_gen.CodeGenerator) *service.TenantService {
-		return service.NewTenantService(tenantRepo, codeGen)
+	if err := container.Provide(func(
+		tenantRepo *tenantRepo.TenantRepo,
+		codeGen code_gen.CodeGenerator,
+		sessionInvalidator service.SessionInvalidator,
+	) *service.TenantService {
+		return service.NewTenantService(tenantRepo, codeGen, sessionInvalidator)
 	}); err != nil {
 		return err
 	}

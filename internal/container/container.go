@@ -174,6 +174,15 @@ func registerApplicationServices(container *dig.Container) error {
 	if err := permission.RegisterPermissionDomain(container); err != nil {
 		return err
 	}
+
+	// 注册跨域接口适配：SessionService → tenant/service.SessionInvalidator
+	// SessionService 实现了 InvalidateTenantSessions 方法，满足 tenant 域的 SessionInvalidator 接口
+	if err := container.Provide(func(sessionSvc *service.SessionService) tenantService.SessionInvalidator {
+		return sessionSvc
+	}); err != nil {
+		return err
+	}
+
 	if err := tenant.RegisterTenantDomain(container); err != nil {
 		return err
 	}
@@ -269,6 +278,17 @@ func registerHandlers(container *dig.Container) error {
 		return err
 	}
 
+	// 注册资源权限处理器
+	if err := container.Provide(func(
+		cfg *config.Config,
+		authService *service.AuthService,
+		permService *permissionService.PermissionService,
+	) *authHandler.ResourceHandler {
+		return authHandler.NewResourceHandler(cfg, authService, permService)
+	}); err != nil {
+		return err
+	}
+
 	log.Println("HTTP handlers registered successfully")
 	return nil
 }
@@ -288,6 +308,7 @@ func registerGinEngine(container *dig.Container) error {
 		organizationH *permHandler.OrganizationHandler,
 		tenantH *tenantHandler.TenantHandler,
 		userH *authHandler.UserHandler,
+		resourceH *authHandler.ResourceHandler,
 		thTodoHandler *todoHandler.TodoHandler,
 		authService *service.AuthService,
 		loginService *service.LoginService,
@@ -307,7 +328,7 @@ func registerGinEngine(container *dig.Container) error {
 			c.JSON(200, gin.H{"status": "healthy"})
 		})
 
-		controllerHttp.RegisterRoutes(engine, authH, emailH, passwordH, totpH, oauthH, permissionH, permissionResourceH, organizationH, tenantH, userH, thTodoHandler, authService, loginService, permSvc)
+		controllerHttp.RegisterRoutes(engine, cfg, authH, emailH, passwordH, totpH, oauthH, permissionH, permissionResourceH, organizationH, tenantH, userH, resourceH, thTodoHandler, authService, loginService, permSvc)
 
 		log.Println("Gin engine registered successfully")
 		return engine

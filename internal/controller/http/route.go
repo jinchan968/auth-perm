@@ -1,6 +1,7 @@
 package http
 
 import (
+	"auth-perm/config"
 	"auth-perm/internal/controller/middleware"
 	authHandler "auth-perm/internal/domain/auth/handler"
 	"auth-perm/internal/domain/auth/service"
@@ -15,6 +16,7 @@ import (
 // RegisterRoutes 注册所有路由
 func RegisterRoutes(
 	router *gin.Engine,
+	cfg *config.Config,
 	authH *authHandler.AuthHandler,
 	emailH *authHandler.EmailHandler,
 	passwordH *authHandler.PasswordHandler,
@@ -25,18 +27,35 @@ func RegisterRoutes(
 	organizationH *permHandler.OrganizationHandler,
 	tenantH *tenantHandler.TenantHandler,
 	userH *authHandler.UserHandler,
+	resourceH *authHandler.ResourceHandler,
 	thTodoHandler *todoHandler.TodoHandler,
 	authService *service.AuthService,
 	loginService *service.LoginService,
 	permService *permissionService.PermissionService,
 ) {
+	// API v1 路由组
 	v1 := router.Group("/api/v1")
+
+	// 全局 API 权限中间件（挂载到 v1 路由组，拦截所有 /api/v1/* 请求）
+	v1.Use(middleware.APIPermissionMiddleware(cfg, authService, permService))
+
 	{
-		RegisterAuthRoutes(v1, authH, emailH, passwordH, totpH, oauthH, authService, loginService, permService)
+		// 注册认证相关路由
+		RegisterAuthRoutes(v1, authH, emailH, passwordH, totpH, oauthH, resourceH, authService, loginService, permService)
+
+		// 注册权限相关路由
 		RegisterPermissionRoutes(v1, permissionH, permissionResourceH, loginService)
+
+		// 注册组织相关路由
 		RegisterOrganizationRoutes(v1, organizationH, loginService)
+
+		// 注册租户相关路由
 		RegisterTenantRoutes(v1, tenantH, loginService)
+
+		// 注册用户管理路由
 		RegisterUserRoutes(v1, userH, loginService)
+
+		// 注册待办路由
 		RegisterTodoRoutes(v1, thTodoHandler, loginService)
 	}
 }
@@ -49,6 +68,7 @@ func RegisterAuthRoutes(
 	passwordH *authHandler.PasswordHandler,
 	totpH *authHandler.TOTPHandler,
 	oauthH *authHandler.OAuthHandler,
+	resourceH *authHandler.ResourceHandler,
 	_ *service.AuthService,
 	loginService *service.LoginService,
 	permService *permissionService.PermissionService,
@@ -73,6 +93,9 @@ func RegisterAuthRoutes(
 		authenticated.GET("/validate", authH.ValidateToken)
 		authenticated.POST("/logout", authH.Logout)
 		authenticated.POST("/refresh", authH.RefreshToken)
+
+		// 资源清单接口（用于前端权限控制，白名单路由，不走权限中间件）
+		authenticated.GET("/my-resources", resourceH.GetMyResources)
 
 		admin := auth.Group("/admin")
 		admin.Use(middleware.AuthMiddleware(loginService))

@@ -23,6 +23,7 @@ import (
 type PasswordService struct {
 	userRepo          *repo.UserRepo
 	accountRepo       *repo.AccountRepo
+	sessionRepo       *repo.SessionRepo
 	auditRepo         *repo.AuditLogRepo
 	cache             *CacheService
 	passwordValidator *validator.PasswordValidator
@@ -32,12 +33,14 @@ type PasswordService struct {
 func NewPasswordService(
 	userRepo *repo.UserRepo,
 	accountRepo *repo.AccountRepo,
+	sessionRepo *repo.SessionRepo,
 	auditRepo *repo.AuditLogRepo,
 	cacheService *CacheService,
 ) *PasswordService {
 	return &PasswordService{
 		userRepo:          userRepo,
 		accountRepo:       accountRepo,
+		sessionRepo:       sessionRepo,
 		auditRepo:         auditRepo,
 		cache:             cacheService,
 		passwordValidator: validator.NewPasswordValidator(),
@@ -102,6 +105,17 @@ func (s *PasswordService) ChangePassword(ctx context.Context, params *param.Chan
 		return errors.WrapBizError(err, "保存用户失败")
 	}
 
+	// 密码修改后使该用户所有会话失效（安全策略：防止旧会话被滥用）
+	s.invalidateUserSessions(ctx, params.UserID, "password_change")
+
+	// 记录审计日志
+	s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
+		Action:       "change_password",
+		ResourceType: "user",
+		ResourceID:   params.UserID,
+		Success:      true,
+	})
+
 	return nil
 }
 
@@ -163,6 +177,9 @@ func (s *PasswordService) ResetPassword(ctx context.Context, identifier, newPass
 	if err := s.userRepo.Save(ctx, dm.UserFromDTO(userDTO)); err != nil {
 		return errors.WrapBizError(err, "保存用户失败")
 	}
+
+	// 密码重置后使该用户所有会话失效
+	s.invalidateUserSessions(ctx, account.UserID, "password_reset")
 
 	// 异步记录审计日志
 	s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
@@ -263,11 +280,45 @@ func (s *PasswordService) ResetPasswordWithToken(ctx context.Context, tokenHash,
 		log.Printf("警告：清除重置令牌失败: %v", err)
 	}
 
-	// 7. 记录审计日志
-	if s.auditRepo != nil {
-		// TODO: 记录密码重置审计日志
-		_ = s.auditRepo
-	}
+	// 7. 密码重置后使该用户所有会话失效
+	s.invalidateUserSessions(ctx, account.UserID, "password_reset_with_token")
+
+	// 8. 记录审计日志
+	s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
+		Action:       "reset_password_with_token",
+		ResourceType: "account",
+		ResourceID:   account.ID,
+		Success:      true,
+	})
 
 	return nil
+}
+
+// invalidateUserSessions 使用户所有会话失效并清理缓存
+func (s *PasswordService) invalidateUserSessions(ctx context.Context, userID, reason string) {
+	if s.sessionRepo == nil {
+		return
+	}
+
+	// 先查找用户所有会话（用于清理缓存）
+	sessions, err := s.sessionRepo.FindByUserID(ctx, userID, nil)
+	if err != nil {
+		log.Printf("警告：查找用户会话失败（%s）: %v", reason, err)
+	}
+
+	// 批量使会话失效
+	if err := s.sessionRepo.InvalidateUserSessions(ctx, userID); err != nil {
+		log.Printf("警告：使用户会话失效失败（%s）: %v", reason, err)
+		return
+	}
+
+	// 清理缓存
+	if s.cache != nil && len(sessions) > 0 {
+		for _, session := range sessions {
+			sessionDTO := session.ToDTO()
+			_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())
+		}
+	}
+
+	log.Printf("用户 %s 的所有会话已失效，原因: %s", userID, reason)
 }

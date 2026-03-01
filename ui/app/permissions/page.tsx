@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
 import { AppModal } from '@/components/ui/app-modal'
+import { PermGuard } from '@/components/ui/perm-guard'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -28,6 +29,7 @@ import { useTenant } from '@/lib/tenant-context'
 import { useAuthStore } from '@/store/auth-store'
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
 import { useTenantFilter } from '@/hooks/use-tenant-filter'
+import { usePermissions } from '@/hooks/use-permissions'
 
 type TabType = 'permissions' | 'roles' | 'users'
 
@@ -37,6 +39,10 @@ function PermissionsPageContent() {
 
   // 使用统一的租户上下文
   const { tenants, selectedTenantId, setSelectedTenantId, tenantId, loading: tenantLoading } = useTenant()
+
+  // 权限判断
+  const { hasButton } = usePermissions()
+  const canShowAllTenants = hasButton('tenants.show_all')
 
   // Tab state - read from URL query param
   const initialTab = searchParams.get('tab') === 'roles' ? 'roles' : searchParams.get('tab') === 'users' ? 'users' : 'permissions'
@@ -62,7 +68,7 @@ function PermissionsPageContent() {
   const [error, setError] = useState('')
 
   // 租户过滤（封装了 showAllTenants / filteredTenants / tenantListLoading 的逻辑）
-  const { filteredTenants, showAllTenants, setShowAllTenants, tenantListLoading } = useTenantFilter(tenants)
+  const { filteredTenants, showAllTenants, setShowAllTenants, tenantListLoading } = useTenantFilter(tenants, canShowAllTenants)
 
   // Role creation modal state
   const [roleModalOpen, setRoleModalOpen] = useState(false)
@@ -308,24 +314,30 @@ function PermissionsPageContent() {
 
           {/* Tabs */}
           <div className="flex gap-2 mb-6 mt-4">
-            <Button
-              variant={activeTab === 'permissions' ? 'default' : 'outline'}
-              onClick={() => handleTabChange('permissions')}
-            >
-              权限列表
-            </Button>
-            <Button
-              variant={activeTab === 'roles' ? 'default' : 'outline'}
-              onClick={() => handleTabChange('roles')}
-            >
-              角色列表
-            </Button>
-            <Button
-              variant={activeTab === 'users' ? 'default' : 'outline'}
-              onClick={() => handleTabChange('users')}
-            >
-              用户列表
-            </Button>
+            <PermGuard button="perm.tab.list">
+              <Button
+                variant={activeTab === 'permissions' ? 'default' : 'outline'}
+                onClick={() => handleTabChange('permissions')}
+              >
+                权限列表
+              </Button>
+            </PermGuard>
+            <PermGuard button="perm.tab.roles">
+              <Button
+                variant={activeTab === 'roles' ? 'default' : 'outline'}
+                onClick={() => handleTabChange('roles')}
+              >
+                角色列表
+              </Button>
+            </PermGuard>
+            <PermGuard button="perm.tab.users">
+              <Button
+                variant={activeTab === 'users' ? 'default' : 'outline'}
+                onClick={() => handleTabChange('users')}
+              >
+                用户列表
+              </Button>
+            </PermGuard>
           </div>
 
           <div className="flex justify-between items-center mb-4">
@@ -350,15 +362,17 @@ function PermissionsPageContent() {
             <CardContent className="pt-6">
               {/* Tenant Filter and Search */}
               <div className="flex gap-2 items-center mb-4">
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={showAllTenants}
-                    onChange={(e) => setShowAllTenants(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300"
-                  />
-                  显示全部租户
-                </label>
+                <PermGuard button="tenants.show_all">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showAllTenants}
+                      onChange={(e) => setShowAllTenants(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300"
+                    />
+                    显示全部租户
+                  </label>
+                </PermGuard>
                 <Select
                   value={selectedTenantId || user?.tenant_id || ''}
                   onValueChange={(value) => {

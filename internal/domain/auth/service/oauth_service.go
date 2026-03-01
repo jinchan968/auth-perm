@@ -320,7 +320,7 @@ func (s *OAuthService) CreateSession(ctx context.Context, params *param.CreateSe
 	}
 
 	// 会话固定攻击防护：在创建新会话前，使该用户在当前租户下的所有旧会话失效
-	if err := s.sessionRepo.InvalidateUserSessions(ctx, params.UserID); err != nil {
+	if err := s.sessionRepo.InvalidateUserTenantSessions(ctx, params.UserID, params.TenantID); err != nil {
 		// 记录错误但不影响登录流程
 		s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
 			Action:       "invalidate_sessions_error",
@@ -330,10 +330,10 @@ func (s *OAuthService) CreateSession(ctx context.Context, params *param.CreateSe
 		})
 	}
 
-	// 如果有缓存，清理该用户的旧会话缓存
+	// 如果有缓存，清理该用户在当前租户下的旧会话缓存
 	if s.cache != nil {
-		// 查找用户的旧会话并删除缓存
-		oldSessions, err := s.sessionRepo.FindByUserID(ctx, params.UserID, nil)
+		// 查找用户在当前租户下的旧会话并删除缓存
+		oldSessions, err := s.sessionRepo.FindByUserIDAndTenantID(ctx, params.UserID, params.TenantID)
 		if err == nil && len(oldSessions) > 0 {
 			for _, oldSession := range oldSessions {
 				// 删除会话相关缓存

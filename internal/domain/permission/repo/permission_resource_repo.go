@@ -170,3 +170,12 @@ func (r *PermissionResourceRepo) CountByPermissionID(ctx context.Context, permis
 		Count(&count).Error
 	return count, err
 }
+
+// FindAllResources 获取所有权限资源（用于超管）
+func (r *PermissionResourceRepo) FindAllResources(ctx context.Context) ([]*dm.PermissionResourceDO, error) {
+	var resources []*dm.PermissionResourceDO
+	err := r.db.WithContext(ctx).
+		Where("deleted_at IS NULL").
+		Find(&resources).Error
+	return resources, err
+}

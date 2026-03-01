@@ -84,8 +84,15 @@ func SessionFromDTO(d *dto.SessionDTO) *SessionDO {
 		return nil
 	}
 
+	id := d.ID
+	if id == "" {
+		id = uuid.New().String()
+		// 回写到 DTO，使调用方能获取到生成的 ID
+		d.ID = id
+	}
+
 	return &SessionDO{
-		ID:           d.ID,
+		ID:           id,
 		UserID:       d.UserID,
 		AccountID:    d.AccountID,
 		TokenHash:    d.TokenHash,

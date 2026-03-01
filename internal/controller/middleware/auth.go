@@ -16,7 +16,6 @@ import (
 func AuthMiddleware(loginService *service.LoginService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := extractToken(c)
-		fmt.Printf("AuthMiddleware: Received token: %s\n", token)
 		if token == "" {
 			fmt.Println("AuthMiddleware: Token is empty")
 			response.Error(c, http.StatusUnauthorized, "未认证", "token不能为空")
@@ -26,7 +25,6 @@ func AuthMiddleware(loginService *service.LoginService) gin.HandlerFunc {
 
 		// 解析token
 		parts := strings.Split(token, ":")
-		fmt.Printf("AuthMiddleware: Token parts: %v (count: %d)\n", parts, len(parts))
 		if len(parts) != 2 {
 			fmt.Printf("AuthMiddleware: Invalid token format, expected 2 parts but got %d\n", len(parts))
 			response.Error(c, http.StatusUnauthorized, "认证失败", "token格式错误")
@@ -35,7 +33,6 @@ func AuthMiddleware(loginService *service.LoginService) gin.HandlerFunc {
 		}
 
 		tokenHash := parts[0]
-		fmt.Printf("AuthMiddleware: Token hash: %s\n", tokenHash)
 		session, err := loginService.ValidateSession(c.Request.Context(), tokenHash)
 		if err != nil {
 			fmt.Printf("AuthMiddleware: Session validation failed: %v\n", err)
@@ -44,12 +41,12 @@ func AuthMiddleware(loginService *service.LoginService) gin.HandlerFunc {
 			return
 		}
 
-		fmt.Printf("AuthMiddleware: Session validated successfully for user: %s\n", session.UserID)
 		// 设置用户信息到上下文
 		c.Set("user_id", session.UserID)
 		c.Set("account_id", session.AccountID)
 		c.Set("session_id", session.ID)
 		c.Set("tenant_id", session.GetTenantID())
+		c.Set("username", session.Username) // 注入 username 用于超管判断
 		c.Set("token", token)
 
 		c.Next()
@@ -116,6 +113,5 @@ func extractToken(c *gin.Context) string {
 		return queryToken
 	}
 
-	fmt.Println("ExtractToken: No token found")
 	return ""
 }

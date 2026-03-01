@@ -3,13 +3,11 @@ package repo
 import (
 	"context"
 	errStd "errors"
-	"time"
-
-	"gorm.io/gorm"
 
 	"auth-perm/internal/common/errors"
 	"auth-perm/internal/common/model"
 	"auth-perm/internal/domain/permission/dm"
+	"gorm.io/gorm"
 )
 
 // PermissionRepo 权限仓储
@@ -125,7 +123,10 @@ func (r *PermissionRepo) DeleteRole(ctx context.Context, id string) error {
 
 // AssignRoleToAccount 为账户分配角色
 func (r *PermissionRepo) AssignRoleToAccount(ctx context.Context, accountID, roleID, tenantID string) error {
-	return r.db.WithContext(ctx).Exec("INSERT INTO account_roles (account_id, role_id, tenant_id, created_at) VALUES (?, ?, ?, ?) ON CONFLICT (account_id, role_id) DO NOTHING", accountID, roleID, tenantID, time.Now()).Error
+	ar := dm.NewAccountRole(accountID, roleID, tenantID)
+	return r.db.WithContext(ctx).
+		Where("account_id = ? AND role_id = ?", accountID, roleID).
+		FirstOrCreate(ar).Error
 }
 
 // RemoveRoleFromAccount 从账户移除角色
@@ -309,6 +310,71 @@ func (r *PermissionRepo) AssignPermissionToRole(ctx context.Context, roleID, per
 // RemovePermissionFromRole 从角色移除权限
 func (r *PermissionRepo) RemovePermissionFromRole(ctx context.Context, roleID, permissionID string) error {
 	return r.db.WithContext(ctx).Where("role_id = ? AND permission_id = ?", roleID, permissionID).Delete(&dm.RolePermissionDO{}).Error
+}
+
+// SyncRolePermissions 同步角色权限（差量更新：对比已有和期望的权限列表，仅增删差异部分）
+func (r *PermissionRepo) SyncRolePermissions(ctx context.Context, roleID string, permissionIDs []string, tenantID string) error {
+	// 1. 查询当前角色已关联的权限ID
+	existingIDs, err := r.GetRolePermissions(ctx, roleID)
+	if err != nil {
+		return errors.WrapBizError(err, "查询角色现有权限失败")
+	}
+
+	// 2. 计算差量
+	existingSet := make(map[string]struct{}, len(existingIDs))
+	for _, id := range existingIDs {
+		existingSet[id] = struct{}{}
+	}
+
+	desiredSet := make(map[string]struct{}, len(permissionIDs))
+	for _, id := range permissionIDs {
+		desiredSet[id] = struct{}{}
+	}
+
+	// 需要新增的：在期望列表中但不在现有列表中
+	var toAdd []string
+	for _, id := range permissionIDs {
+		if _, exists := existingSet[id]; !exists {
+			toAdd = append(toAdd, id)
+		}
+	}
+
+	// 需要删除的：在现有列表中但不在期望列表中
+	var toRemove []string
+	for _, id := range existingIDs {
+		if _, exists := desiredSet[id]; !exists {
+			toRemove = append(toRemove, id)
+		}
+	}
+
+	// 3. 无变化则直接返回
+	if len(toAdd) == 0 && len(toRemove) == 0 {
+		return nil
+	}
+
+	// 4. 在事务中执行增删
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 删除需要移除的关联
+		if len(toRemove) > 0 {
+			if err := tx.Where("role_id = ? AND permission_id IN ?", roleID, toRemove).
+				Delete(&dm.RolePermissionDO{}).Error; err != nil {
+				return errors.WrapBizError(err, "删除角色权限关联失败")
+			}
+		}
+
+		// 批量插入需要新增的关联
+		if len(toAdd) > 0 {
+			rolePermissions := make([]*dm.RolePermissionDO, 0, len(toAdd))
+			for _, permissionID := range toAdd {
+				rolePermissions = append(rolePermissions, dm.NewRolePermission(roleID, permissionID, tenantID))
+			}
+			if err := tx.Create(&rolePermissions).Error; err != nil {
+				return errors.WrapBizError(err, "新增角色权限关联失败")
+			}
+		}
+
+		return nil
+	})
 }
 
 // GetRolePermissions 获取角色的权限ID列表

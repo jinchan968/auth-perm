@@ -26,9 +26,10 @@ type Config struct {
 
 // ServerConfig 服务器配置
 type ServerConfig struct {
-	Host string `mapstructure:"host" yaml:"host" env:"SERVER_HOST" default:"localhost"`
-	Port int    `mapstructure:"port" yaml:"port" env:"SERVER_PORT" default:"8080"`
-	Mode string `mapstructure:"mode" yaml:"mode" env:"GIN_MODE" default:"debug"`
+	Host       string `mapstructure:"host" yaml:"host" env:"SERVER_HOST" default:"localhost"`
+	Port       int    `mapstructure:"port" yaml:"port" env:"SERVER_PORT" default:"8080"`
+	Mode       string `mapstructure:"mode" yaml:"mode" env:"GIN_MODE" default:"debug"`
+	SuperAdmin string `mapstructure:"super_admin" yaml:"super_admin" env:"SUPER_ADMIN" default:""`
 }
 
 // DatabaseConfig 数据库配置
@@ -154,6 +155,9 @@ func LoadConfig(configPath string) (*Config, error) {
 		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
 	}
 	if err := viper.BindEnv("server.port", "SERVER_PORT"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	if err := viper.BindEnv("server.super_admin", "SUPER_ADMIN"); err != nil {
 		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
 	}
 

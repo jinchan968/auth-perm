@@ -1132,7 +1132,7 @@ func (s *PermissionService) ListRoles(ctx context.Context, params *param.ListRol
 
 // ==================== Role-Permission 关联管理 ====================
 
-// AssignPermissionToRole 分配权限给角色
+// AssignPermissionToRole 同步角色权限（全量替换）
 func (s *PermissionService) AssignPermissionToRole(ctx context.Context, params *param.AssignPermissionToRoleParams) error {
 	if err := params.Validate(); err != nil {
 		return errors.NewValidationError(err.Error())
@@ -1153,11 +1153,9 @@ func (s *PermissionService) AssignPermissionToRole(ctx context.Context, params *
 		accountIDs = []string{}
 	}
 
-	// 分配权限
-	for _, permissionID := range params.PermissionIDs {
-		if err := s.permissionRepo.AssignPermissionToRole(ctx, params.RoleID, permissionID, params.TenantID); err != nil {
-			return errors.WrapBizError(err, "分配权限失败")
-		}
+	// 全量同步权限（先删后增，在事务中执行）
+	if err := s.permissionRepo.SyncRolePermissions(ctx, params.RoleID, params.PermissionIDs, params.TenantID); err != nil {
+		return errors.WrapBizError(err, "同步角色权限失败")
 	}
 
 	// 失效相关账户的权限缓存

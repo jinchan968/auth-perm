@@ -2,6 +2,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
+import { PermGuard } from '@/components/ui/perm-guard'
 import { Home, LayoutDashboard, Building2, Shield, CheckSquare } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -47,44 +48,50 @@ export function DashboardSidebar({ pathname }: DashboardSidebarProps) {
           仪表盘
         </Button>
 
-        <Button
-          variant={isTenantsActive ? "secondary" : "ghost"}
-          className={`w-full justify-start mt-2 transition-all duration-200 ease-in-out ${
-            isTenantsActive
-              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-              : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80 hover:shadow-sm hover:translate-x-0.5'
-          }`}
-          onClick={() => router.push('/tenants')}
-        >
-          <Building2 className="h-4 w-4 mr-2" />
-          租户管理
-        </Button>
+        <PermGuard menu="tenants">
+          <Button
+            variant={isTenantsActive ? "secondary" : "ghost"}
+            className={`w-full justify-start mt-2 transition-all duration-200 ease-in-out ${
+              isTenantsActive
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80 hover:shadow-sm hover:translate-x-0.5'
+            }`}
+            onClick={() => router.push('/tenants')}
+          >
+            <Building2 className="h-4 w-4 mr-2" />
+            租户管理
+          </Button>
+        </PermGuard>
 
-        <Button
-          variant={isPermissionsActive ? "secondary" : "ghost"}
-          className={`w-full justify-start mt-2 transition-all duration-200 ease-in-out ${
-            isPermissionsActive
-              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-              : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80 hover:shadow-sm hover:translate-x-0.5'
-          }`}
-          onClick={() => router.push('/permissions')}
-        >
-          <Shield className="h-4 w-4 mr-2" />
-          权限管理
-        </Button>
+        <PermGuard menu="permissions">
+          <Button
+            variant={isPermissionsActive ? "secondary" : "ghost"}
+            className={`w-full justify-start mt-2 transition-all duration-200 ease-in-out ${
+              isPermissionsActive
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80 hover:shadow-sm hover:translate-x-0.5'
+            }`}
+            onClick={() => router.push('/permissions')}
+          >
+            <Shield className="h-4 w-4 mr-2" />
+            权限管理
+          </Button>
+        </PermGuard>
 
-        <Button
-          variant={isTodosActive ? "secondary" : "ghost"}
-          className={`w-full justify-start mt-2 transition-all duration-200 ease-in-out ${
-            isTodosActive
-              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-              : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80 hover:shadow-sm hover:translate-x-0.5'
-          }`}
-          onClick={() => router.push('/todos')}
-        >
-          <CheckSquare className="h-4 w-4 mr-2" />
-          待办事项
-        </Button>
+        <PermGuard menu="todos">
+          <Button
+            variant={isTodosActive ? "secondary" : "ghost"}
+            className={`w-full justify-start mt-2 transition-all duration-200 ease-in-out ${
+              isTodosActive
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80 hover:shadow-sm hover:translate-x-0.5'
+            }`}
+            onClick={() => router.push('/todos')}
+          >
+            <CheckSquare className="h-4 w-4 mr-2" />
+            待办事项
+          </Button>
+        </PermGuard>
       </div>
     </aside>
   )

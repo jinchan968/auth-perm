@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log"
 
 	"auth-perm/internal/common/errors"
 	"auth-perm/internal/common/model"
@@ -13,15 +14,22 @@ import (
 	"auth-perm/internal/infra/code_gen"
 )
 
+// SessionInvalidator 会话失效接口（用于跨域解耦）
+type SessionInvalidator interface {
+	// InvalidateTenantSessions 使指定租户下的所有会话失效并清理缓存
+	InvalidateTenantSessions(ctx context.Context, tenantID string) error
+}
+
 // TenantService 租户服务
 type TenantService struct {
-	tenantRepo *repo.TenantRepo
-	codeGen    code_gen.CodeGenerator
+	tenantRepo         *repo.TenantRepo
+	codeGen            code_gen.CodeGenerator
+	sessionInvalidator SessionInvalidator
 }
 
 // NewTenantService 创建租户服务
-func NewTenantService(tenantRepo *repo.TenantRepo, codeGen code_gen.CodeGenerator) *TenantService {
-	return &TenantService{tenantRepo: tenantRepo, codeGen: codeGen}
+func NewTenantService(tenantRepo *repo.TenantRepo, codeGen code_gen.CodeGenerator, sessionInvalidator SessionInvalidator) *TenantService {
+	return &TenantService{tenantRepo: tenantRepo, codeGen: codeGen, sessionInvalidator: sessionInvalidator}
 }
 
 // Create 创建租户
@@ -132,7 +140,18 @@ func (s *TenantService) Delete(ctx context.Context, params *param.DeleteTenantPa
 	}
 
 	// 删除租户（更新状态为 deleted）
-	return s.tenantRepo.UpdateStatus(ctx, params.ID, dto.TenantStatusDeleted)
+	if err := s.tenantRepo.UpdateStatus(ctx, params.ID, dto.TenantStatusDeleted); err != nil {
+		return errors.WrapBizError(err, "删除租户失败")
+	}
+
+	// 使该租户下所有会话失效
+	if s.sessionInvalidator != nil {
+		if err := s.sessionInvalidator.InvalidateTenantSessions(ctx, params.ID); err != nil {
+			log.Printf("警告：使租户 %s 的会话失效失败: %v", params.ID, err)
+		}
+	}
+
+	return nil
 }
 
 // Enable 启用租户

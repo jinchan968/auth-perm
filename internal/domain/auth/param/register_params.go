@@ -313,6 +313,7 @@ type CreateSessionParams struct {
 	UserID    string
 	AccountID string
 	TenantID  string
+	Username  string // 用户名，用于超管判断（缓存到 Redis）
 	ExpiresIn time.Duration
 	IPAddress string
 	UserAgent string
@@ -324,6 +325,19 @@ func NewCreateSessionParams(userID, accountID, tenantID, ipAddress, userAgent st
 		UserID:    userID,
 		AccountID: accountID,
 		TenantID:  tenantID,
+		ExpiresIn: expiresIn,
+		IPAddress: ipAddress,
+		UserAgent: userAgent,
+	}
+}
+
+// NewCreateSessionParamsWithUsername 创建会话参数（含 username）
+func NewCreateSessionParamsWithUsername(userID, accountID, tenantID, username, ipAddress, userAgent string, expiresIn time.Duration) *CreateSessionParams {
+	return &CreateSessionParams{
+		UserID:    userID,
+		AccountID: accountID,
+		TenantID:  tenantID,
+		Username:  username,
 		ExpiresIn: expiresIn,
 		IPAddress: ipAddress,
 		UserAgent: userAgent,

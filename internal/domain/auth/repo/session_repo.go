@@ -177,6 +177,32 @@ func (r *SessionRepo) InvalidateUserSessions(ctx context.Context, userID string)
 		}).Error
 }
 
+// InvalidateUserTenantSessions 使用户在指定租户下的所有会话失效
+func (r *SessionRepo) InvalidateUserTenantSessions(ctx context.Context, userID, tenantID string) error {
+	return r.db.WithContext(ctx).
+		Model(&dm.SessionDO{}).
+		Where("user_id = ? AND tenant_id = ?", userID, tenantID).
+		Updates(map[string]interface{}{
+			"is_active":  false,
+			"updated_at": time.Now(),
+		}).Error
+}
+
+// FindByUserIDAndTenantID 根据用户ID和租户ID查找会话
+func (r *SessionRepo) FindByUserIDAndTenantID(ctx context.Context, userID, tenantID string) ([]*dm.SessionDO, error) {
+	var sessions []*dm.SessionDO
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND tenant_id = ?", userID, tenantID).
+		Order("created_at DESC").
+		Find(&sessions).Error
+
+	if err != nil {
+		return nil, errors.WrapBizError(err, "通过用户和租户查找会话列表失败")
+	}
+
+	return sessions, nil
+}
+
 // InvalidateAccountSessions 使账户的所有会话失效
 func (r *SessionRepo) InvalidateAccountSessions(ctx context.Context, accountID string) error {
 	return r.db.WithContext(ctx).

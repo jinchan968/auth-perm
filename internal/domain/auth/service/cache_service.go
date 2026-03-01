@@ -125,23 +125,11 @@ func (s *CacheService) GetSession(ctx context.Context, sessionID, tenantID strin
 
 // SetSession 缓存会话（优化版：存储完整session信息）
 func (s *CacheService) SetSession(ctx context.Context, session *dto.SessionDTO, ttl time.Duration) error {
-	// 构建完整session信息
-	sessionData := map[string]interface{}{
-		"session_id": session.ID,
-		"token_hash": session.TokenHash,
-		"user_id":    session.UserID,
-		"account_id": session.AccountID,
-		"tenant_id":  session.GetTenantID(), // 添加TenantID支持多租户
-		"expires_at": session.ExpiresAt.Unix(),
-		"is_active":  session.IsActive,
-		"ip_address": session.IPAddress,
-		"user_agent": session.UserAgent,
-		"created_at": session.CreatedAt.Unix(),
-		"updated_at": session.UpdatedAt.Unix(),
-	}
+	// 构建缓存对象
+	cache := dto.NewSessionCache(session)
 
 	// JSON序列化
-	data, err := json.Marshal(sessionData)
+	data, err := json.Marshal(cache)
 	if err != nil {
 		return errors.WrapBizError(err, "序列化session失败")
 	}
@@ -173,14 +161,17 @@ func (s *CacheService) GetSessionIDByTokenHash(ctx context.Context, tokenHash st
 
 // DeleteSession 删除会话缓存
 func (s *CacheService) DeleteSession(ctx context.Context, sessionID, tenantID string) error {
-	// 先获取tokenHash
+	// 先获取session缓存数据，从中提取tokenHash
 	key := s.keyGenerator.SessionCacheKey(sessionID, tenantID)
-	tokenHash, err := s.cache.Get(ctx, key)
+	data, err := s.cache.Get(ctx, key)
 	if err == nil {
-		// 删除tokenHash映射
-		if tokenHashStr, ok := tokenHash.(string); ok {
-			tokenKey := s.keyGenerator.TokenHashCacheKey(tokenHashStr)
-			_ = s.cache.Delete(ctx, tokenKey)
+		if dataStr, ok := data.(string); ok {
+			// 缓存中存储的是完整的 SessionCache JSON，需要反序列化提取 tokenHash
+			var sessionCache dto.SessionCache
+			if json.Unmarshal([]byte(dataStr), &sessionCache) == nil && sessionCache.TokenHash != "" {
+				tokenKey := s.keyGenerator.TokenHashCacheKey(sessionCache.TokenHash)
+				_ = s.cache.Delete(ctx, tokenKey)
+			}
 		}
 	}
 	// 删除session缓存

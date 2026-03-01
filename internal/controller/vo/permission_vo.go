@@ -124,15 +124,16 @@ type RemovePermissionFromRoleRequest struct {
 // ==================== Account-Role 关联请求/响应 ====================
 
 // AssignRoleToAccountRequest 分配角色给账户请求
+// AccountID 从 URL 路径参数 :accountId 获取，不需要在 body 中传递
 type AssignRoleToAccountRequest struct {
-	AccountID string   `json:"account_id" binding:"required"`
-	RoleIDs   []string `json:"role_ids" binding:"required"`
-	TenantID  string   `json:"tenant_id" binding:"required"`
+	RoleIDs  []string `json:"role_ids" binding:"required"`
+	TenantID string   `json:"tenant_id" binding:"required"`
 }
 
 // RemoveRoleFromAccountRequest 移除账户角色请求
+// AccountID 和 RoleID 从 URL 路径参数获取，TenantID 从 query 获取
 type RemoveRoleFromAccountRequest struct {
-	AccountID string `json:"account_id" binding:"required"`
-	RoleID    string `json:"role_id" binding:"required"`
-	TenantID  string `json:"tenant_id" binding:"required"`
+	AccountID string `json:"account_id"`
+	RoleID    string `json:"role_id"`
+	TenantID  string `json:"tenant_id"`
 }
