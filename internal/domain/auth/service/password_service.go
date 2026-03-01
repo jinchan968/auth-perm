@@ -134,7 +134,7 @@ func (s *PasswordService) ResetPassword(ctx context.Context, identifier, newPass
 
 		// 找到第一个邮箱账户或手机号账户
 		for _, acc := range accounts {
-			if acc.User != nil && (acc.User.Email == identifier || acc.User.Phone == identifier) {
+			if acc.User != nil && (dm.StrVal(acc.User.Email) == identifier || dm.StrVal(acc.User.Phone) == identifier) {
 				account = acc
 				break
 			}

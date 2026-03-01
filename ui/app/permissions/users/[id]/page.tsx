@@ -32,6 +32,12 @@ export default function UserDetailPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
+    // Guard: redirect if id is invalid
+    if (accountId === 'new' || !accountId) {
+      router.replace('/permissions?tab=users')
+      return
+    }
+
     const fetchData = async () => {
       if (!selectedTenantId || !accountId) return
       setLoading(true)

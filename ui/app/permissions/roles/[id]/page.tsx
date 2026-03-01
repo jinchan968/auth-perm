@@ -19,15 +19,6 @@ import {
   DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { listTenants } from '@/lib/api/tenant'
-import { TenantListItem } from '@/types/tenant'
 import { useTenant } from '@/lib/tenant-context'
 import { useAuthStore } from '@/store/auth-store'
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
@@ -38,13 +29,8 @@ export default function RolePermissionsPage() {
   const roleId = params.id as string
   const { user } = useAuthStore()
 
-  // 使用统一的租户上下文
-  const { tenants, selectedTenantId, setSelectedTenantId, loading: tenantLoading } = useTenant()
-
-  // 租户过滤状态
-  const [showAllTenants, setShowAllTenants] = useState(false)
-  const [filteredTenants, setFilteredTenants] = useState<TenantListItem[]>(tenants)
-  const [tenantListLoading, setTenantListLoading] = useState(false)
+  // 使用统一的租户上下文（仅需 selectedTenantId）
+  const { selectedTenantId } = useTenant()
 
   const [role, setRole] = useState<Role | null>(null)
   const [allPermissions, setAllPermissions] = useState<PermissionListItem[]>([])
@@ -54,32 +40,6 @@ export default function RolePermissionsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [error, setError] = useState('')
 
-  // 租户过滤 - 当 showAllTenants 变化时重新获取租户列表
-  useEffect(() => {
-    const fetchFilteredTenants = async () => {
-      setTenantListLoading(true)
-      try {
-        // 不传 status 时后端默认返回 active，传 status=all 时返回全部
-        const status = showAllTenants ? undefined : 'active'
-        const data = await listTenants({ page: 1, size: 100, status })
-        setFilteredTenants(data.data || [])
-      } catch (err) {
-        console.error('Failed to fetch tenants:', err)
-        // 失败时使用缓存的租户列表
-        setFilteredTenants(tenants)
-      } finally {
-        setTenantListLoading(false)
-      }
-    }
-    fetchFilteredTenants()
-  }, [showAllTenants, tenants])
-
-  // 同步 filteredTenants 当 tenants 变化且没有在加载时
-  useEffect(() => {
-    if (!showAllTenants && !tenantListLoading) {
-      setFilteredTenants(tenants)
-    }
-  }, [tenants, showAllTenants, tenantListLoading])
 
   useEffect(() => {
     const fetchData = async () => {

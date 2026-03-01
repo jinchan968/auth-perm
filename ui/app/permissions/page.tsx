@@ -3,9 +3,10 @@
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import { Plus } from 'lucide-react'
 import { listPermissions } from '@/lib/api/permission'
 import { listRoles, createRole } from '@/lib/api/role'
-import { listUsers } from '@/lib/api/user'
+import { listUsers, createUser } from '@/lib/api/user'
 import { PermissionListItem, RoleListItem } from '@/types/permission'
 import { AccountListItem } from '@/types/user'
 import { Button } from '@/components/ui/button'
@@ -22,11 +23,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { listTenants } from '@/lib/api/tenant'
-import { TenantListItem } from '@/types/tenant'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { useTenant } from '@/lib/tenant-context'
 import { useAuthStore } from '@/store/auth-store'
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
+import { useTenantFilter } from '@/hooks/use-tenant-filter'
 
 type TabType = 'permissions' | 'roles' | 'users'
 
@@ -60,13 +67,8 @@ function PermissionsPageContent() {
   const [size] = useState(10)
   const [error, setError] = useState('')
 
-  // Tenant keyword for filtering (local state)
-  const [tenantKeyword, setTenantKeyword] = useState('')
-
-  // 租户过滤状态
-  const [showAllTenants, setShowAllTenants] = useState(false)
-  const [filteredTenants, setFilteredTenants] = useState<TenantListItem[]>([])
-  const [tenantListLoading, setTenantListLoading] = useState(false)
+  // 租户过滤（封装了 showAllTenants / filteredTenants / tenantListLoading 的逻辑）
+  const { filteredTenants, showAllTenants, setShowAllTenants, tenantListLoading } = useTenantFilter(tenants)
 
   // Role creation modal state
   const [roleModalOpen, setRoleModalOpen] = useState(false)
@@ -75,6 +77,20 @@ function PermissionsPageContent() {
     name: '',
     description: '',
   })
+
+  // User creation modal state
+  const [userModalOpen, setUserModalOpen] = useState(false)
+  const [userCreating, setUserCreating] = useState(false)
+  const [userFormData, setUserFormData] = useState({
+    identifier_type: 'email' as 'email' | 'phone',
+    email: '',
+    phone: '',
+    username: '',
+    password: '',
+    confirm_password: '',
+    nickname: '',
+  })
+  const [userFormError, setUserFormError] = useState('')
 
   const fetchPermissions = async () => {
     if (!tenantId) return
@@ -121,40 +137,13 @@ function PermissionsPageContent() {
     }
   }
 
-  // 租户过滤 - 当 showAllTenants 变化时重新获取租户列表
-  useEffect(() => {
-    const fetchFilteredTenants = async () => {
-      setTenantListLoading(true)
-      try {
-        // 不传 status 时后端默认返回 active，传 status=all 时返回全部
-        const status = showAllTenants ? undefined : 'active'
-        const data = await listTenants({ page: 1, size: 100, status })
-        setFilteredTenants(data.data || [])
-      } catch (err) {
-        console.error('Failed to fetch tenants:', err)
-        // 失败时使用缓存的租户列表
-        setFilteredTenants(tenants)
-      } finally {
-        setTenantListLoading(false)
-      }
-    }
-    fetchFilteredTenants()
-  }, [showAllTenants])
-
-  // 初始化 filteredTenants 当 tenants 从上下文加载完成时
-  useEffect(() => {
-    if (tenants.length > 0 && filteredTenants.length === 0 && !showAllTenants) {
-      setFilteredTenants(tenants)
-    }
-  }, [tenants])
-
   // 确保在 filteredTenants 更新后，如果没有选中租户则自动选中第一个 active 租户
   useEffect(() => {
     if (filteredTenants.length > 0 && !selectedTenantId) {
       const activeTenant = filteredTenants.find((t) => t.status === 'active')
       if (activeTenant) {
         setSelectedTenantId(activeTenant.id)
-      } else if (filteredTenants.length > 0) {
+      } else {
         setSelectedTenantId(filteredTenants[0].id)
       }
     }
@@ -223,6 +212,58 @@ function PermissionsPageContent() {
     }
   }
 
+  // User creation handlers
+  const handleOpenUserModal = () => {
+    setUserFormData({
+      identifier_type: 'email',
+      email: '',
+      phone: '',
+      username: '',
+      password: '',
+      confirm_password: '',
+      nickname: '',
+    })
+    setUserFormError('')
+    setUserModalOpen(true)
+  }
+
+  const handleCloseUserModal = () => {
+    setUserModalOpen(false)
+    setUserFormError('')
+  }
+
+  const handleCreateUser = async () => {
+    if (!userFormData.username || !userFormData.password || !userFormData.confirm_password) {
+      setUserFormError('请填写必填项')
+      return
+    }
+    if (userFormData.password !== userFormData.confirm_password) {
+      setUserFormError('两次密码输入不一致')
+      return
+    }
+    if (userFormData.identifier_type === 'email' && !userFormData.email) {
+      setUserFormError('请输入邮箱')
+      return
+    }
+    if (userFormData.identifier_type === 'phone' && !userFormData.phone) {
+      setUserFormError('请输入手机号')
+      return
+    }
+    setUserCreating(true)
+    setUserFormError('')
+    try {
+      await createUser({
+        ...userFormData,
+        tenant_id: selectedTenantId,
+      })
+      handleCloseUserModal()
+      fetchUsers()
+    } catch (err) {
+      setUserFormError(err instanceof Error ? err.message : '创建用户失败')
+    } finally {
+      setUserCreating(false)
+    }
+  }
 
   const getStatusBadge = (isActive: boolean) => {
     return isActive ? (
@@ -290,9 +331,10 @@ function PermissionsPageContent() {
             ) : activeTab === 'roles' ? (
               <Button onClick={handleOpenRoleModal}>新建角色</Button>
             ) : (
-              <Link href="/permissions/users">
-                <Button>管理用户</Button>
-              </Link>
+              <Button onClick={handleOpenUserModal}>
+                <Plus className="h-4 w-4 mr-1" />
+                新增用户
+              </Button>
             )}
           </div>
 
@@ -563,6 +605,108 @@ function PermissionsPageContent() {
               </div>
             </div>
           )}
+
+          {/* User Creation Dialog */}
+          <Dialog open={userModalOpen} onOpenChange={setUserModalOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>新增用户</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>标识符类型 *</Label>
+                  <Select
+                    value={userFormData.identifier_type}
+                    onValueChange={(value: 'email' | 'phone') =>
+                      setUserFormData({ ...userFormData, identifier_type: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="email">邮箱</SelectItem>
+                      <SelectItem value="phone">手机号</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {userFormData.identifier_type === 'email' ? (
+                  <div>
+                    <Label>邮箱 *</Label>
+                    <Input
+                      type="email"
+                      value={userFormData.email}
+                      onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
+                      placeholder="user@example.com"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <Label>手机号 *</Label>
+                    <Input
+                      type="tel"
+                      value={userFormData.phone}
+                      onChange={(e) => setUserFormData({ ...userFormData, phone: e.target.value })}
+                      placeholder="13800138000"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <Label>用户名 *</Label>
+                  <Input
+                    value={userFormData.username}
+                    onChange={(e) => setUserFormData({ ...userFormData, username: e.target.value })}
+                    placeholder="username"
+                  />
+                </div>
+
+                <div>
+                  <Label>昵称</Label>
+                  <Input
+                    value={userFormData.nickname}
+                    onChange={(e) => setUserFormData({ ...userFormData, nickname: e.target.value })}
+                    placeholder="昵称（可选）"
+                  />
+                </div>
+
+                <div>
+                  <Label>密码 *</Label>
+                  <Input
+                    type="password"
+                    value={userFormData.password}
+                    onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
+                    placeholder="至少6位"
+                  />
+                </div>
+
+                <div>
+                  <Label>确认密码 *</Label>
+                  <Input
+                    type="password"
+                    value={userFormData.confirm_password}
+                    onChange={(e) =>
+                      setUserFormData({ ...userFormData, confirm_password: e.target.value })
+                    }
+                    placeholder="再次输入密码"
+                  />
+                </div>
+
+                {userFormError && (
+                  <div className="bg-red-50 text-red-600 p-3 rounded text-sm">{userFormError}</div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={handleCloseUserModal}>
+                  取消
+                </Button>
+                <Button onClick={handleCreateUser} disabled={userCreating}>
+                  {userCreating ? '创建中...' : '创建'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </main>
       </div>
     </div>

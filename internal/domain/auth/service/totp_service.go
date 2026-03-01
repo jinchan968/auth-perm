@@ -29,7 +29,8 @@ type TOTPService struct {
 }
 
 // NewTOTPService 创建TOTP服务
-func NewTOTPService(totpRepo repo.TOTPSecretRepo, accountRepo *repo.AccountRepo, userRepo *repo.UserRepo, cache *CacheService, security *SecurityService) *TOTPService {
+func NewTOTPService(totpRepo repo.TOTPSecretRepo, accountRepo *repo.AccountRepo, userRepo *repo.UserRepo,
+	cache *CacheService, security *SecurityService) *TOTPService {
 	return &TOTPService{
 		totpRepo:    totpRepo,
 		accountRepo: accountRepo,
@@ -67,7 +68,7 @@ func (s *TOTPService) SetupTOTP(accountID string) (*vo.TOTPSetupInitResponse, er
 	issuer := "AuthPerm"
 	accountName := ""
 	if account.User != nil {
-		accountName = account.User.Email
+		accountName = dm.StrVal(account.User.Email)
 	}
 	uri := s.generateURI(secret, issuer, accountName)
 

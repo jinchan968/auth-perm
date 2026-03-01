@@ -10,14 +10,36 @@ import (
 	"gorm.io/gorm"
 )
 
+// strPtr 将非空字符串转为指针，空字符串转为 nil（写入数据库时为 NULL）
+func strPtr(s string) *string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+// strVal 安全地从指针中取字符串值，nil 返回空字符串（内部使用）
+func strVal(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+// StrVal 安全地从指针中取字符串值，nil 返回空字符串（导出供其他包使用）
+func StrVal(s *string) string {
+	return strVal(s)
+}
+
 // UserDO 用户领域对象
 type UserDO struct {
 	ID              string                  `gorm:"primaryKey;type:uuid"`
-	Username        string                  `gorm:"unique:not null"`
-	Nickname        string                  `gorm:"column:nickname"`
-	Avatar          string                  `gorm:"column:avatar"`
-	Phone           string                  `gorm:"column:phone"`
-	Email           string                  `gorm:"column:email"`
+	Username        *string                 `gorm:"column:username;uniqueIndex:idx_users_username"`
+	Nickname        *string                 `gorm:"column:nickname"`
+	Avatar          *string                 `gorm:"column:avatar"`
+	Phone           *string                 `gorm:"column:phone;uniqueIndex:idx_users_phone"`
+	Email           *string                 `gorm:"column:email;uniqueIndex:idx_users_email"`
 	PasswordHash    string                  `gorm:"column:password_hash"`
 	IdentifierType  constant.IdentifierType `gorm:"column:identifier_type;not null;index"`
 	IdentifierValue string                  `gorm:"column:identifier_value;not null;index"`
@@ -37,7 +59,7 @@ func NewUser(username string, identifierType constant.IdentifierType, identifier
 	now := time.Now()
 	return &UserDO{
 		ID:              uuid.New().String(),
-		Username:        strings.ToLower(strings.TrimSpace(username)),
+		Username:        strPtr(strings.ToLower(strings.TrimSpace(username))),
 		IdentifierType:  identifierType,
 		IdentifierValue: strings.TrimSpace(identifierValue),
 		Status:          constant.UserStatusActive,
@@ -75,11 +97,11 @@ func (u *UserDO) ToDTO() *dto.UserDTO {
 	}
 	return &dto.UserDTO{
 		ID:              u.ID,
-		Username:        u.Username,
-		Nickname:        u.Nickname,
-		Avatar:          u.Avatar,
-		Phone:           u.Phone,
-		Email:           u.Email,
+		Username:        strVal(u.Username),
+		Nickname:        strVal(u.Nickname),
+		Avatar:          strVal(u.Avatar),
+		Phone:           strVal(u.Phone),
+		Email:           strVal(u.Email),
 		PasswordHash:    u.PasswordHash,
 		IdentifierType:  u.IdentifierType,
 		IdentifierValue: u.IdentifierValue,
@@ -92,6 +114,8 @@ func (u *UserDO) ToDTO() *dto.UserDTO {
 }
 
 // UserFromDTO 从DTO创建UserDO
+// 空字符串字段会被转为 nil，GORM 写入数据库时存为 NULL，
+// 从而避免 phone/email/username 的部分唯一索引冲突。
 func UserFromDTO(d *dto.UserDTO) *UserDO {
 	if d == nil {
 		return nil
@@ -109,11 +133,11 @@ func UserFromDTO(d *dto.UserDTO) *UserDO {
 
 	return &UserDO{
 		ID:              d.ID,
-		Username:        d.Username,
-		Nickname:        d.Nickname,
-		Avatar:          d.Avatar,
-		Phone:           d.Phone,
-		Email:           d.Email,
+		Username:        strPtr(d.Username),
+		Nickname:        strPtr(d.Nickname),
+		Avatar:          strPtr(d.Avatar),
+		Phone:           strPtr(d.Phone),
+		Email:           strPtr(d.Email),
 		PasswordHash:    d.PasswordHash,
 		IdentifierType:  d.IdentifierType,
 		IdentifierValue: d.IdentifierValue,

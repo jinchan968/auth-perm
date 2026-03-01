@@ -3,6 +3,7 @@ package http
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"auth-perm/internal/common/dto/response"
 	"auth-perm/internal/common/model"
@@ -19,6 +20,26 @@ import (
 type UserHandler struct {
 	authService     *service.AuthService
 	registerService *service.RegisterService
+}
+
+// duplicateKeyMsg 将唯一约束冲突错误转换为用户友好的提示信息。
+// 返回空字符串表示该错误不是唯一约束冲突。
+func duplicateKeyMsg(errMsg string) string {
+	if !strings.Contains(errMsg, "duplicate key") && !strings.Contains(errMsg, "23505") {
+		return ""
+	}
+	switch {
+	case strings.Contains(errMsg, "idx_users_email"), strings.Contains(errMsg, "\"email\""):
+		return "该邮箱已被注册"
+	case strings.Contains(errMsg, "idx_users_phone"), strings.Contains(errMsg, "\"phone\""):
+		return "该手机号已被注册"
+	case strings.Contains(errMsg, "idx_users_username"), strings.Contains(errMsg, "\"username\""):
+		return "该用户名已被使用"
+	case strings.Contains(errMsg, "idx_users_identifier"):
+		return "该账号标识已被注册"
+	default:
+		return "该用户已存在"
+	}
 }
 
 // NewUserHandler 创建用户管理处理器
@@ -236,7 +257,12 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 
 	user, account, err := h.registerService.Register(c.Request.Context(), registerParams)
 	if err != nil {
-		response.Error(c, http.StatusBadRequest, "创建用户失败", err.Error())
+		errMsg := err.Error()
+		if msg := duplicateKeyMsg(errMsg); msg != "" {
+			response.Error(c, http.StatusConflict, msg, errMsg)
+			return
+		}
+		response.Error(c, http.StatusBadRequest, "创建用户失败", errMsg)
 		return
 	}
 

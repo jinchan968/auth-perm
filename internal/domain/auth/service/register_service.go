@@ -99,11 +99,11 @@ func (s *RegisterService) findExistingUserAndAccount(ctx context.Context, userna
 // isIdentifierMatch 检查标识符是否匹配用户
 func (s *RegisterService) isIdentifierMatch(user *dm.UserDO, identifier string) bool {
 	// 检查邮箱匹配
-	if user.Email == identifier {
+	if dm.StrVal(user.Email) == identifier {
 		return true
 	}
 	// 检查手机号匹配
-	if user.Phone == identifier {
+	if dm.StrVal(user.Phone) == identifier {
 		return true
 	}
 	return false
