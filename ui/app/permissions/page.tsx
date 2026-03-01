@@ -15,6 +15,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
+import { AppModal } from '@/components/ui/app-modal'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -23,13 +24,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
 import { useTenant } from '@/lib/tenant-context'
 import { useAuthStore } from '@/store/auth-store'
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
@@ -586,141 +580,130 @@ function PermissionsPageContent() {
           </Card>
 
           {/* Role Creation Modal */}
-          {roleModalOpen && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg p-6 w-full max-w-md">
-                <h3 className="text-lg font-semibold mb-4">新建角色</h3>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="roleName">角色名称 *</Label>
-                    <Input
-                      id="roleName"
-                      placeholder="如: 管理员"
-                      value={roleFormData.name}
-                      onChange={(e) => setRoleFormData({ ...roleFormData, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="roleDesc">描述</Label>
-                    <Input
-                      id="roleDesc"
-                      placeholder="可选描述"
-                      value={roleFormData.description}
-                      onChange={(e) => setRoleFormData({ ...roleFormData, description: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 mt-6">
-                  <Button variant="outline" onClick={handleCloseRoleModal}>取消</Button>
-                  <Button onClick={handleSaveRole} disabled={roleSaving}>
-                    {roleSaving ? '保存中...' : '保存'}
-                  </Button>
-                </div>
+          <AppModal open={roleModalOpen} onClose={handleCloseRoleModal} title="新建角色">
+            <div className="p-6 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="roleName">角色名称 *</Label>
+                <Input
+                  id="roleName"
+                  placeholder="如: 管理员"
+                  value={roleFormData.name}
+                  onChange={(e) => setRoleFormData({ ...roleFormData, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="roleDesc">描述</Label>
+                <Input
+                  id="roleDesc"
+                  placeholder="可选描述"
+                  value={roleFormData.description}
+                  onChange={(e) => setRoleFormData({ ...roleFormData, description: e.target.value })}
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={handleCloseRoleModal}>取消</Button>
+                <Button onClick={handleSaveRole} disabled={roleSaving}>
+                  {roleSaving ? '保存中...' : '保存'}
+                </Button>
               </div>
             </div>
-          )}
+          </AppModal>
 
-          {/* User Creation Dialog */}
-          <Dialog open={userModalOpen} onOpenChange={setUserModalOpen}>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>新增用户</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label>标识符类型 *</Label>
-                  <Select
-                    value={userFormData.identifier_type}
-                    onValueChange={(value: 'email' | 'phone') =>
-                      setUserFormData({ ...userFormData, identifier_type: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="email">邮箱</SelectItem>
-                      <SelectItem value="phone">手机号</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {userFormData.identifier_type === 'email' ? (
-                  <div>
-                    <Label>邮箱 *</Label>
-                    <Input
-                      type="email"
-                      value={userFormData.email}
-                      onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
-                      placeholder="user@example.com"
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <Label>手机号 *</Label>
-                    <Input
-                      type="tel"
-                      value={userFormData.phone}
-                      onChange={(e) => setUserFormData({ ...userFormData, phone: e.target.value })}
-                      placeholder="13800138000"
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <Label>用户名 *</Label>
-                  <Input
-                    value={userFormData.username}
-                    onChange={(e) => setUserFormData({ ...userFormData, username: e.target.value })}
-                    placeholder="username"
-                  />
-                </div>
-
-                <div>
-                  <Label>昵称</Label>
-                  <Input
-                    value={userFormData.nickname}
-                    onChange={(e) => setUserFormData({ ...userFormData, nickname: e.target.value })}
-                    placeholder="昵称（可选）"
-                  />
-                </div>
-
-                <div>
-                  <Label>密码 *</Label>
-                  <Input
-                    type="password"
-                    value={userFormData.password}
-                    onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
-                    placeholder="至少6位"
-                  />
-                </div>
-
-                <div>
-                  <Label>确认密码 *</Label>
-                  <Input
-                    type="password"
-                    value={userFormData.confirm_password}
-                    onChange={(e) =>
-                      setUserFormData({ ...userFormData, confirm_password: e.target.value })
-                    }
-                    placeholder="再次输入密码"
-                  />
-                </div>
-
-                {userFormError && (
-                  <div className="bg-red-50 text-red-600 p-3 rounded text-sm">{userFormError}</div>
-                )}
+          {/* User Creation Modal */}
+          <AppModal open={userModalOpen} onClose={handleCloseUserModal} title="新增用户">
+            <div className="p-6 space-y-4">
+              <div>
+                <Label>标识符类型 *</Label>
+                <Select
+                  value={userFormData.identifier_type}
+                  onValueChange={(value: 'email' | 'phone') =>
+                    setUserFormData({ ...userFormData, identifier_type: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="email">邮箱</SelectItem>
+                    <SelectItem value="phone">手机号</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={handleCloseUserModal}>
-                  取消
-                </Button>
+
+              {userFormData.identifier_type === 'email' ? (
+                <div>
+                  <Label>邮箱 *</Label>
+                  <Input
+                    type="email"
+                    value={userFormData.email}
+                    onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
+                    placeholder="user@example.com"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <Label>手机号 *</Label>
+                  <Input
+                    type="tel"
+                    value={userFormData.phone}
+                    onChange={(e) => setUserFormData({ ...userFormData, phone: e.target.value })}
+                    placeholder="13800138000"
+                  />
+                </div>
+              )}
+
+              <div>
+                <Label>用户名 *</Label>
+                <Input
+                  value={userFormData.username}
+                  onChange={(e) => setUserFormData({ ...userFormData, username: e.target.value })}
+                  placeholder="username"
+                />
+              </div>
+
+              <div>
+                <Label>昵称</Label>
+                <Input
+                  value={userFormData.nickname}
+                  onChange={(e) => setUserFormData({ ...userFormData, nickname: e.target.value })}
+                  placeholder="昵称（可选）"
+                />
+              </div>
+
+              <div>
+                <Label>密码 *</Label>
+                <Input
+                  type="password"
+                  value={userFormData.password}
+                  onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
+                  placeholder="至少6位"
+                />
+              </div>
+
+              <div>
+                <Label>确认密码 *</Label>
+                <Input
+                  type="password"
+                  value={userFormData.confirm_password}
+                  onChange={(e) =>
+                    setUserFormData({ ...userFormData, confirm_password: e.target.value })
+                  }
+                  placeholder="再次输入密码"
+                />
+              </div>
+
+              {userFormError && (
+                <div className="bg-red-50 text-red-600 p-3 rounded text-sm">{userFormError}</div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={handleCloseUserModal}>取消</Button>
                 <Button onClick={handleCreateUser} disabled={userCreating}>
                   {userCreating ? '创建中...' : '创建'}
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </div>
+            </div>
+          </AppModal>
         </main>
       </div>
     </div>
