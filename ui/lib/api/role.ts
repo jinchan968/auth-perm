@@ -1,15 +1,15 @@
 // Role API Client
 
 import {
+  AssignPermissionToRoleRequest,
+  CreateRoleRequest,
+  PermissionListItem,
   Role,
   RoleListItem,
   RoleListResponse,
-  CreateRoleRequest,
   UpdateRoleRequest,
-  AssignPermissionToRoleRequest,
-  PermissionListItem,
 } from '@/types/permission'
-import { apiClient } from './client'
+import {apiClient} from './client'
 
 const API_BASE = '/permissions/roles'
 
@@ -98,7 +98,7 @@ export async function removeRoleFromAccount(accountId: string, roleId: string, t
 }
 
 // Get user roles (for account)
-export async function getUserRoles(accountId: string): Promise<RoleListItem[]> {
-  const data = await apiClient.get<RoleListItem[]>(`${ACCOUNTS_BASE}/${accountId}/roles`)
-  return data
+export async function getUserRoles(accountId: string, tenantId?: string): Promise<RoleListItem[]> {
+  const query = tenantId ? `?tenant_id=${tenantId}` : ''
+  return await apiClient.get<RoleListItem[]>(`${ACCOUNTS_BASE}/${accountId}/roles${query}`)
 }

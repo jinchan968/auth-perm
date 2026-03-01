@@ -92,12 +92,13 @@ function PermissionsPageContent() {
   })
   const [userFormError, setUserFormError] = useState('')
 
-  const fetchPermissions = async () => {
+  const fetchPermissions = async (pageOverride?: number) => {
     if (!tenantId) return
+    const targetPage = pageOverride ?? page
     setLoading(true)
     setError('')
     try {
-      const data = await listPermissions({ tenant_id: tenantId, keyword, page, size })
+      const data = await listPermissions({ tenant_id: tenantId, keyword, page: targetPage, size })
       setPermissions(data.data)
       setTotal(data.total)
     } catch (err) {
@@ -107,12 +108,13 @@ function PermissionsPageContent() {
     }
   }
 
-  const fetchRoles = async () => {
+  const fetchRoles = async (pageOverride?: number) => {
     if (!tenantId) return
+    const targetPage = pageOverride ?? page
     setRolesLoading(true)
     setError('')
     try {
-      const data = await listRoles({ tenant_id: tenantId, keyword, page, size })
+      const data = await listRoles({ tenant_id: tenantId, keyword, page: targetPage, size })
       setRoles(data.data)
       setTotal(data.total)
     } catch (err) {
@@ -122,12 +124,13 @@ function PermissionsPageContent() {
     }
   }
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (pageOverride?: number) => {
     if (!tenantId) return
+    const targetPage = pageOverride ?? page
     setUsersLoading(true)
     setError('')
     try {
-      const data = await listUsers({ tenant_id: tenantId, keyword, page, page_size: size })
+      const data = await listUsers({ tenant_id: tenantId, keyword, page: targetPage, page_size: size })
       setUsers(data.data || [])
       setTotal(data.total)
     } catch (err) {
@@ -173,6 +176,13 @@ function PermissionsPageContent() {
   // 搜索时重置页码
   const handleSearch = () => {
     setPage(1)
+    if (activeTab === 'permissions') {
+      fetchPermissions(1)
+    } else if (activeTab === 'roles') {
+      fetchRoles(1)
+    } else {
+      fetchUsers(1)
+    }
   }
 
   // Role modal handlers
@@ -203,7 +213,7 @@ function PermissionsPageContent() {
       handleCloseRoleModal()
       // Refresh roles list
       if (activeTab === 'roles') {
-        fetchRoles()
+        fetchRoles(page)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save role')
@@ -233,6 +243,10 @@ function PermissionsPageContent() {
   }
 
   const handleCreateUser = async () => {
+    if (!selectedTenantId) {
+      setUserFormError('请选择租户')
+      return
+    }
     if (!userFormData.username || !userFormData.password || !userFormData.confirm_password) {
       setUserFormError('请填写必填项')
       return
@@ -402,13 +416,13 @@ function PermissionsPageContent() {
                     <tbody>
                       {loading ? (
                         <tr>
-                          <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                          <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                             加载中...
                           </td>
                         </tr>
                       ) : permissions.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                          <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                             暂无数据
                           </td>
                         </tr>

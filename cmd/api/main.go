@@ -1,7 +1,6 @@
 package main
 
 import (
-	"auth-perm/config"
 	"context"
 	"errors"
 	"fmt"
@@ -12,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"auth-perm/config"
 	"auth-perm/internal/container"
 
 	"github.com/gin-gonic/gin"
@@ -38,8 +38,15 @@ func main() {
 		log.Fatalf("Failed to build container: %v", err)
 	}
 
+	// 创建顶层可取消 context，用于控制所有后台 goroutine（含定时任务）的生命周期
+	appCtx, appCancel := context.WithCancel(context.Background())
+	defer appCancel() // 兜底：确保任何异常退出路径都能释放 context
+
 	// 启动并运行应用
-	if err := c.Invoke(func(engine *gin.Engine) {
+	if err := c.Invoke(func(engine *gin.Engine, scheduler container.Scheduler) {
+
+		// 启动 Todo 定时调度器，绑定 appCtx——服务关闭时随之停止
+		go scheduler.Start(appCtx)
 
 		// 创建HTTP服务器
 		server := &http.Server{
@@ -59,18 +66,20 @@ func main() {
 		}()
 
 		// 等待中断信号
-
 		quit := make(chan os.Signal, 1)
 		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 		<-quit
 
 		log.Println("Shutting down server...")
 
-		// 优雅关闭
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+		// 先取消 appCtx，通知所有后台 goroutine 退出
+		appCancel()
+
+		// 再优雅关闭 HTTP server
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 		defer cancel()
 
-		if err := server.Shutdown(ctx); err != nil {
+		if err := server.Shutdown(shutdownCtx); err != nil {
 			log.Fatalf("Server forced to shutdown: %v", err)
 		}
 

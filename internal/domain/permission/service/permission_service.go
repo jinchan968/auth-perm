@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log"
 
 	"auth-perm/internal/common/constant"
 	"auth-perm/internal/common/errors"
@@ -83,7 +84,9 @@ func (s *PermissionService) getAccountPermissions(ctx context.Context, accountID
 
 	// 写入缓存（10分钟TTL）
 	if s.cache != nil {
-		s.cache.SetPermissions(ctx, accountID, permissionCodes, constant.CacheTTLPermission)
+		if err := s.cache.SetPermissions(ctx, accountID, permissionCodes, constant.CacheTTLPermission); err != nil {
+			log.Printf("WARN: Failed to set permissions cache for account %s: %v", accountID, err)
+		}
 	}
 
 	return permissionCodes, nil
@@ -1248,7 +1251,9 @@ func (s *PermissionService) AssignRoleToAccount(ctx context.Context, params *par
 
 	// 清除缓存
 	if s.cache != nil {
-		s.cache.DeletePermissions(ctx, params.AccountID)
+		if err := s.cache.DeletePermissions(ctx, params.AccountID); err != nil {
+			log.Printf("WARN: AssignRoleToAccount: Failed to delete permissions cache for account %s: %v", params.AccountID, err)
+		}
 	}
 
 	return nil
@@ -1266,7 +1271,9 @@ func (s *PermissionService) RemoveRoleFromAccount(ctx context.Context, params *p
 
 	// 清除缓存
 	if s.cache != nil {
-		s.cache.DeletePermissions(ctx, params.AccountID)
+		if err := s.cache.DeletePermissions(ctx, params.AccountID); err != nil {
+			log.Printf("WARN: RemoveRoleFromAccount: Failed to delete permissions cache for account %s: %v", params.AccountID, err)
+		}
 	}
 
 	return nil

@@ -1,4 +1,4 @@
-package http
+package handler
 
 import (
 	"auth-perm/internal/common/constant"

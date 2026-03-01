@@ -6,15 +6,20 @@ import (
 
 	"auth-perm/config"
 	"auth-perm/internal/common/errors"
-	"auth-perm/internal/controller/http"
+	controllerHttp "auth-perm/internal/controller/http"
 	"auth-perm/internal/controller/middleware"
 	"auth-perm/internal/domain/auth"
+	authHandler "auth-perm/internal/domain/auth/handler"
 	"auth-perm/internal/domain/auth/service"
 	"auth-perm/internal/domain/permission"
+	permHandler "auth-perm/internal/domain/permission/handler"
 	permissionService "auth-perm/internal/domain/permission/service"
 	"auth-perm/internal/domain/tenant"
 	tenantHandler "auth-perm/internal/domain/tenant/handler"
 	tenantService "auth-perm/internal/domain/tenant/service"
+	"auth-perm/internal/domain/todo"
+	todoHandler "auth-perm/internal/domain/todo/handler"
+	todoService "auth-perm/internal/domain/todo/service"
 	"auth-perm/internal/infra/cache"
 	"auth-perm/internal/infra/code_gen"
 	"github.com/gin-gonic/gin"
@@ -26,6 +31,11 @@ import (
 // Container 依赖注入容器
 type Container struct {
 	*dig.Container
+}
+
+// Scheduler 定时任务调度器接口，供 main.go 通过 DI 取得并控制生命周期
+type Scheduler interface {
+	Start(ctx context.Context)
 }
 
 // NewContainer 创建新的容器
@@ -167,6 +177,15 @@ func registerApplicationServices(container *dig.Container) error {
 	if err := tenant.RegisterTenantDomain(container); err != nil {
 		return err
 	}
+	if err := todo.RegisterTodoDomain(container); err != nil {
+		return err
+	}
+	// 将 TodoScheduler 绑定到 Scheduler 接口，供 main.go 通过接口注入
+	if err := container.Provide(func(s *todoService.TodoScheduler) Scheduler {
+		return s
+	}); err != nil {
+		return err
+	}
 	log.Println("Application services registered successfully")
 	return nil
 }
@@ -186,14 +205,14 @@ func registerHandlers(container *dig.Container) error {
 		passwordService *service.PasswordService,
 		deviceService service.DeviceService,
 		securityLogService *service.SecurityLogService,
-	) *http.AuthHandler {
-		return http.NewAuthHandler(authService, loginService, registerService, sessionService, emailService, totpService, security, oauthService, passwordService, deviceService, securityLogService)
+	) *authHandler.AuthHandler {
+		return authHandler.NewAuthHandler(authService, loginService, registerService, sessionService, emailService, totpService, security, oauthService, passwordService, deviceService, securityLogService)
 	}); err != nil {
 		return err
 	}
 
 	// 注册邮箱处理器
-	if err := container.Provide(http.NewEmailHandler); err != nil {
+	if err := container.Provide(authHandler.NewEmailHandler); err != nil {
 		return err
 	}
 
@@ -202,34 +221,34 @@ func registerHandlers(container *dig.Container) error {
 		authService *service.AuthService,
 		emailService *service.EmailService,
 		passwordService *service.PasswordService,
-	) *http.PasswordHandler {
-		return http.NewPasswordHandler(authService, emailService, passwordService)
+	) *authHandler.PasswordHandler {
+		return authHandler.NewPasswordHandler(authService, emailService, passwordService)
 	}); err != nil {
 		return err
 	}
 
 	// 注册TOTP处理器
-	if err := container.Provide(http.NewTOTPHandler); err != nil {
+	if err := container.Provide(authHandler.NewTOTPHandler); err != nil {
 		return err
 	}
 
 	// 注册OAuth处理器
-	if err := container.Provide(http.NewOAuthHandler); err != nil {
+	if err := container.Provide(authHandler.NewOAuthHandler); err != nil {
 		return err
 	}
 
 	// 注册权限处理器
-	if err := container.Provide(http.NewPermissionHandler); err != nil {
+	if err := container.Provide(permHandler.NewPermissionHandler); err != nil {
 		return err
 	}
 
 	// 注册权限资源处理器
-	if err := container.Provide(http.NewPermissionResourceHandler); err != nil {
+	if err := container.Provide(permHandler.NewPermissionResourceHandler); err != nil {
 		return err
 	}
 
 	// 注册组织处理器
-	if err := container.Provide(http.NewOrganizationHandler); err != nil {
+	if err := container.Provide(permHandler.NewOrganizationHandler); err != nil {
 		return err
 	}
 
@@ -244,14 +263,13 @@ func registerHandlers(container *dig.Container) error {
 	if err := container.Provide(func(
 		authService *service.AuthService,
 		registerService *service.RegisterService,
-	) *http.UserHandler {
-		return http.NewUserHandler(authService, registerService)
+	) *authHandler.UserHandler {
+		return authHandler.NewUserHandler(authService, registerService)
 	}); err != nil {
 		return err
 	}
 
 	log.Println("HTTP handlers registered successfully")
-
 	return nil
 }
 
@@ -260,46 +278,36 @@ func registerGinEngine(container *dig.Container) error {
 	return container.Provide(func(
 		cfg *config.Config,
 		redisClient *redis.Client,
-		authHandler *http.AuthHandler,
-		emailHandler *http.EmailHandler,
-		passwordHandler *http.PasswordHandler,
-		totpHandler *http.TOTPHandler,
-		oauthHandler *http.OAuthHandler,
-		permissionHandler *http.PermissionHandler,
-		permissionResourceHandler *http.PermissionResourceHandler,
-		organizationHandler *http.OrganizationHandler,
-		tenantHandler *tenantHandler.TenantHandler,
-		userHandler *http.UserHandler,
+		authH *authHandler.AuthHandler,
+		emailH *authHandler.EmailHandler,
+		passwordH *authHandler.PasswordHandler,
+		totpH *authHandler.TOTPHandler,
+		oauthH *authHandler.OAuthHandler,
+		permissionH *permHandler.PermissionHandler,
+		permissionResourceH *permHandler.PermissionResourceHandler,
+		organizationH *permHandler.OrganizationHandler,
+		tenantH *tenantHandler.TenantHandler,
+		userH *authHandler.UserHandler,
+		thTodoHandler *todoHandler.TodoHandler,
 		authService *service.AuthService,
 		loginService *service.LoginService,
-		permissionService *permissionService.PermissionService,
+		permSvc *permissionService.PermissionService,
 	) *gin.Engine {
-		// 设置Gin模式
 		gin.SetMode(cfg.Server.Mode)
-
-		// 创建Gin引擎
 		engine := gin.New()
 
-		// 注册中间件
 		engine.Use(middleware.RecoveryMiddleware())
 		engine.Use(middleware.LoggingMiddleware(cfg))
-		engine.Use(middleware.RouteLoggingMiddleware()) // 路由日志中间件 - 打印每次请求的路由
+		engine.Use(middleware.RouteLoggingMiddleware())
 		engine.Use(middleware.CORSMiddleware(middleware.DefaultConfig()))
 		rateLimitConfig := middleware.DefaultRateLimitConfig(redisClient)
 		engine.Use(middleware.RateLimitMiddleware(rateLimitConfig))
 
-		// 健康检查端点
 		engine.GET("/health", func(c *gin.Context) {
-			c.JSON(200, gin.H{
-				"status": "healthy",
-				"time": gin.H{
-					"timestamp": "2024-01-20T12:00:00Z",
-				},
-			})
+			c.JSON(200, gin.H{"status": "healthy"})
 		})
 
-		// 注册路由
-		http.RegisterRoutes(engine, authHandler, emailHandler, passwordHandler, totpHandler, oauthHandler, permissionHandler, permissionResourceHandler, organizationHandler, tenantHandler, userHandler, authService, loginService, permissionService)
+		controllerHttp.RegisterRoutes(engine, authH, emailH, passwordH, totpH, oauthH, permissionH, permissionResourceH, organizationH, tenantH, userH, thTodoHandler, authService, loginService, permSvc)
 
 		log.Println("Gin engine registered successfully")
 		return engine

@@ -2,9 +2,12 @@ package http
 
 import (
 	"auth-perm/internal/controller/middleware"
+	authHandler "auth-perm/internal/domain/auth/handler"
 	"auth-perm/internal/domain/auth/service"
+	permHandler "auth-perm/internal/domain/permission/handler"
 	permissionService "auth-perm/internal/domain/permission/service"
 	tenantHandler "auth-perm/internal/domain/tenant/handler"
+	todoHandler "auth-perm/internal/domain/todo/handler"
 
 	"github.com/gin-gonic/gin"
 )
@@ -12,273 +15,250 @@ import (
 // RegisterRoutes 注册所有路由
 func RegisterRoutes(
 	router *gin.Engine,
-	authHandler *AuthHandler,
-	emailHandler *EmailHandler,
-	passwordHandler *PasswordHandler,
-	totpHandler *TOTPHandler,
-	oauthHandler *OAuthHandler,
-	permissionHandler *PermissionHandler,
-	permissionResourceHandler *PermissionResourceHandler,
-	organizationHandler *OrganizationHandler,
-	tenantHandler *tenantHandler.TenantHandler,
-	userHandler *UserHandler,
+	authH *authHandler.AuthHandler,
+	emailH *authHandler.EmailHandler,
+	passwordH *authHandler.PasswordHandler,
+	totpH *authHandler.TOTPHandler,
+	oauthH *authHandler.OAuthHandler,
+	permissionH *permHandler.PermissionHandler,
+	permissionResourceH *permHandler.PermissionResourceHandler,
+	organizationH *permHandler.OrganizationHandler,
+	tenantH *tenantHandler.TenantHandler,
+	userH *authHandler.UserHandler,
+	thTodoHandler *todoHandler.TodoHandler,
 	authService *service.AuthService,
 	loginService *service.LoginService,
 	permService *permissionService.PermissionService,
 ) {
-	// API v1 路由组
 	v1 := router.Group("/api/v1")
 	{
-		// 注册认证相关路由
-		RegisterAuthRoutes(v1, authHandler, emailHandler, passwordHandler, totpHandler, oauthHandler, authService, loginService, permService)
-
-		// 注册权限相关路由
-		RegisterPermissionRoutes(v1, permissionHandler, permissionResourceHandler, authService, loginService)
-
-		// 注册组织相关路由
-		RegisterOrganizationRoutes(v1, organizationHandler, loginService)
-
-		// 注册租户相关路由
-		RegisterTenantRoutes(v1, tenantHandler, loginService)
-
-		// 注册用户管理路由
-		RegisterUserRoutes(v1, userHandler, loginService)
+		RegisterAuthRoutes(v1, authH, emailH, passwordH, totpH, oauthH, authService, loginService, permService)
+		RegisterPermissionRoutes(v1, permissionH, permissionResourceH, loginService)
+		RegisterOrganizationRoutes(v1, organizationH, loginService)
+		RegisterTenantRoutes(v1, tenantH, loginService)
+		RegisterUserRoutes(v1, userH, loginService)
+		RegisterTodoRoutes(v1, thTodoHandler, loginService)
 	}
 }
 
 // RegisterAuthRoutes 注册认证路由
 func RegisterAuthRoutes(
 	router *gin.RouterGroup,
-	authHandler *AuthHandler,
-	emailHandler *EmailHandler,
-	passwordHandler *PasswordHandler,
-	totpHandler *TOTPHandler,
-	oauthHandler *OAuthHandler,
-	authService *service.AuthService,
+	authH *authHandler.AuthHandler,
+	emailH *authHandler.EmailHandler,
+	passwordH *authHandler.PasswordHandler,
+	totpH *authHandler.TOTPHandler,
+	oauthH *authHandler.OAuthHandler,
+	_ *service.AuthService,
 	loginService *service.LoginService,
 	permService *permissionService.PermissionService,
 ) {
 	auth := router.Group("/auth")
 
-	// ========================================================================
-	// 公开路由（无需认证）- 仅限login和register
-	// ========================================================================
 	public := auth.Group("/public")
 	{
-		public.POST("/login", authHandler.Login)
-		public.POST("/register", authHandler.Register)
-		// new public routes
-		public.POST("/forgot-password", authHandler.ForgotPassword)
-		public.POST("/reset-password", authHandler.ResetPassword)
+		public.POST("/login", authH.Login)
+		public.POST("/register", authH.Register)
+		public.POST("/forgot-password", authH.ForgotPassword)
+		public.POST("/reset-password", authH.ResetPassword)
 	}
 
-	// ========================================================================
-	// 需要认证的路由（除了login、register之外的所有接口）
-	// ========================================================================
 	authenticated := auth.Group("/")
 	authenticated.Use(middleware.AuthMiddleware(loginService))
 	{
-		// OAuth回调路由（特殊处理：从第三方服务携带授权码回调）
-		// 注意：这些路由从外部服务回调，携带授权码而非用户token
-		// 认证中间件会验证用户身份，确保只有已登录用户可以发起OAuth流程
-		authenticated.GET("/oauth/github/callback", oauthHandler.GitHubCallback)
-		authenticated.GET("/oauth/google/callback", oauthHandler.GoogleCallback)
-		authenticated.GET("/oauth/wechat/callback", oauthHandler.WeChatCallback)
+		authenticated.GET("/oauth/github/callback", oauthH.GitHubCallback)
+		authenticated.GET("/oauth/google/callback", oauthH.GoogleCallback)
+		authenticated.GET("/oauth/wechat/callback", oauthH.WeChatCallback)
 
-		// 认证相关
-		authenticated.GET("/validate", authHandler.ValidateToken)
-		authenticated.POST("/logout", authHandler.Logout)
-		authenticated.POST("/refresh", authHandler.RefreshToken)
+		authenticated.GET("/validate", authH.ValidateToken)
+		authenticated.POST("/logout", authH.Logout)
+		authenticated.POST("/refresh", authH.RefreshToken)
 
-		// 管理员路由
 		admin := auth.Group("/admin")
 		admin.Use(middleware.AuthMiddleware(loginService))
 		admin.Use(middleware.AdminPermissionMiddleware(permService))
 		{
-			admin.POST("/logout-all-by-tenant", authHandler.LogoutAllByTenant)
+			admin.POST("/logout-all-by-tenant", authH.LogoutAllByTenant)
 		}
 
-		// 邮箱验证相关（需要认证）
-		authenticated.POST("/send-verification-email", emailHandler.SendVerificationEmail)
-		authenticated.GET("/verify-email", emailHandler.VerifyEmail)
-		authenticated.POST("/resend-verification-email", emailHandler.ResendVerificationEmail)
+		authenticated.POST("/send-verification-email", emailH.SendVerificationEmail)
+		authenticated.GET("/verify-email", emailH.VerifyEmail)
+		authenticated.POST("/resend-verification-email", emailH.ResendVerificationEmail)
 
-		// 密码重置相关（需要认证）
-		authenticated.POST("/request-password-reset", passwordHandler.RequestPasswordReset)
-		authenticated.POST("/reset-password", passwordHandler.ResetPassword)
+		authenticated.POST("/request-password-reset", passwordH.RequestPasswordReset)
+		authenticated.POST("/reset-password", passwordH.ResetPassword)
 
-		// 用户资料相关
-		authenticated.GET("/profile", authHandler.GetProfile)
-		authenticated.PATCH("/profile", authHandler.UpdateProfile)
-		authenticated.POST("/change-password", authHandler.ChangePassword)
-		authenticated.GET("/sessions", authHandler.GetSessions)
+		authenticated.GET("/profile", authH.GetProfile)
+		authenticated.PATCH("/profile", authH.UpdateProfile)
+		authenticated.POST("/change-password", authH.ChangePassword)
+		authenticated.GET("/sessions", authH.GetSessions)
 
-		// Session & Device Management
-		authenticated.DELETE("/sessions/:sessionId", authHandler.RevokeSession)
-		authenticated.DELETE("/sessions/all", authHandler.RevokeAllSessions)
-		authenticated.GET("/devices", authHandler.GetDevices)
-		authenticated.DELETE("/devices/:deviceId", authHandler.RevokeDevice)
-		authenticated.POST("/devices/:deviceId/trust", authHandler.TrustDevice)
+		authenticated.DELETE("/sessions/:sessionId", authH.RevokeSession)
+		authenticated.DELETE("/sessions/all", authH.RevokeAllSessions)
+		authenticated.GET("/devices", authH.GetDevices)
+		authenticated.DELETE("/devices/:deviceId", authH.RevokeDevice)
+		authenticated.POST("/devices/:deviceId/trust", authH.TrustDevice)
 
-		// Security Logs
-		authenticated.GET("/security/logs", authHandler.GetSecurityLogs)
+		authenticated.GET("/security/logs", authH.GetSecurityLogs)
 
-		// 2FA双因子认证路由
-		authenticated.POST("/2fa/setup-init", totpHandler.TOTPSetupInit)
-		authenticated.POST("/2fa/setup-verify", totpHandler.TOTPSetupVerify)
-		authenticated.POST("/2fa/enable", totpHandler.TOTPEnable)
-		authenticated.POST("/2fa/disable", totpHandler.TOTPDisable)
-		authenticated.POST("/2fa/verify", totpHandler.TOTPVerify)
-		authenticated.POST("/2fa/backup-code", totpHandler.TOTPBackupCode)
-		authenticated.GET("/2fa/status", totpHandler.TOTPStatus)
-		authenticated.POST("/2fa/change-secret", totpHandler.TOTPChangeSecret)
+		authenticated.POST("/2fa/setup-init", totpH.TOTPSetupInit)
+		authenticated.POST("/2fa/setup-verify", totpH.TOTPSetupVerify)
+		authenticated.POST("/2fa/enable", totpH.TOTPEnable)
+		authenticated.POST("/2fa/disable", totpH.TOTPDisable)
+		authenticated.POST("/2fa/verify", totpH.TOTPVerify)
+		authenticated.POST("/2fa/backup-code", totpH.TOTPBackupCode)
+		authenticated.GET("/2fa/status", totpH.TOTPStatus)
+		authenticated.POST("/2fa/change-secret", totpH.TOTPChangeSecret)
 	}
 }
 
 // RegisterPermissionRoutes 注册权限路由
-func RegisterPermissionRoutes(router *gin.RouterGroup, permissionHandler *PermissionHandler, permissionResourceHandler *PermissionResourceHandler, authService *service.AuthService, loginService *service.LoginService) {
+func RegisterPermissionRoutes(
+	router *gin.RouterGroup,
+	permissionH *permHandler.PermissionHandler,
+	permissionResourceH *permHandler.PermissionResourceHandler,
+	loginService *service.LoginService,
+) {
 	permissions := router.Group("/permissions")
 	permissions.Use(middleware.AuthMiddleware(loginService))
 	{
-		// 权限检查
-		permissions.POST("/check", permissionHandler.CheckPermission)
-		permissions.POST("/check-any", permissionHandler.CheckAnyPermission)
-		permissions.POST("/check-all", permissionHandler.CheckAllPermissions)
+		permissions.POST("/check", permissionH.CheckPermission)
+		permissions.POST("/check-any", permissionH.CheckAnyPermission)
+		permissions.POST("/check-all", permissionH.CheckAllPermissions)
 
-		// 角色检查
-		// 角色检查 - 使用 /role-check/:role 避免与 /roles/:id 冲突
-		permissions.GET("/role-check/:role", permissionHandler.CheckRole)
-		permissions.POST("/check-any-role", permissionHandler.CheckAnyRole)
-		permissions.POST("/check-all-roles", permissionHandler.CheckAllRoles)
+		permissions.GET("/role-check/:role", permissionH.CheckRole)
+		permissions.POST("/check-any-role", permissionH.CheckAnyRole)
+		permissions.POST("/check-all-roles", permissionH.CheckAllRoles)
 
-		// 获取权限和角色
-		permissions.GET("", permissionHandler.GetPermissions)
-		permissions.GET("/effective", permissionHandler.GetEffectivePermissions)
-		// 注意：/roles 路由在下面的 roles 子组中注册
+		permissions.GET("", permissionH.GetPermissions)
+		permissions.GET("/effective", permissionH.GetEffectivePermissions)
+		permissions.GET("/is-super-admin", permissionH.IsSuperAdmin)
 
-		// 管理员检查
-		permissions.GET("/is-super-admin", permissionHandler.IsSuperAdmin)
+		permissions.POST("/org/:org_id/check", permissionH.CheckOrgPermission)
+		permissions.GET("/org/:org_id/is-admin", permissionH.IsOrgAdmin)
 
-		// 组织权限
-		permissions.POST("/org/:org_id/check", permissionHandler.CheckOrgPermission)
-		permissions.GET("/org/:org_id/is-admin", permissionHandler.IsOrgAdmin)
+		permissions.POST("/check-resource", permissionResourceH.CheckResourcePermission)
+		permissions.GET("/account-resources", permissionResourceH.GetAccountResources)
 
-		// 资源权限检查
-		permissions.POST("/check-resource", permissionResourceHandler.CheckResourcePermission)
-		permissions.GET("/account-resources", permissionResourceHandler.GetAccountResources)
-
-		// Role CRUD - 需要放在 /permissions/:id 之前
 		roles := permissions.Group("/roles")
 		{
-			roles.POST("", permissionHandler.CreateRole)
-			roles.GET("/:id", permissionHandler.GetRole)
-			roles.PUT("/:id", permissionHandler.UpdateRole)
-			roles.DELETE("/:id", permissionHandler.DeleteRole)
-			roles.GET("", permissionHandler.ListRolesHandler)
-
-			// Role-Permission 关联管理
-			roles.POST("/:id/permissions", permissionHandler.AssignPermissionToRole)
-			roles.DELETE("/:id/permissions/:permissionId", permissionHandler.RemovePermissionFromRole)
-			roles.GET("/:id/permissions", permissionHandler.GetRolePermissions)
+			roles.POST("", permissionH.CreateRole)
+			roles.GET("/:id", permissionH.GetRole)
+			roles.PUT("/:id", permissionH.UpdateRole)
+			roles.DELETE("/:id", permissionH.DeleteRole)
+			roles.GET("", permissionH.ListRolesHandler)
+			roles.POST("/:id/permissions", permissionH.AssignPermissionToRole)
+			roles.DELETE("/:id/permissions/:permissionId", permissionH.RemovePermissionFromRole)
+			roles.GET("/:id/permissions", permissionH.GetRolePermissions)
 		}
 
-		// Account-Role 关联管理 - 需要放在 /permissions/:id 之前
 		accounts := permissions.Group("/accounts")
 		{
-			accounts.POST("/:accountId/roles", permissionHandler.AssignRoleToAccount)
-			accounts.DELETE("/:accountId/roles/:roleId", permissionHandler.RemoveRoleFromAccount)
+			accounts.GET("/:accountId/roles", permissionH.GetAccountRoles)
+			accounts.POST("/:accountId/roles", permissionH.AssignRoleToAccount)
+			accounts.DELETE("/:accountId/roles/:roleId", permissionH.RemoveRoleFromAccount)
 		}
 
-		// Permission CRUD
 		permissionItems := permissions.Group("/items")
 		{
-			permissionItems.POST("", permissionHandler.CreatePermission)
-			permissionItems.GET("/:id", permissionHandler.GetPermission)
-			permissionItems.PUT("/:id", permissionHandler.UpdatePermission)
-			permissionItems.DELETE("/:id", permissionHandler.DeletePermission)
-			permissionItems.GET("", permissionHandler.ListPermissions)
+			permissionItems.POST("", permissionH.CreatePermission)
+			permissionItems.GET("/:id", permissionH.GetPermission)
+			permissionItems.PUT("/:id", permissionH.UpdatePermission)
+			permissionItems.DELETE("/:id", permissionH.DeletePermission)
+			permissionItems.GET("", permissionH.ListPermissions)
 		}
 
-		// 权限资源管理 - 使用独立路径避免冲突
 		permissionResources := permissions.Group("/resources")
 		{
-			// GET /permissions/resources?permission_id=xxx - 获取权限的所有资源（使用查询参数）
-			permissionResources.GET("", permissionResourceHandler.List)
-			// POST /permissions/resources - 创建权限资源关联
-			permissionResources.POST("", permissionResourceHandler.Create)
-			// POST /permissions/resources/batch - 批量创建
-			permissionResources.POST("/batch", permissionResourceHandler.CreateBatch)
-			// PUT /permissions/resources/:resourceId - 更新
-			permissionResources.PUT("/:resourceId", permissionResourceHandler.Update)
-			// DELETE /permissions/resources/:resourceId - 删除
-			permissionResources.DELETE("/:resourceId", permissionResourceHandler.Delete)
-			// POST /permissions/resources/bind - 绑定
-			permissionResources.POST("/bind", permissionResourceHandler.Bind)
-			// POST /permissions/resources/unbind - 解绑
-			permissionResources.POST("/unbind", permissionResourceHandler.Unbind)
+			permissionResources.GET("", permissionResourceH.List)
+			permissionResources.POST("", permissionResourceH.Create)
+			permissionResources.POST("/batch", permissionResourceH.CreateBatch)
+			permissionResources.PUT("/:resourceId", permissionResourceH.Update)
+			permissionResources.DELETE("/:resourceId", permissionResourceH.Delete)
+			permissionResources.POST("/bind", permissionResourceH.Bind)
+			permissionResources.POST("/unbind", permissionResourceH.Unbind)
 		}
 	}
 }
 
 // RegisterOrganizationRoutes 注册组织路由
-func RegisterOrganizationRoutes(router *gin.RouterGroup, organizationHandler *OrganizationHandler, loginService *service.LoginService) {
+func RegisterOrganizationRoutes(
+	router *gin.RouterGroup,
+	organizationH *permHandler.OrganizationHandler,
+	loginService *service.LoginService,
+) {
 	organizations := router.Group("/organizations")
 	organizations.Use(middleware.AuthMiddleware(loginService))
 	{
-		// 组织 CRUD
-		organizations.POST("", organizationHandler.Create)
-		organizations.GET("/:id", organizationHandler.Get)
-		organizations.PUT("/:id", organizationHandler.Update)
-		organizations.DELETE("/:id", organizationHandler.Delete)
-
-		// 组织列表和树
-		organizations.GET("", organizationHandler.List)
-		organizations.GET("/tree", organizationHandler.GetTree)
-
-		// 账户-组织关联
-		organizations.POST("/assign-account", organizationHandler.AssignAccountToOrg)
-		organizations.POST("/remove-account", organizationHandler.RemoveAccountFromOrg)
-		organizations.GET("/accounts/:accountId/organizations", organizationHandler.GetUserOrganizations)
+		organizations.POST("", organizationH.Create)
+		organizations.GET("/:id", organizationH.Get)
+		organizations.PUT("/:id", organizationH.Update)
+		organizations.DELETE("/:id", organizationH.Delete)
+		organizations.GET("", organizationH.List)
+		organizations.GET("/tree", organizationH.GetTree)
+		organizations.POST("/assign-account", organizationH.AssignAccountToOrg)
+		organizations.POST("/remove-account", organizationH.RemoveAccountFromOrg)
+		organizations.GET("/accounts/:accountId/organizations", organizationH.GetUserOrganizations)
 	}
 }
 
 // RegisterTenantRoutes 注册租户路由
-func RegisterTenantRoutes(router *gin.RouterGroup, tenantHandler *tenantHandler.TenantHandler, loginService *service.LoginService) {
+func RegisterTenantRoutes(
+	router *gin.RouterGroup,
+	tenantH *tenantHandler.TenantHandler,
+	loginService *service.LoginService,
+) {
 	tenants := router.Group("/tenants")
 	tenants.Use(middleware.AuthMiddleware(loginService))
 	{
-		// 租户 CRUD
-		tenants.POST("", tenantHandler.Create)
-		tenants.GET("/:id", tenantHandler.Get)
-		tenants.PUT("/:id", tenantHandler.Update)
-		tenants.DELETE("/:id", tenantHandler.Delete)
-
-		// 租户列表
-		tenants.GET("", tenantHandler.List)
-
-		// 租户设置
-		tenants.GET("/:id/settings", tenantHandler.GetSettings)
-		tenants.PUT("/:id/settings", tenantHandler.UpdateSettings)
-
-		// 租户状态管理
-		tenants.POST("/:id/change-status", tenantHandler.ChangeStatus)
+		tenants.POST("", tenantH.Create)
+		tenants.GET("/:id", tenantH.Get)
+		tenants.PUT("/:id", tenantH.Update)
+		tenants.DELETE("/:id", tenantH.Delete)
+		tenants.GET("", tenantH.List)
+		tenants.GET("/:id/settings", tenantH.GetSettings)
+		tenants.PUT("/:id/settings", tenantH.UpdateSettings)
+		tenants.POST("/:id/change-status", tenantH.ChangeStatus)
 	}
 }
 
 // RegisterUserRoutes 注册用户管理路由
-func RegisterUserRoutes(router *gin.RouterGroup, userHandler *UserHandler, loginService *service.LoginService) {
+func RegisterUserRoutes(
+	router *gin.RouterGroup,
+	userH *authHandler.UserHandler,
+	loginService *service.LoginService,
+) {
 	users := router.Group("/users")
 	users.Use(middleware.AuthMiddleware(loginService))
 	{
-		// 用户列表
-		users.GET("", userHandler.ListUsers)
-		// 创建用户
-		users.POST("", userHandler.CreateUser)
-		// 用户详情
-		users.GET("/:id", userHandler.GetUser)
-		// 更新用户状态
-		users.PATCH("/:id/status", userHandler.UpdateUserStatus)
-		// 获取用户的所有账户
-		users.GET("/:id/accounts", userHandler.GetUserAccounts)
+		users.GET("", userH.ListUsers)
+		users.POST("", userH.CreateUser)
+		users.GET("/:id", userH.GetUser)
+		users.PATCH("/:id/status", userH.UpdateUserStatus)
+		users.GET("/:id/accounts", userH.GetUserAccounts)
+	}
+}
+
+// RegisterTodoRoutes 注册待办路由
+func RegisterTodoRoutes(
+	router *gin.RouterGroup,
+	h *todoHandler.TodoHandler,
+	loginService *service.LoginService,
+) {
+	todos := router.Group("/todos")
+	todos.Use(middleware.AuthMiddleware(loginService))
+	{
+		todos.GET("/categories", h.ListCategories)
+		todos.POST("/categories", h.CreateCategory)
+		todos.PUT("/categories/:id", h.UpdateCategory)
+		todos.DELETE("/categories/:id", h.DeleteCategory)
+
+		todos.GET("", h.ListTodos)
+		todos.POST("", h.CreateTodo)
+		todos.GET("/:id", h.GetTodo)
+		todos.PUT("/:id", h.UpdateTodo)
+		todos.PATCH("/:id/status", h.UpdateTodoStatus)
+		todos.PATCH("/:id/priority", h.UpdateTodoPriority)
+		todos.DELETE("/:id", h.DeleteTodo)
 	}
 }
