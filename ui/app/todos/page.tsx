@@ -39,6 +39,19 @@ const PRIORITY_COLOR: Record<TodoPriority, string> = {
 const STATUS_LABEL: Record<TodoStatus, string> = {
   pending: '待处理', in_progress: '进行中', completed: '已完成', cancelled: '已取消',
 }
+const STATUS_COLOR: Record<TodoStatus, string> = {
+  pending: 'bg-slate-100 text-slate-500',
+  in_progress: 'bg-blue-100 text-blue-700',
+  completed: 'bg-green-100 text-green-700',
+  cancelled: 'bg-red-100 text-red-500',
+}
+// 左边框颜色，用于区分每行状态
+const STATUS_BORDER: Record<TodoStatus, string> = {
+  pending: 'border-l-slate-300',
+  in_progress: 'border-l-blue-400',
+  completed: 'border-l-green-400',
+  cancelled: 'border-l-red-300',
+}
 const CATEGORY_COLORS = [
   '#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6',
   '#8b5cf6', '#ef4444', '#14b8a6', '#f97316', '#84cc16',
@@ -216,6 +229,17 @@ export default function TodosPage() {
     const newStatus: TodoStatus = t.status === 'completed' ? 'pending' : 'completed'
     try {
       const updated = await updateTodoStatus(t.id, newStatus, selectedTenantId)
+      setTodos(prev => prev.map(x => x.id === updated.id ? updated : x))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '更新失败')
+    }
+  }
+
+  const handleStatusChange = async (t: TodoItem, s: TodoStatus) => {
+    if (!ensureTenant()) return
+    if (t.status === s) return
+    try {
+      const updated = await updateTodoStatus(t.id, s, selectedTenantId)
       setTodos(prev => prev.map(x => x.id === updated.id ? updated : x))
     } catch (e) {
       setError(e instanceof Error ? e.message : '更新失败')
@@ -428,6 +452,7 @@ export default function TodosPage() {
                       todo={todo}
                       categories={categories}
                       onToggle={handleToggleComplete}
+                      onStatus={handleStatusChange}
                       onEdit={openEdit}
                       onPriority={handlePriorityClick}
                       onDelete={id => setDeletingId(id)}
@@ -601,39 +626,44 @@ function CategoryNavItem({
 }
 
 function TodoRow({
-  todo, categories, onToggle, onEdit, onPriority, onDelete, disabled,
+  todo, categories, onToggle, onStatus, onEdit, onPriority, onDelete, disabled,
 }: {
   todo: TodoItem
   categories: TodoCategory[]
   onToggle: (t: TodoItem) => void
+  onStatus: (t: TodoItem, s: TodoStatus) => void
   onEdit: (t: TodoItem) => void
   onPriority: (t: TodoItem, p: TodoPriority) => void
   onDelete: (id: string) => void
   disabled?: boolean
 }) {
   const [priorityOpen, setPriorityOpen] = useState(false)
+  const [statusOpen, setStatusOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    if (!priorityOpen) return
+    if (!priorityOpen && !statusOpen) return
     const onClick = (evt: MouseEvent) => {
       const target = evt.target as Node
       if (menuRef.current && !menuRef.current.contains(target)) {
         setPriorityOpen(false)
+        setStatusOpen(false)
       }
     }
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
-  }, [priorityOpen])
+  }, [priorityOpen, statusOpen])
 
   const done = todo.status === 'completed' || todo.status === 'cancelled'
   const cat = categories.find(c => c.id === todo.category_id)
 
   return (
-    <div ref={menuRef} className={`group bg-white rounded-xl border shadow-sm px-4 py-3 flex items-start gap-3 transition-all hover:shadow-md ${
-      done ? 'opacity-60' : ''
-    } ${todo.is_overdue && !done ? 'border-red-200' : 'border-slate-200/60'}`}>
-
+    <div
+      ref={menuRef}
+      className={`group bg-white rounded-xl border-l-4 border border-slate-200/60 shadow-sm px-4 py-3 flex items-start gap-3 transition-all hover:shadow-md ${
+        STATUS_BORDER[todo.status]
+      } ${done ? 'opacity-60' : ''} ${todo.is_overdue && !done ? 'border-r-red-200' : ''}`}
+    >
       {/* Checkbox */}
       <button
         className={`mt-0.5 shrink-0 text-slate-400 hover:text-blue-600 transition-colors ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -652,6 +682,37 @@ function TodoRow({
           <span className={`text-sm font-medium ${done ? 'line-through text-slate-400' : 'text-slate-800'}`}>
             {todo.title}
           </span>
+
+          {/* Status badge — clickable dropdown */}
+          <div className="relative">
+            <button
+              className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-medium ${STATUS_COLOR[todo.status]} transition-opacity hover:opacity-80 ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={() => !disabled && setStatusOpen(p => !p)}
+              title="点击更改状态"
+              disabled={disabled}
+            >
+              {STATUS_LABEL[todo.status]}
+              <ChevronDown className="h-3 w-3" />
+            </button>
+            {statusOpen && (
+              <div className="absolute z-20 top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[100px]">
+                {(['pending', 'in_progress', 'completed', 'cancelled'] as TodoStatus[]).map(s => (
+                  <button
+                    key={s}
+                    className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 flex items-center gap-2 ${todo.status === s ? 'font-semibold' : ''}`}
+                    onClick={() => { onStatus(todo, s); setStatusOpen(false) }}
+                  >
+                    <span className={`inline-block w-2 h-2 rounded-full ${
+                      s === 'pending' ? 'bg-slate-400' :
+                      s === 'in_progress' ? 'bg-blue-500' :
+                      s === 'completed' ? 'bg-green-500' : 'bg-red-400'
+                    }`} />
+                    {STATUS_LABEL[s]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Priority badge — clickable to cycle */}
           <div className="relative">
@@ -679,13 +740,6 @@ function TodoRow({
               </div>
             )}
           </div>
-
-          {/* Status badge */}
-          {todo.status !== 'pending' && (
-            <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
-              {STATUS_LABEL[todo.status]}
-            </span>
-          )}
         </div>
 
         {/* Meta row */}
