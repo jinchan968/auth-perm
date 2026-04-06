@@ -1,10 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, useParams } from 'next/navigation'
-import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import { Save, Edit2, X } from 'lucide-react'
-import { getTenant, deleteTenant, updateTenant, changeTenantStatus } from '@/lib/api/tenant'
+import { getTenant, updateTenant, changeTenantStatus } from '@/lib/api/tenant'
 import { Tenant, TenantStatus, TenantPlan, TenantSettings, FeaturesConfig, QuotaConfig } from '@/types/tenant'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,6 +15,9 @@ import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
 import { useAuthStore } from '@/store/auth-store'
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
+import { DetailActionBar } from '@/components/ui/detail-action-bar'
+import { DetailPageHeader } from '@/components/ui/detail-page-header'
+import { ListReturnButton } from '@/components/ui/list-return-button'
 import {
   Select,
   SelectContent,
@@ -25,16 +27,15 @@ import {
 } from '@/components/ui/select'
 
 export default function TenantDetailPage() {
-  const router = useRouter()
   const params = useParams()
   const id = params.id as string
+  const tenantsListHref = '/tenants'
 
   const { user } = useAuthStore()
 
   const [tenant, setTenant] = useState<Tenant | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [deleting, setDeleting] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
 
   // Edit mode state
@@ -143,19 +144,6 @@ export default function TenantDetailPage() {
     })
   }
 
-  const handleDelete = async () => {
-    if (!confirm('确定要删除此租户吗？')) return
-
-    setDeleting(true)
-    try {
-      await deleteTenant(id)
-      router.push('/tenants')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete tenant')
-    } finally {
-      setDeleting(false)
-    }
-  }
 
   const handleSuspend = async () => {
     if (!confirm('确定要禁用此租户吗？')) return
@@ -274,9 +262,7 @@ export default function TenantDetailPage() {
           <DashboardSidebar pathname="/tenants" />
           <main className="flex-1 p-8">
             <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
-            <Link href="/tenants">
-              <Button variant="outline">返回列表</Button>
-            </Link>
+            <ListReturnButton href={tenantsListHref} label="返回列表" />
           </main>
         </div>
       </div>
@@ -300,9 +286,7 @@ export default function TenantDetailPage() {
           <DashboardSidebar pathname="/tenants" />
           <main className="flex-1 p-8">
             <div className="text-center">租户不存在</div>
-            <Link href="/tenants">
-              <Button variant="outline">返回列表</Button>
-            </Link>
+            <ListReturnButton href={tenantsListHref} label="返回列表" />
           </main>
         </div>
       </div>
@@ -333,41 +317,40 @@ export default function TenantDetailPage() {
         <main className="flex-1 p-8">
           <Breadcrumb items={breadcrumbItems} />
 
-          <div className="flex justify-between items-center mb-6 mt-4">
-            <h2 className="text-xl font-semibold">{tenant.name}</h2>
-            <div className="flex gap-2">
-              {isEditing ? (
-                <>
-                  <Button variant="outline" onClick={handleToggleEdit}>
-                    <X className="h-4 w-4 mr-1" />
-                    取消
+          <DetailPageHeader
+            title={tenant.name}
+            actions={
+              <DetailActionBar returnHref={tenantsListHref} returnLabel="返回">
+                {isEditing ? (
+                  <>
+                    <Button variant="outline" onClick={handleToggleEdit}>
+                      <X className="h-4 w-4 mr-1" />
+                      取消
+                    </Button>
+                    <Button onClick={handleSave} disabled={saving}>
+                      <Save className="h-4 w-4 mr-1" />
+                      {saving ? '保存中...' : '保存'}
+                    </Button>
+                  </>
+                ) : (
+                  <Button onClick={handleToggleEdit}>
+                    <Edit2 className="h-4 w-4 mr-1" />
+                    编辑
                   </Button>
-                  <Button onClick={handleSave} disabled={saving}>
-                    <Save className="h-4 w-4 mr-1" />
-                    {saving ? '保存中...' : '保存'}
+                )}
+                {tenant.status === 'active' && (
+                  <Button variant="outline" onClick={handleSuspend} disabled={actionLoading}>
+                    {actionLoading ? '禁用中...' : '禁用'}
                   </Button>
-                </>
-              ) : (
-                <Button onClick={handleToggleEdit}>
-                  <Edit2 className="h-4 w-4 mr-1" />
-                  编辑
-                </Button>
-              )}
-              {tenant.status === 'active' && (
-                <Button variant="outline" onClick={handleSuspend} disabled={actionLoading}>
-                  {actionLoading ? '禁用中...' : '禁用'}
-                </Button>
-              )}
-              {tenant.status === 'deleted' && (
-                <Button variant="default" onClick={handleActivate} disabled={actionLoading}>
-                  {actionLoading ? '启用中...' : '启用'}
-                </Button>
-              )}
-              <Link href="/tenants">
-                <Button variant="outline">返回</Button>
-              </Link>
-            </div>
-          </div>
+                )}
+                {tenant.status === 'deleted' && (
+                  <Button variant="default" onClick={handleActivate} disabled={actionLoading}>
+                    {actionLoading ? '启用中...' : '启用'}
+                  </Button>
+                )}
+              </DetailActionBar>
+            }
+          />
 
           {error && (
             <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>

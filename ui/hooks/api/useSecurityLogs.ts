@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { authApi } from '@/lib/api/auth'
+import { normalizeAuditLogEntry, normalizeLoginLogsResponse } from '@/lib/api/security-log'
 import { queryKeys } from '@/lib/query-keys'
 import type { AuditLogEntry, LoginLogFilters, LoginLogsResponse } from '@/types/security-log'
 
@@ -39,7 +40,8 @@ export function useLoginLogs(filters: LoginLogFilters = {}) {
         ? `/auth/security/logs?${queryString}` 
         : '/auth/security/logs'
 
-      return authApi.get<LoginLogsResponse>(endpoint)
+      const response = await authApi.get<LoginLogsResponse>(endpoint)
+      return normalizeLoginLogsResponse(response)
     },
     staleTime: 30 * 1000, // 30 seconds
     retry: 1,
@@ -54,7 +56,8 @@ export function useSecurityLogById(logId: string) {
   return useQuery<AuditLogEntry>({
     queryKey: [...queryKeys.auth.securityLogs, logId],
     queryFn: async () => {
-      return authApi.get<AuditLogEntry>(`/auth/security/logs/${logId}`)
+      const response = await authApi.get<AuditLogEntry>(`/auth/security/logs/${logId}`)
+      return normalizeAuditLogEntry(response)
     },
     enabled: !!logId,
     staleTime: 60 * 1000, // 1 minute
@@ -94,7 +97,7 @@ export function useRecentLoginActivity() {
     queryKey: [...queryKeys.auth.securityLogs, 'recent'],
     queryFn: async () => {
       const response = await authApi.get<LoginLogsResponse>('/auth/security/logs?page=1&page_size=10')
-      return response.logs || []
+      return normalizeLoginLogsResponse(response).logs
     },
     staleTime: 1 * 60 * 1000, // 1 minute
     retry: 1,

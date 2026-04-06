@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, useParams } from 'next/navigation'
-import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import { Save, Edit2, X, Plus, Trash2 } from 'lucide-react'
 import { getPermission, deletePermission, updatePermission } from '@/lib/api/permission'
 import {
@@ -20,6 +19,8 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
+import { DetailActionBar } from '@/components/ui/detail-action-bar'
+import { DetailPageHeader } from '@/components/ui/detail-page-header'
 import {
   Select,
   SelectContent,
@@ -29,11 +30,14 @@ import {
 } from '@/components/ui/select'
 import { useAuthStore } from '@/store/auth-store'
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
+import { ListReturnButton } from '@/components/ui/list-return-button'
+import { useNavigationTransition } from '@/components/providers/navigation-transition-provider'
 
 export default function PermissionDetailPage() {
-  const router = useRouter()
   const params = useParams()
   const id = params.id as string
+  const permissionsListHref = '/permissions'
+  const { navigateWithTransition } = useNavigationTransition()
 
   const { user } = useAuthStore()
   const tenantId = user?.tenant_id || ''
@@ -146,7 +150,7 @@ export default function PermissionDetailPage() {
     setDeleting(true)
     try {
       await deletePermission(id, tenantId)
-      router.push('/permissions')
+      navigateWithTransition(permissionsListHref)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete permission')
     } finally {
@@ -248,9 +252,7 @@ export default function PermissionDetailPage() {
           <DashboardSidebar pathname="/permissions" />
           <main className="flex-1 p-8">
             <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
-            <Link href="/permissions">
-              <Button variant="outline">返回列表</Button>
-            </Link>
+            <ListReturnButton href={permissionsListHref} label="返回列表" />
           </main>
         </div>
       </div>
@@ -274,9 +276,7 @@ export default function PermissionDetailPage() {
           <DashboardSidebar pathname="/permissions" />
           <main className="flex-1 p-8">
             <div className="text-center">权限不存在</div>
-            <Link href="/permissions">
-              <Button variant="outline">返回列表</Button>
-            </Link>
+            <ListReturnButton href={permissionsListHref} label="返回列表" />
           </main>
         </div>
       </div>
@@ -307,40 +307,35 @@ export default function PermissionDetailPage() {
         <main className="flex-1 p-8">
           <Breadcrumb items={breadcrumbItems} />
 
-          <div className="flex justify-between items-center mb-6 mt-4">
-            <h2 className="text-xl font-semibold">{permission.name}</h2>
-            <div className="flex gap-2">
-              {isEditing ? (
-                <>
-                  <Button variant="outline" onClick={handleToggleEdit}>
-                    <X className="h-4 w-4 mr-1" />
-                    取消
-                  </Button>
-                  <Button onClick={handleSave} disabled={saving}>
-                    <Save className="h-4 w-4 mr-1" />
-                    {saving ? '保存中...' : '保存'}
-                  </Button>
-                </>
-              ) : (
-                <>
-                  {!permission.is_system && (
-                    <Button onClick={handleToggleEdit}>
-                      <Edit2 className="h-4 w-4 mr-1" />
-                      编辑
+          <DetailPageHeader
+            title={permission.name}
+            actions={
+              <DetailActionBar returnHref={permissionsListHref} returnLabel="返回">
+                {isEditing ? (
+                  <>
+                    <Button variant="outline" onClick={handleToggleEdit}>
+                      <X className="h-4 w-4 mr-1" />
+                      取消
                     </Button>
-                  )}
-                </>
-              )}
-              {!permission.is_system && (
-                <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-                  {deleting ? '删除中...' : '删除'}
-                </Button>
-              )}
-              <Link href="/permissions">
-                <Button variant="outline">返回</Button>
-              </Link>
-            </div>
-          </div>
+                    <Button onClick={handleSave} disabled={saving}>
+                      <Save className="h-4 w-4 mr-1" />
+                      {saving ? '保存中...' : '保存'}
+                    </Button>
+                  </>
+                ) : !permission.is_system ? (
+                  <Button onClick={handleToggleEdit}>
+                    <Edit2 className="h-4 w-4 mr-1" />
+                    编辑
+                  </Button>
+                ) : null}
+                {!permission.is_system && (
+                  <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+                    {deleting ? '删除中...' : '删除'}
+                  </Button>
+                )}
+              </DetailActionBar>
+            }
+          />
 
           {error && (
             <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>

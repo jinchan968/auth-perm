@@ -1,18 +1,20 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { Loader2, Plus } from 'lucide-react'
 import { createTenant } from '@/lib/api/tenant'
 import { TenantPlan } from '@/types/tenant'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
 import { useAuthStore } from '@/store/auth-store'
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
+import { DetailActionBar } from '@/components/ui/detail-action-bar'
+import { DetailPageHeader } from '@/components/ui/detail-page-header'
+import { useNavigationTransition } from '@/components/providers/navigation-transition-provider'
 import {
   Select,
   SelectContent,
@@ -22,8 +24,9 @@ import {
 } from '@/components/ui/select'
 
 export default function NewTenantPage() {
-  const router = useRouter()
   const { user } = useAuthStore()
+  const tenantsListHref = '/tenants'
+  const { navigateWithTransition } = useNavigationTransition()
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -43,7 +46,7 @@ export default function NewTenantPage() {
     setLoading(true)
     try {
       await createTenant({ name, plan })
-      router.push('/tenants')
+      navigateWithTransition(tenantsListHref)
     } catch (err) {
       setError(err instanceof Error ? err.message : '创建失败')
     } finally {
@@ -76,17 +79,37 @@ export default function NewTenantPage() {
           <Breadcrumb items={breadcrumbItems} />
 
           <div className="max-w-2xl mx-auto mt-4">
+            <DetailPageHeader
+              title="新建租户"
+              description="请填写租户基本信息"
+              actions={
+                <DetailActionBar returnHref={tenantsListHref} returnLabel="返回列表">
+                  <Button type="submit" form="new-tenant-form" disabled={loading} className="min-w-[132px] active:scale-100">
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        创建中...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4" />
+                        创建
+                      </>
+                    )}
+                  </Button>
+                </DetailActionBar>
+              }
+            />
             <Card>
               <CardHeader>
                 <CardTitle>租户信息</CardTitle>
-                <CardDescription>请填写租户基本信息</CardDescription>
               </CardHeader>
               <CardContent>
                 {error && (
                   <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form id="new-tenant-form" onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">租户名称 *</Label>
                     <Input
@@ -113,16 +136,6 @@ export default function NewTenantPage() {
                     </Select>
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Link href="/tenants">
-                      <Button type="button" variant="outline" disabled={loading}>
-                        取消
-                      </Button>
-                    </Link>
-                    <Button type="submit" disabled={loading}>
-                      {loading ? '创建中...' : '创建'}
-                    </Button>
-                  </div>
                 </form>
               </CardContent>
             </Card>

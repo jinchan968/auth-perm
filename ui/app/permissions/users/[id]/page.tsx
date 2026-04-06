@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { Save, Check } from 'lucide-react'
 import { User } from '@/lib/api/auth'
 import { getUser } from '@/lib/api/user'
@@ -14,6 +13,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
+import { DetailActionBar } from '@/components/ui/detail-action-bar'
+import { DetailPageHeader } from '@/components/ui/detail-page-header'
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,7 @@ import {
 import { useTenant } from '@/lib/tenant-context'
 import { useAuthStore } from '@/store/auth-store'
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
+import { ListReturnButton } from '@/components/ui/list-return-button'
 
 // 公共 Header，与角色详情页保持一致
 function PageHeader({ user }: { user: User | null }) {
@@ -54,7 +56,8 @@ export default function UserDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { user: currentUser } = useAuthStore()
-  const { selectedTenantId } = useTenant()
+  const { selectedTenantId, tenants } = useTenant()
+  const usersListHref = '/permissions?tab=users'
 
   const accountId = params.id as string
 
@@ -68,7 +71,7 @@ export default function UserDetailPage() {
 
   useEffect(() => {
     if (accountId === 'new' || !accountId) {
-      router.replace('/permissions?tab=users')
+      router.replace(usersListHref)
       return
     }
     const fetchData = async () => {
@@ -124,6 +127,10 @@ export default function UserDetailPage() {
     { label: '用户详情' },
   ]
 
+  const userTenant = userDetail
+    ? tenants.find((tenant) => tenant.id === userDetail.tenant_id)
+    : null
+
   // ── Loading ──
   if (loading) {
     return (
@@ -148,9 +155,7 @@ export default function UserDetailPage() {
           <DashboardSidebar pathname="/permissions" />
           <main className="flex-1 p-8">
             <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error || '用户不存在'}</div>
-            <Link href="/permissions?tab=users">
-              <Button variant="outline">返回列表</Button>
-            </Link>
+            <ListReturnButton href={usersListHref} label="返回列表" />
           </main>
         </div>
       </div>
@@ -166,21 +171,17 @@ export default function UserDetailPage() {
         <main className="flex-1 p-8">
           <Breadcrumb items={breadcrumbItems} />
 
-          {/* ── 标题栏，与角色详情保持一致 ── */}
-          <div className="flex justify-between items-center mb-6 mt-4">
-            <h2 className="text-xl font-semibold">
-              用户角色分配 - {userDetail.username || userDetail.nickname || accountId}
-            </h2>
-            <div className="flex gap-2">
-              <Button onClick={handleSave} disabled={saving}>
-                <Save className="h-4 w-4 mr-1" />
-                {saving ? '保存中...' : '保存'}
-              </Button>
-              <Link href="/permissions?tab=users">
-                <Button variant="outline">返回</Button>
-              </Link>
-            </div>
-          </div>
+          <DetailPageHeader
+            title={`用户角色分配 - ${userDetail.username || userDetail.nickname || accountId}`}
+            actions={
+              <DetailActionBar returnHref={usersListHref} returnLabel="返回">
+                <Button onClick={handleSave} disabled={saving}>
+                  <Save className="h-4 w-4 mr-1" />
+                  {saving ? '保存中...' : '保存'}
+                </Button>
+              </DetailActionBar>
+            }
+          />
 
           {error && (
             <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
@@ -195,6 +196,10 @@ export default function UserDetailPage() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <InfoRow label="用户名" value={userDetail.username} />
                 <InfoRow label="昵称" value={userDetail.nickname} />
+                <InfoRow
+                  label="所属租户"
+                  value={userTenant ? `${userTenant.name} (${userTenant.code})` : userDetail.tenant_id}
+                />
                 <InfoRow label="邮箱" value={userDetail.email} />
                 <InfoRow label="手机号" value={userDetail.phone} />
                 <div>

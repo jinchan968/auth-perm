@@ -95,39 +95,41 @@ export const addResponseInterceptor = (interceptor: (response: Response) => Resp
   responseInterceptors.push(interceptor)
 }
 
-// 公开路由列表 - 这些路由收到 401 时不重定向
+// 公开路由列表 - 这些路由收到认证错误时不重定向
 const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password', '/unauthorized']
 
-// 处理 401 未授权响应的函数
-function handleUnauthorized(response: Response): Response {
+// 处理 401/403 鉴权响应的函数
+function handleAuthRedirect(response: Response): Response {
   // 只在客户端执行
   if (typeof window === 'undefined') {
     return response
   }
 
-  // 检查是否是 401 响应
+  const currentPath = window.location.pathname
+  const isPublicRoute = PUBLIC_ROUTES.some(route => currentPath.startsWith(route))
+
+  if (isPublicRoute) {
+    return response
+  }
+
   if (response.status === HTTP_STATUS.UNAUTHORIZED) {
-    // 检查当前是否在公开路由或已在无权限页面
-    const currentPath = window.location.pathname
-    const isPublicRoute = PUBLIC_ROUTES.some(route => currentPath.startsWith(route))
-    const isUnauthorizedPage = currentPath === '/unauthorized'
+    console.log('ApiClient: Received 401, redirecting to login page')
+    window.location.href = '/login'
+    return response
+  }
 
-    // 如果是公开路由或已在无权限页面，不重定向
-    if (isPublicRoute || isUnauthorizedPage) {
-      return response
+  if (response.status === HTTP_STATUS.FORBIDDEN) {
+    if (currentPath !== '/unauthorized') {
+      console.log('ApiClient: Received 403, redirecting to unauthorized page')
+      window.location.href = '/unauthorized'
     }
-
-    console.log('ApiClient: Received 401, redirecting to unauthorized page')
-
-    // 重定向到无权限页面
-    window.location.href = '/unauthorized'
   }
 
   return response
 }
 
-// 注册 401 处理拦截器
-addResponseInterceptor(handleUnauthorized)
+// 注册鉴权跳转处理拦截器
+addResponseInterceptor(handleAuthRedirect)
 
 // 通用 API 客户端类
 class ApiClient {

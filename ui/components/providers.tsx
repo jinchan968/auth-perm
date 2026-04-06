@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React, { useState } from 'react'
 import { AuthProvider } from './providers/auth-provider'
+import { NavigationTransitionProvider } from './providers/navigation-transition-provider'
 import { TenantProvider } from '@/lib/tenant-context'
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -22,11 +23,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TenantProvider>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
-      </TenantProvider>
+      <NavigationTransitionProvider>
+        <TenantProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </TenantProvider>
+      </NavigationTransitionProvider>
     </QueryClientProvider>
   )
 }

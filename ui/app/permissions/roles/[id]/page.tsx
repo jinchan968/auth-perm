@@ -1,9 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, useParams } from 'next/navigation'
-import Link from 'next/link'
-import { Save, Check, Trash2 } from 'lucide-react'
+import { useParams } from 'next/navigation'
+import { Save, Check, Trash2, Loader2 } from 'lucide-react'
 import { getRole, getRolePermissions, assignPermissionsToRole, deleteRole } from '@/lib/api/role'
 import { listPermissions as listPermApi } from '@/lib/api/permission'
 import { Role, PermissionListItem } from '@/types/permission'
@@ -11,6 +10,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
+import { DetailActionBar } from '@/components/ui/detail-action-bar'
+import { DetailPageHeader } from '@/components/ui/detail-page-header'
 import {
   Dialog,
   DialogContent,
@@ -22,12 +23,15 @@ import {
 import { useTenant } from '@/lib/tenant-context'
 import { useAuthStore } from '@/store/auth-store'
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
+import { ListReturnButton } from '@/components/ui/list-return-button'
+import { useNavigationTransition } from '@/components/providers/navigation-transition-provider'
 
 export default function RolePermissionsPage() {
-  const router = useRouter()
   const params = useParams()
   const roleId = params.id as string
   const { user } = useAuthStore()
+  const rolesListHref = '/permissions?tab=roles'
+  const { navigateWithTransition } = useNavigationTransition()
 
   // 使用统一的租户上下文（仅需 selectedTenantId）
   const { selectedTenantId } = useTenant()
@@ -37,6 +41,7 @@ export default function RolePermissionsPage() {
   const [assignedPermissionIds, setAssignedPermissionIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [saveSuccessOpen, setSaveSuccessOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [error, setError] = useState('')
 
@@ -75,6 +80,11 @@ export default function RolePermissionsPage() {
   }
 
   const handleSave = async () => {
+    if (!selectedTenantId) {
+      setError('租户ID缺失')
+      return
+    }
+
     setSaving(true)
     setError('')
     try {
@@ -83,7 +93,7 @@ export default function RolePermissionsPage() {
         permission_ids: assignedPermissionIds,
         tenant_id: selectedTenantId,
       })
-      router.push('/permissions?tab=roles')
+      setSaveSuccessOpen(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save permissions')
     } finally {
@@ -131,9 +141,7 @@ export default function RolePermissionsPage() {
           <DashboardSidebar pathname="/permissions" />
           <main className="flex-1 p-8">
             <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
-            <Link href="/permissions">
-              <Button variant="outline">返回列表</Button>
-            </Link>
+            <ListReturnButton href={rolesListHref} label="返回列表" />
           </main>
         </div>
       </div>
@@ -157,9 +165,7 @@ export default function RolePermissionsPage() {
           <DashboardSidebar pathname="/permissions" />
           <main className="flex-1 p-8">
             <div className="text-center">角色不存在</div>
-            <Link href="/permissions">
-              <Button variant="outline">返回列表</Button>
-            </Link>
+            <ListReturnButton href={rolesListHref} label="返回列表" />
           </main>
         </div>
       </div>
@@ -201,51 +207,68 @@ export default function RolePermissionsPage() {
         <main className="flex-1 p-8">
           <Breadcrumb items={breadcrumbItems} />
 
-          <div className="flex justify-between items-center mb-6 mt-4">
-            <h2 className="text-xl font-semibold">角色权限分配 - {role.name}</h2>
-            <div className="flex gap-2">
-              <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="destructive">
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    删除
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>确认删除角色</DialogTitle>
-                  </DialogHeader>
-                  <p>
-                    确定要删除角色 <strong>{role.name}</strong> 吗？此操作无法撤销。
-                  </p>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>取消</Button>
-                    <Button
-                      variant="destructive"
-                      onClick={async () => {
-                        try {
-                          await deleteRole(roleId, selectedTenantId)
-                          router.push('/permissions?tab=roles')
-                        } catch (err) {
-                          setError(err instanceof Error ? err.message : '删除失败')
-                          setDeleteDialogOpen(false)
-                        }
-                      }}
-                    >
-                      确认删除
+          <DetailPageHeader
+            title={`角色权限分配 - ${role.name}`}
+            actions={
+              <DetailActionBar returnHref={rolesListHref} returnLabel="返回">
+                <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="destructive">
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      删除
                     </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-              <Button onClick={handleSave} disabled={saving}>
-                <Save className="h-4 w-4 mr-1" />
-                {saving ? '保存中...' : '保存'}
-              </Button>
-              <Link href="/permissions?tab=roles">
-                <Button variant="outline">返回</Button>
-              </Link>
-            </div>
-          </div>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>确认删除角色</DialogTitle>
+                    </DialogHeader>
+                    <p>
+                      确定要删除角色 <strong>{role.name}</strong> 吗？此操作无法撤销。
+                    </p>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>取消</Button>
+                      <Button
+                        variant="destructive"
+                        onClick={async () => {
+                          try {
+                            await deleteRole(roleId, selectedTenantId)
+                            navigateWithTransition(rolesListHref, {
+                              onBeforeNavigate: () => setDeleteDialogOpen(false),
+                            })
+                          } catch (err) {
+                            setError(err instanceof Error ? err.message : '删除失败')
+                            setDeleteDialogOpen(false)
+                          }
+                        }}
+                      >
+                        确认删除
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                <Button onClick={handleSave} disabled={saving} className="min-w-[132px] active:scale-100">
+                  <span className="relative flex items-center justify-center">
+                    <span
+                      className={`flex items-center justify-center transition-all duration-200 ${
+                        saving ? 'opacity-0 -translate-y-1 scale-95' : 'opacity-100 translate-y-0 scale-100'
+                      }`}
+                    >
+                      <Save className="h-4 w-4 mr-1" />
+                      <span className="inline-flex min-w-[32px] justify-center">保存</span>
+                    </span>
+                    <span
+                      className={`absolute inset-0 flex items-center justify-center transition-all duration-200 ${
+                        saving ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-1 scale-95'
+                      }`}
+                    >
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      <span className="inline-flex min-w-[60px] justify-center">保存中...</span>
+                    </span>
+                  </span>
+                </Button>
+              </DetailActionBar>
+            }
+          />
 
           {error && (
             <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
@@ -301,6 +324,21 @@ export default function RolePermissionsPage() {
           )}
         </main>
       </div>
+
+      <Dialog open={saveSuccessOpen} onOpenChange={setSaveSuccessOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>保存成功</DialogTitle>
+          </DialogHeader>
+          <p className="py-2 text-sm text-slate-600">角色权限分配已保存。</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveSuccessOpen(false)}>
+              继续编辑
+            </Button>
+              <ListReturnButton href={rolesListHref} label="返回列表" onBeforeNavigate={() => setSaveSuccessOpen(false)} />
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

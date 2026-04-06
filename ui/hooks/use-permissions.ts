@@ -2,6 +2,7 @@
 
 import { create } from 'zustand'
 import { useEffect } from 'react'
+import { useAuthStore } from '@/store/auth-store'
 import { getMyResources, ResourceItem } from '@/lib/api/resource'
 
 interface PermissionsState {
@@ -112,6 +113,7 @@ export const usePermissionsStore = create<PermissionsState>((set, get) => ({
  * 用于前端权限控制：菜单、按钮显隐判断
  */
 export function usePermissions() {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const {
     loading,
     loaded,
@@ -125,10 +127,10 @@ export function usePermissions() {
 
   // 首次调用时自动加载权限
   useEffect(() => {
-    if (!loaded && !loading) {
+    if (isAuthenticated && !loaded && !loading) {
       fetchResources()
     }
-  }, [loaded, loading, fetchResources])
+  }, [isAuthenticated, loaded, loading, fetchResources])
 
   return {
     loading,

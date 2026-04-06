@@ -1,9 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { Save } from 'lucide-react'
+import { Loader2, Save } from 'lucide-react'
 import { createPermission } from '@/lib/api/permission'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,10 +19,14 @@ import {
 import { useAuthStore } from '@/store/auth-store'
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
 import { useTenant } from '@/lib/tenant-context'
+import { DetailActionBar } from '@/components/ui/detail-action-bar'
+import { DetailPageHeader } from '@/components/ui/detail-page-header'
+import { useNavigationTransition } from '@/components/providers/navigation-transition-provider'
 
 export default function NewPermissionPage() {
-  const router = useRouter()
   const { user } = useAuthStore()
+  const permissionsListHref = '/permissions'
+  const { navigateWithTransition } = useNavigationTransition()
 
   // 使用统一的租户上下文
   const { tenants, selectedTenantId, setSelectedTenantId, tenantId, loading: tenantLoading } = useTenant()
@@ -51,7 +53,7 @@ export default function NewPermissionPage() {
         name: formData.name,
         description: formData.description,
       })
-      router.push('/permissions')
+      navigateWithTransition(permissionsListHref)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create permission')
     } finally {
@@ -83,18 +85,26 @@ export default function NewPermissionPage() {
         <main className="flex-1 p-8">
           <Breadcrumb items={breadcrumbItems} />
 
-          <div className="flex justify-between items-center mb-6 mt-4">
-            <h2 className="text-xl font-semibold">新建权限</h2>
-            <div className="flex gap-2">
-              <Button onClick={handleSave} disabled={saving}>
-                <Save className="h-4 w-4 mr-1" />
-                {saving ? '保存中...' : '保存'}
-              </Button>
-              <Link href="/permissions">
-                <Button variant="outline">返回</Button>
-              </Link>
-            </div>
-          </div>
+          <DetailPageHeader
+            title="新建权限"
+            actions={
+              <DetailActionBar returnHref={permissionsListHref} returnLabel="返回列表">
+                <Button onClick={handleSave} disabled={saving} className="min-w-[132px] active:scale-100">
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      保存中...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      保存
+                    </>
+                  )}
+                </Button>
+              </DetailActionBar>
+            }
+          />
 
           {error && (
             <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
