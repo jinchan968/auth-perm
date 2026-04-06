@@ -1,5 +1,8 @@
 .PHONY: help build test run clean docker-build docker-run migrate-up migrate-down migrate-create migrate-status lint fmt vet
 
+GOBASE=$(shell pwd)
+INTERNAL_PATH=GOBASE/internal
+
 # 默认目标
 help: ## 显示帮助信息
 	@echo "Auth-Perm 开发工具"
@@ -10,7 +13,7 @@ help: ## 显示帮助信息
 # 构建应用
 build: ## 构建应用
 	@echo "构建应用..."
-	go build -o bin/auth-perm cmd/api/main.go
+	go build -o .bin/auth-perm cmd/api/main.go
 
 # 运行测试
 test: ## 运行所有测试

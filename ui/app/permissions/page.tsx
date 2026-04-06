@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Plus } from 'lucide-react'
-import { listPermissions } from '@/lib/api/permission'
+import { listPermissions, createPermission } from '@/lib/api/permission'
 import { listRoles, createRole } from '@/lib/api/role'
 import { listUsers, createUser } from '@/lib/api/user'
 import { PermissionListItem, RoleListItem } from '@/types/permission'
@@ -74,6 +74,14 @@ function PermissionsPageContent() {
   const [roleModalOpen, setRoleModalOpen] = useState(false)
   const [roleSaving, setRoleSaving] = useState(false)
   const [roleFormData, setRoleFormData] = useState({
+    name: '',
+    description: '',
+  })
+
+  // Permission creation modal state
+  const [permissionModalOpen, setPermissionModalOpen] = useState(false)
+  const [permissionSaving, setPermissionSaving] = useState(false)
+  const [permissionFormData, setPermissionFormData] = useState({
     name: '',
     description: '',
   })
@@ -222,6 +230,42 @@ function PermissionsPageContent() {
     }
   }
 
+  // Permission modal handlers
+  const handleOpenPermissionModal = () => {
+    setPermissionFormData({ name: '', description: '' })
+    setPermissionModalOpen(true)
+  }
+
+  const handleClosePermissionModal = () => {
+    setPermissionModalOpen(false)
+    setPermissionFormData({ name: '', description: '' })
+  }
+
+  const handleSavePermission = async () => {
+    if (!permissionFormData.name) {
+      setError('请填写权限名称')
+      return
+    }
+
+    setPermissionSaving(true)
+    setError('')
+    try {
+      await createPermission({
+        tenant_id: tenantId,
+        name: permissionFormData.name,
+        description: permissionFormData.description,
+      })
+      handleClosePermissionModal()
+      if (activeTab === 'permissions') {
+        fetchPermissions(page)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '创建权限失败')
+    } finally {
+      setPermissionSaving(false)
+    }
+  }
+
   // User creation handlers
   const handleOpenUserModal = () => {
     setUserFormData({
@@ -345,9 +389,7 @@ function PermissionsPageContent() {
               {activeTab === 'permissions' ? '权限列表' : activeTab === 'roles' ? '角色列表' : '用户列表'}
             </h2>
             {activeTab === 'permissions' ? (
-              <Link href="/permissions/new">
-                <Button>新建权限</Button>
-              </Link>
+              <Button onClick={handleOpenPermissionModal}>新建权限</Button>
             ) : activeTab === 'roles' ? (
               <Button onClick={handleOpenRoleModal}>新建角色</Button>
             ) : (
@@ -618,6 +660,36 @@ function PermissionsPageContent() {
                 <Button variant="outline" onClick={handleCloseRoleModal}>取消</Button>
                 <Button onClick={handleSaveRole} disabled={roleSaving}>
                   {roleSaving ? '保存中...' : '保存'}
+                </Button>
+              </div>
+            </div>
+          </AppModal>
+
+          {/* Permission Creation Modal */}
+          <AppModal open={permissionModalOpen} onClose={handleClosePermissionModal} title="新建权限">
+            <div className="p-6 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="permissionName">权限名称 *</Label>
+                <Input
+                  id="permissionName"
+                  placeholder="如: 查看用户"
+                  value={permissionFormData.name}
+                  onChange={(e) => setPermissionFormData({ ...permissionFormData, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="permissionDesc">描述</Label>
+                <Input
+                  id="permissionDesc"
+                  placeholder="可选描述"
+                  value={permissionFormData.description}
+                  onChange={(e) => setPermissionFormData({ ...permissionFormData, description: e.target.value })}
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={handleClosePermissionModal}>取消</Button>
+                <Button onClick={handleSavePermission} disabled={permissionSaving}>
+                  {permissionSaving ? '保存中...' : '保存'}
                 </Button>
               </div>
             </div>

@@ -48,3 +48,6 @@ Thumbs.db
 tmp/
 temp/
 .db-vars.txt
+
+# Private files
+*.local.md

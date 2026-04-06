@@ -37,6 +37,8 @@ export function AppModal({
 }: AppModalProps) {
   const [mounted, setMounted] = useState(false)
   const [visible, setVisible] = useState(false)
+  // 用于在退出动画播放完毕前保持 portal 挂载
+  const [rendered, setRendered] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -45,11 +47,16 @@ export function AppModal({
 
   useEffect(() => {
     if (open) {
-      // 下一帧触发动画
+      setRendered(true)
+      // 下一帧触发进入动画
       const t = setTimeout(() => setVisible(true), 10)
       return () => clearTimeout(t)
     } else {
+      // 先触发退出动画
       setVisible(false)
+      // 等动画播放完（300ms）再卸载
+      const t = setTimeout(() => setRendered(false), 300)
+      return () => clearTimeout(t)
     }
   }, [open])
 
@@ -61,7 +68,7 @@ export function AppModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
-  if (!open || !mounted) return null
+  if (!rendered || !mounted) return null
 
   return createPortal(
     <>
