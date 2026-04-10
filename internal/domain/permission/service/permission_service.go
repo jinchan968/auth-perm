@@ -1240,11 +1240,21 @@ func (s *PermissionService) AssignRoleToAccount(ctx context.Context, params *par
 		return errors.NewValidationError(err.Error())
 	}
 
-	// 分配角色
+	uniqueRoleIDs := make([]string, 0, len(params.RoleIDs))
+	seen := make(map[string]struct{}, len(params.RoleIDs))
 	for _, roleID := range params.RoleIDs {
-		if err := s.permissionRepo.AssignRoleToAccount(ctx, params.AccountID, roleID, params.TenantID); err != nil {
-			return errors.WrapBizError(err, "分配角色失败")
+		if roleID == "" {
+			continue
 		}
+		if _, exists := seen[roleID]; exists {
+			continue
+		}
+		seen[roleID] = struct{}{}
+		uniqueRoleIDs = append(uniqueRoleIDs, roleID)
+	}
+
+	if err := s.permissionRepo.SyncAccountRoles(ctx, params.AccountID, uniqueRoleIDs, params.TenantID); err != nil {
+		return errors.WrapBizError(err, "同步账户角色失败")
 	}
 
 	// 清除缓存

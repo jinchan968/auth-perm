@@ -126,7 +126,7 @@ type RemovePermissionFromRoleRequest struct {
 // AssignRoleToAccountRequest 分配角色给账户请求
 // AccountID 从 URL 路径参数 :accountId 获取，不需要在 body 中传递
 type AssignRoleToAccountRequest struct {
-	RoleIDs  []string `json:"role_ids" binding:"required"`
+	RoleIDs  []string `json:"role_ids"`
 	TenantID string   `json:"tenant_id" binding:"required"`
 }
 

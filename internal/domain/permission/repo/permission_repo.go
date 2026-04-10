@@ -8,6 +8,7 @@ import (
 	"auth-perm/internal/common/model"
 	"auth-perm/internal/domain/permission/dm"
 	"gorm.io/gorm"
+	
 )
 
 // PermissionRepo 权限仓储
@@ -125,8 +126,11 @@ func (r *PermissionRepo) DeleteRole(ctx context.Context, id string) error {
 func (r *PermissionRepo) AssignRoleToAccount(ctx context.Context, accountID, roleID, tenantID string) error {
 	ar := dm.NewAccountRole(accountID, roleID, tenantID)
 	return r.db.WithContext(ctx).
-		Where("account_id = ? AND role_id = ?", accountID, roleID).
-		FirstOrCreate(ar).Error
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "account_id"}, {Name: "role_id"}},
+			DoNothing: true,
+		}).
+		Create(ar).Error
 }
 
 // RemoveRoleFromAccount 从账户移除角色
@@ -142,6 +146,67 @@ func (r *PermissionRepo) GetAccountRoles(ctx context.Context, accountID string) 
 		Where("account_id = ?", accountID).
 		Pluck("role_id", &roleIDs).Error
 	return roleIDs, err
+}
+
+// SyncAccountRoles 同步账户角色（差量更新：对比已有和期望的角色列表，仅增删差异部分）
+func (r *PermissionRepo) SyncAccountRoles(ctx context.Context, accountID string, roleIDs []string, tenantID string) error {
+	existingIDs, err := r.GetAccountRoles(ctx, accountID)
+	if err != nil {
+		return errors.WrapBizError(err, "查询账户现有角色失败")
+	}
+
+	existingSet := make(map[string]struct{}, len(existingIDs))
+	for _, id := range existingIDs {
+		existingSet[id] = struct{}{}
+	}
+
+	desiredSet := make(map[string]struct{}, len(roleIDs))
+	for _, id := range roleIDs {
+		desiredSet[id] = struct{}{}
+	}
+
+	var toAdd []string
+	for _, id := range roleIDs {
+		if _, exists := existingSet[id]; !exists {
+			toAdd = append(toAdd, id)
+		}
+	}
+
+	var toRemove []string
+	for _, id := range existingIDs {
+		if _, exists := desiredSet[id]; !exists {
+			toRemove = append(toRemove, id)
+		}
+	}
+
+	if len(toAdd) == 0 && len(toRemove) == 0 {
+		return nil
+	}
+
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if len(toRemove) > 0 {
+			if err := tx.Where("account_id = ? AND role_id IN ?", accountID, toRemove).
+				Delete(&dm.AccountRoleDO{}).Error; err != nil {
+				return errors.WrapBizError(err, "删除账户角色关联失败")
+			}
+		}
+
+		if len(toAdd) > 0 {
+			accountRoles := make([]*dm.AccountRoleDO, 0, len(toAdd))
+			for _, roleID := range toAdd {
+				accountRoles = append(accountRoles, dm.NewAccountRole(accountID, roleID, tenantID))
+			}
+
+			if err := tx.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "account_id"}, {Name: "role_id"}},
+				DoNothing: true,
+			}).Create(&accountRoles).Error; err != nil {
+				return errors.WrapBizError(err, "新增账户角色关联失败")
+			}
+		}
+
+		return nil
+	})
 }
 
 // FindAccountIDsByRoleIDs 根据角色ID列表查找关联的账户ID列表

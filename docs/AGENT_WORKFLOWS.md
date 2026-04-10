@@ -1,20 +1,20 @@
 # 代理协作规范
 
-本文档结合 Claude folder 的常见组织思路，以及近期更常见的 harness agent / 多代理协作方式，约束 `[GoBase]` 中的任务拆分、上下文交接和验收方式。
+本文档结合 Claude folder 的常见组织思路，以及近期更常见的 harness agent / 多代理协作方式，约束当前仓库中的任务拆分、上下文交接和验收方式；
 
 ## 1. 核心思想
 
 ### 1.1 共享规则短、长说明下沉
 参考 Claude folder 的实践，代理规则最好分成两层：
 
-- **共享入口**：`[GoBase]/AGENTS.md`
+- **共享入口**：`./AGENTS.md`
   - 只保留高频、稳定、必须遵守的规则；
   - 控制篇幅，避免一次把所有背景都塞进上下文；
   - 提供明确索引，让代理先知道“应该去哪里读详细说明”。
-- **详细专题**：`[GoBase]/docs/*.md`
+- **详细专题**：`./docs/*.md`
   - 分别承载架构、开发、协作流程、专题实现说明；
   - 便于独立维护，也能减少根规则文件的上下文噪音。
-- **本地偏好**：`[GoBase]/AGENTS.local.md`
+- **本地偏好**：`./AGENTS.local.md`
   - 放本机、本人、隐私相关约束；
   - 不把机器差异、私有凭据、个人偏好混进团队共享规则。
 
@@ -116,9 +116,9 @@ Reviewer 的重点：
 
 ### 5.1 后端任务
 优先查看：
-- `[GoBase]/docs/ARCHITECTURE.md`
-- `[GoBase]/internal/container/`
-- `[GoBase]/internal/controller/http/route.go`
+- `./docs/ARCHITECTURE.md`
+- `./internal/container/`
+- `./internal/controller/http/route.go`
 - 对应领域模块 `module.go`、`service/`、`repo/`、`handler/`
 
 适合单独拆出的子任务：
@@ -129,12 +129,12 @@ Reviewer 的重点：
 
 ### 5.2 前端任务
 优先查看：
-- `[GoBase]/docs/ARCHITECTURE.md`
-- `[GoBase]/docs/DEVELOPMENT.md`
-- `[GoBase]/ui/lib/api/`
-- `[GoBase]/ui/hooks/`
-- `[GoBase]/ui/types/`
-- `[GoBase]/ui/app/` 与对应组件目录
+- `./docs/ARCHITECTURE.md`
+- `./docs/DEVELOPMENT.md`
+- `./ui/lib/api/`
+- `./ui/hooks/`
+- `./ui/types/`
+- `./ui/app/` 与对应组件目录
 
 适合单独拆出的子任务：
 - API 客户端封装；
@@ -156,7 +156,6 @@ Reviewer 的重点：
 1. 长规则不直接塞进 `AGENTS.md`，而是下沉到 `docs/`。
 2. 新增长文档后，要回到 `AGENTS.md` 加索引。
 3. 一次性排障文档可以留在 `docs/` 根目录；若后续被多次引用，应提炼为长期规范并迁入核心文档。
-4. 文档中的路径统一写成 `[GoBase]/相对路径`。
 
 ## 7. Definition of Done
 以下清单满足后，任务才算真正完成：

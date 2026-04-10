@@ -1,6 +1,6 @@
 # 开发指南
 
-本文档汇总 `[GoBase]` 当前已验证的构建 / 测试 / lint 命令，以及后端、前端、全栈任务的推荐开发流程。
+本文档汇总当前仓库已验证的构建 / 测试 / lint 命令，以及后端、前端、全栈任务的推荐开发流程
 
 ## 1. 已验证命令
 
@@ -12,7 +12,7 @@ make lint
 make vet
 ```
 
-### 1.2 前端（`[GoBase]/ui`）
+### 1.2 前端（`./ui`）
 ```bash
 cd ui && pnpm lint
 cd ui && pnpm type-check
@@ -26,13 +26,13 @@ cd ui && pnpm type-check
 ## 2. 环境与目录认知
 开始改动前，建议先确认你在改哪一层：
 
-- 后端启动入口：`[GoBase]/cmd/api/main.go`
-- 后端依赖装配：`[GoBase]/internal/container/`
-- 后端路由注册：`[GoBase]/internal/controller/http/route.go`
-- 领域模块：`[GoBase]/internal/domain/{auth,permission,tenant,todo}`
-- 前端页面：`[GoBase]/ui/app/`
-- 前端 API：`[GoBase]/ui/lib/api/`
-- 前端权限：`[GoBase]/ui/hooks/use-permissions.ts`、`[GoBase]/ui/components/ui/perm-guard.tsx`
+- 后端启动入口：`./cmd/api/main.go`
+- 后端依赖装配：`./internal/container/`
+- 后端路由注册：`./internal/controller/http/route.go`
+- 领域模块：`./internal/domain/{auth,permission,tenant,todo}`
+- 前端页面：`./ui/app/`
+- 前端 API：`./ui/lib/api/`
+- 前端权限：`./ui/hooks/use-permissions.ts`、`./ui/components/ui/perm-guard.tsx`
 
 ## 3. 推荐开发流程
 
@@ -49,10 +49,11 @@ cd ui && pnpm type-check
 
 ### 3.2 前端任务
 1. 先确认页面、组件、hook、API 封装、类型定义各自的职责边界。
-2. 优先在 `ui/lib/api/` 增加或修改接口封装，而不是在页面里直接发请求。
-3. 若有共享交互或权限逻辑，优先抽到 `ui/hooks/`、`ui/store/` 或业务组件层。
-4. 若接口字段变化，同步修改 `ui/types/`。
-5. 开发完成后，至少运行 `pnpm lint` 和 `pnpm type-check`。
+2. 新增页面或交互前，先检查 `ui/components/ui/` 与 `ui/components/` 是否已有可复用组件；优先复用或组合现有组件，无合适抽象再新增。
+3. 优先在 `ui/lib/api/` 增加或修改接口封装，而不是在页面里直接发请求。
+4. 若有共享交互或权限逻辑，优先抽到 `ui/hooks/`、`ui/store/` 或业务组件层。
+5. 若接口字段变化，同步修改 `ui/types/`。
+6. 开发完成后，至少运行 `pnpm lint` 和 `pnpm type-check`。
 
 ### 3.3 全栈任务
 按下面顺序推进，最不容易漏项：
@@ -69,17 +70,17 @@ cd ui && pnpm type-check
 ### 4.1 通用
 - [ ] 没有新增 `console.log` / `print()` / `fmt.Println()` 之类调试输出。
 - [ ] 修改点没有绕开既有分层，业务逻辑仍在合适的 service / hook / 组件层。
-- [ ] 说明文档和脚本中的路径统一使用 `[GoBase]/相对路径`。
 - [ ] 若新增文件，命名符合 PascalCase / camelCase / kebab-case 约定。
 
 ### 4.2 后端
 - [ ] 依赖注入是否完整：`module.go` / `container.go`。
-- [ ] 路由是否注册：`[GoBase]/internal/controller/http/route.go`。
+- [ ] 路由是否注册：`./internal/controller/http/route.go`。
 - [ ] 中间件、权限、租户约束是否被正确复用。
 - [ ] 目标模块测试或回归验证已运行。
 
 ### 4.3 前端
 - [ ] `ui/lib/api`、`ui/hooks`、`ui/types`、页面 / 组件是否同步。
+- [ ] 已先检查 `ui/components/ui/` 与 `ui/components/`，优先复用已有共享组件；新增组件有明确复用边界。
 - [ ] 权限显隐是否同步更新到 `use-permissions` / `PermGuard` 的使用点。
 - [ ] `pnpm lint` 和 `pnpm type-check` 已通过。
 

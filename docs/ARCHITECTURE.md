@@ -1,27 +1,27 @@
 # 架构总览
 
-本文档描述 `[GoBase]` 的后端 / 前端分层边界、关键数据流，以及做改动时通常需要同步检查的落点。
+本文档描述当前仓库的后端 / 前端分层边界、关键数据流，以及做改动时通常需要同步检查的落点
 
 ## 1. 系统概览
 - 后端：Go + Gin + GORM + Redis。
 - 前端：Next.js App Router + React Query + Zustand。
 - 关键主题：认证、权限、租户、Todo。
-- 启动入口：`[GoBase]/cmd/api/main.go`。
+- 启动入口：`./cmd/api/main.go`。
 
 ## 2. 后端启动链路
 当前后端的主流程可以概括为：
 
-1. `[GoBase]/cmd/api/main.go`
+1. `./cmd/api/main.go`
    - 加载 `.env` 与 `config/app.yaml`。
    - 构建顶层 `context.Context`。
    - 调用 `container.BuildContainer(cfg)` 完成依赖装配。
    - 通过依赖注入拿到 `*gin.Engine` 和 `Scheduler`，启动 HTTP 服务与后台调度器。
-2. `[GoBase]/internal/container/container.go`
+2. `./internal/container/container.go`
    - 负责数据库、Redis、缓存、CodeGenerator 等基础设施装配。
    - 调用各领域模块的 `Register*Domain` 完成 repo / service 注册。
    - 注册 HTTP handler。
    - 创建 Gin Engine，并在其中调用 `controller/http.RegisterRoutes(...)` 完成路由挂载。
-3. `[GoBase]/internal/controller/http/route.go`
+3. `./internal/controller/http/route.go`
    - 负责集中注册所有 `/api/v1` 路由。
    - 统一挂载认证与 API 权限中间件。
    - 按主题拆分为 `RegisterAuthRoutes`、`RegisterPermissionRoutes`、`RegisterTenantRoutes`、`RegisterUserRoutes`、`RegisterTodoRoutes`。
@@ -35,17 +35,17 @@
 ## 3. 后端分层边界
 
 ### 3.1 推荐职责划分
-- `[GoBase]/internal/controller/http/`
+- `./internal/controller/http/`
   - HTTP 路由注册、参数绑定、响应封装。
   - 不写复杂业务规则，不直接操作数据库。
-- `[GoBase]/internal/controller/middleware/`
+- `./internal/controller/middleware/`
   - 认证、限流、日志、CORS、统一错误处理等横切逻辑。
-- `[GoBase]/internal/domain/<module>/`
+- `./internal/domain/<module>/`
   - 每个业务域的 repo、service、handler、dto、validator 等。
   - 模块对外通过 service / handler 暴露能力。
-- `[GoBase]/internal/infra/`
+- `./internal/infra/`
   - 缓存、CodeGenerator 等基础设施能力。
-- `[GoBase]/internal/common/`
+- `./internal/common/`
   - 错误、常量、通用 DTO、工具、监控等跨域共享内容。
 
 ### 3.2 当前领域模块
@@ -58,37 +58,37 @@
 如果你新增一个后端接口或服务，通常至少要检查这些位置：
 1. 领域模块内是否新增 / 调整 repo、service、dto、validator。
 2. 对应领域的 `module.go` 是否完成注册。
-3. 若涉及跨域装配，`[GoBase]/internal/container/container.go` 是否需要新增适配器或 handler 注册。
-4. `[GoBase]/internal/controller/http/route.go` 是否已注册路由。
+3. 若涉及跨域装配，`./internal/container/container.go` 是否需要新增适配器或 handler 注册。
+4. `./internal/controller/http/route.go` 是否已注册路由。
 5. 是否需要新增或更新中间件、权限资源标识、测试。
 
 ## 4. 前端分层边界
 
 ### 4.1 目录职责
-- `[GoBase]/ui/app/`
+- `./ui/app/`
   - App Router 页面与路由段。
   - 页面负责组装组件、触发 hook，不应堆积复杂业务逻辑。
-- `[GoBase]/ui/components/`
+- `./ui/components/`
   - 通用 UI 组件、业务组件、表单组件。
-- `[GoBase]/ui/hooks/`
+- `./ui/hooks/`
   - 面向页面和组件的状态逻辑、行为封装。
-- `[GoBase]/ui/lib/api/`
+- `./ui/lib/api/`
   - 与后端 API 的通信封装，是前端访问接口的首选入口。
-- `[GoBase]/ui/lib/services/`
+- `./ui/lib/services/`
   - 客户端基础服务，如 logger、token-storage、error-handler。
-- `[GoBase]/ui/store/`
+- `./ui/store/`
   - Zustand 等全局状态。
-- `[GoBase]/ui/types/`
+- `./ui/types/`
   - 纯类型定义，避免引入运行时依赖。
 
 ### 4.2 当前权限链路
 当前权限控制已经形成比较明确的前后端闭环：
 
-1. 后端在 `[GoBase]/internal/controller/http/route.go` 中为 `/api/v1` 挂载 `APIPermissionMiddleware(...)`。
+1. 后端在 `./internal/controller/http/route.go` 中为 `/api/v1` 挂载 `APIPermissionMiddleware(...)`。
 2. 认证后用户可访问 `/api/v1/auth/my-resources` 获取自身资源清单。
-3. 前端在 `[GoBase]/ui/lib/api/resource.ts` 中请求资源接口。
-4. `[GoBase]/ui/hooks/use-permissions.ts` 将资源拆分为菜单、按钮、API 路径集合。
-5. `[GoBase]/ui/components/ui/perm-guard.tsx` 使用这些集合做菜单 / 按钮显隐控制。
+3. 前端在 `./ui/lib/api/resource.ts` 中请求资源接口。
+4. `./ui/hooks/use-permissions.ts` 将资源拆分为菜单、按钮、API 路径集合。
+5. `./ui/components/ui/perm-guard.tsx` 使用这些集合做菜单 / 按钮显隐控制。
 
 ### 4.3 新增前端能力的最低检查清单
 1. 接口调用是否进入 `ui/lib/api/`，而不是散落在页面组件里。
@@ -101,12 +101,12 @@
 
 | 任务类型 | 典型落点 |
 | --- | --- |
-| 登录 / 注册 / 会话 | `[GoBase]/internal/domain/auth/`、`[GoBase]/internal/controller/http/route.go`、`[GoBase]/ui/lib/api/auth.ts`、`[GoBase]/ui/hooks/use-auth.ts`、`[GoBase]/ui/app/login/`、`[GoBase]/ui/app/register/` |
-| 用户管理 | `[GoBase]/internal/domain/auth/handler`、`[GoBase]/internal/domain/auth/service`、`[GoBase]/ui/lib/api/user.ts`、`[GoBase]/ui/types/user.ts`、`[GoBase]/ui/components/profile/` 或相关用户页面 |
-| 权限 / 角色 / 资源 | `[GoBase]/internal/domain/permission/`、`[GoBase]/internal/controller/http/route.go`、`[GoBase]/ui/lib/api/permission*.ts`、`[GoBase]/ui/hooks/use-permissions.ts`、`[GoBase]/ui/components/ui/perm-guard.tsx`、`[GoBase]/ui/app/permissions/` |
-| 租户 | `[GoBase]/internal/domain/tenant/`、`[GoBase]/ui/lib/api/tenant.ts`、`[GoBase]/ui/types/tenant.ts`、`[GoBase]/ui/app/tenants/`、`[GoBase]/ui/components/tenants/` |
-| Todo | `[GoBase]/internal/domain/todo/`、`[GoBase]/ui/lib/api/todo.ts`、`[GoBase]/ui/types/todo.ts`、`[GoBase]/ui/app/todos/` |
-| 中间件 / 路由保护 | `[GoBase]/internal/controller/middleware/`、`[GoBase]/internal/controller/http/route.go`、`[GoBase]/ui/middleware.ts` |
+| 登录 / 注册 / 会话 | `./internal/domain/auth/`、`./internal/controller/http/route.go`、`./ui/lib/api/auth.ts`、`./ui/hooks/use-auth.ts`、`./ui/app/login/`、`./ui/app/register/` |
+| 用户管理 | `./internal/domain/auth/handler`、`./internal/domain/auth/service`、`./ui/lib/api/user.ts`、`./ui/types/user.ts`、`./ui/components/profile/` 或相关用户页面 |
+| 权限 / 角色 / 资源 | `./internal/domain/permission/`、`./internal/controller/http/route.go`、`./ui/lib/api/permission*.ts`、`./ui/hooks/use-permissions.ts`、`./ui/components/ui/perm-guard.tsx`、`./ui/app/permissions/` |
+| 租户 | `./internal/domain/tenant/`、`./ui/lib/api/tenant.ts`、`./ui/types/tenant.ts`、`./ui/app/tenants/`、`./ui/components/tenants/` |
+| Todo | `./internal/domain/todo/`、`./ui/lib/api/todo.ts`、`./ui/types/todo.ts`、`./ui/app/todos/` |
+| 中间件 / 路由保护 | `./internal/controller/middleware/`、`./internal/controller/http/route.go`、`./ui/middleware.ts` |
 
 ## 6. 分层约束
 1. 不要把业务逻辑写进 `main.go`、`route.go`、页面组件或临时脚本。
@@ -120,8 +120,8 @@
    - 文档是否需要同步更新。
 
 ## 7. 测试与验证位置
-- Go 测试：`[GoBase]/tests/unit/`、`[GoBase]/tests/integration/`、`[GoBase]/tests/performance/`，以及包内 `_test.go`。
-- 前端静态检查：`[GoBase]/ui/` 下的 `pnpm lint`、`pnpm type-check`。
+- Go 测试：`./tests/unit/`、`./tests/integration/`、`./tests/performance/`，以及包内 `_test.go`。
+- 前端静态检查：`./ui/` 下的 `pnpm lint`、`pnpm type-check`。
 - 非 trivial 改动至少要覆盖：构建、lint/type-check、目标模块测试、关键链路回归。
 
 ## 8. 文档同步规则

@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Save, Check } from 'lucide-react'
+import { Save, Check, Loader2 } from 'lucide-react'
 import { User } from '@/lib/api/auth'
 import { getUser } from '@/lib/api/user'
-import { listRoles, assignRoleToAccount, getUserRoles } from '@/lib/api/role'
+import { listRoles, assignRoleToAccount, getUserRoles, getRolePermissions } from '@/lib/api/role'
+import { listPermissionResources, type PermissionResource } from '@/lib/api/permission-resource'
 import { AccountListItem } from '@/types/user'
-import { RoleListItem } from '@/types/permission'
+import { PermissionListItem, RoleListItem } from '@/types/permission'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -52,6 +53,11 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
   )
 }
 
+interface RoleDetailCacheEntry {
+  permissions: PermissionListItem[]
+  resources: Record<string, PermissionResource[]>
+}
+
 export default function UserDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -64,10 +70,31 @@ export default function UserDetailPage() {
   const [userDetail, setUserDetail] = useState<AccountListItem | null>(null)
   const [roles, setRoles] = useState<RoleListItem[]>([])
   const [assignedRoleIds, setAssignedRoleIds] = useState<string[]>([])
+  const [activeRoleId, setActiveRoleId] = useState<string | null>(null)
+  const [activeRolePermissions, setActiveRolePermissions] = useState<PermissionListItem[]>([])
+  const [activeRoleResources, setActiveRoleResources] = useState<Record<string, PermissionResource[]>>({})
+  const [roleDetailLoading, setRoleDetailLoading] = useState(false)
+  const [hasLoadedRoleDetails, setHasLoadedRoleDetails] = useState(false)
+  const [roleDetailError, setRoleDetailError] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveSuccessOpen, setSaveSuccessOpen] = useState(false)
   const [error, setError] = useState('')
+  const roleDetailCacheRef = useRef<Record<string, RoleDetailCacheEntry>>({})
+
+  const refreshAssignedRoles = async (tenantId: string) => {
+    const userRolesData = await getUserRoles(accountId, tenantId)
+    const nextAssignedRoleIds = userRolesData.map((role) => role.id)
+
+    setAssignedRoleIds(nextAssignedRoleIds)
+    setActiveRoleId((prev) => {
+      if (prev) {
+        return prev
+      }
+
+      return nextAssignedRoleIds[0] || null
+    })
+  }
 
   useEffect(() => {
     if (accountId === 'new' || !accountId) {
@@ -86,7 +113,15 @@ export default function UserDetailPage() {
         ])
         setUserDetail(user)
         setRoles(rolesData.data || [])
-        setAssignedRoleIds(userRolesData.map((r) => r.id))
+        const nextAssignedRoleIds = userRolesData.map((r) => r.id)
+        setAssignedRoleIds(nextAssignedRoleIds)
+        setActiveRoleId((prev) => {
+          if (prev && rolesData.data?.some((role) => role.id === prev)) {
+            return prev
+          }
+
+          return nextAssignedRoleIds[0] || rolesData.data?.[0]?.id || null
+        })
       } catch (err) {
         setError(err instanceof Error ? err.message : '加载数据失败')
       } finally {
@@ -96,7 +131,80 @@ export default function UserDetailPage() {
     fetchData()
   }, [selectedTenantId, accountId])
 
-  const handleToggleRole = (roleId: string) => {
+  useEffect(() => {
+    roleDetailCacheRef.current = {}
+  }, [selectedTenantId, accountId])
+
+  useEffect(() => {
+    const fetchActiveRoleDetails = async () => {
+      if (!selectedTenantId || !activeRoleId) {
+        setActiveRolePermissions([])
+        setActiveRoleResources({})
+        setRoleDetailError('')
+        setHasLoadedRoleDetails(false)
+        return
+      }
+
+      const cacheKey = `${selectedTenantId}:${activeRoleId}`
+      const cachedDetails = roleDetailCacheRef.current[cacheKey]
+      if (cachedDetails) {
+        setActiveRolePermissions(cachedDetails.permissions)
+        setActiveRoleResources(cachedDetails.resources)
+        setRoleDetailError('')
+        setHasLoadedRoleDetails(true)
+        setRoleDetailLoading(false)
+        return
+      }
+
+      setRoleDetailLoading(true)
+      setRoleDetailError('')
+
+      try {
+        const permissions = await getRolePermissions(activeRoleId, selectedTenantId)
+        setActiveRolePermissions(permissions)
+
+        if (permissions.length === 0) {
+          setActiveRoleResources({})
+          setHasLoadedRoleDetails(true)
+          return
+        }
+
+        const resourcesEntries = await Promise.all(
+          permissions.map(async (permission) => {
+            const response = await listPermissionResources(permission.id, {
+              tenant_id: selectedTenantId,
+              size: 100,
+            })
+
+            return [permission.id, response.data || []] as const
+          })
+        )
+
+        const nextResources = Object.fromEntries(resourcesEntries)
+        setActiveRoleResources(nextResources)
+        roleDetailCacheRef.current[cacheKey] = {
+          permissions,
+          resources: nextResources,
+        }
+        setHasLoadedRoleDetails(true)
+      } catch (err) {
+        setActiveRolePermissions([])
+        setActiveRoleResources({})
+        setRoleDetailError(err instanceof Error ? err.message : '加载角色权限与资源失败')
+        setHasLoadedRoleDetails(true)
+      } finally {
+        setRoleDetailLoading(false)
+      }
+    }
+
+    fetchActiveRoleDetails()
+  }, [activeRoleId, selectedTenantId])
+
+  const handleSelectRole = (roleId: string) => {
+    setActiveRoleId(roleId)
+  }
+
+  const handleToggleAssignedRole = (roleId: string) => {
     setAssignedRoleIds((prev) =>
       prev.includes(roleId) ? prev.filter((id) => id !== roleId) : [...prev, roleId]
     )
@@ -112,6 +220,8 @@ export default function UserDetailPage() {
         role_ids: assignedRoleIds,
         tenant_id: selectedTenantId,
       })
+
+      await refreshAssignedRoles(selectedTenantId)
       setSaveSuccessOpen(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存失败')
@@ -130,6 +240,22 @@ export default function UserDetailPage() {
   const userTenant = userDetail
     ? tenants.find((tenant) => tenant.id === userDetail.tenant_id)
     : null
+  const activeRole = activeRoleId
+    ? roles.find((role) => role.id === activeRoleId) || null
+    : null
+
+  const getResourceTypeLabel = (resourceType: string) => {
+    switch (resourceType) {
+      case 'api_path':
+        return 'API'
+      case 'menu':
+        return '菜单'
+      case 'button':
+        return '按钮'
+      default:
+        return resourceType
+    }
+  }
 
   // ── Loading ──
   if (loading) {
@@ -246,26 +372,45 @@ export default function UserDetailPage() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {roles.map((role) => {
                 const isAssigned = assignedRoleIds.includes(role.id)
+                const isActive = activeRoleId === role.id
+
                 return (
                   <Card
                     key={role.id}
                     className={`cursor-pointer transition-all hover:shadow-md ${
-                      isAssigned ? 'ring-2 ring-blue-500 bg-blue-50/50' : ''
+                      isActive ? 'border-indigo-300 ring-2 ring-indigo-500 shadow-md' : 'border-slate-200'
                     }`}
-                    onClick={() => handleToggleRole(role.id)}
+                    onClick={() => handleSelectRole(role.id)}
                   >
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base flex items-center gap-2">
-                        <div className={`w-4 h-4 border rounded flex items-center justify-center flex-shrink-0 ${
-                          isAssigned ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
-                        }`}>
-                          {isAssigned && <Check className="w-3 h-3 text-white" />}
-                        </div>
+                        <button
+                          type="button"
+                          aria-label={isAssigned ? `取消分配角色 ${role.name}` : `分配角色 ${role.name}`}
+                          aria-pressed={isAssigned}
+                          className={`h-4 w-4 flex-shrink-0 rounded border transition-colors ${
+                            isAssigned
+                              ? 'border-blue-600 bg-blue-600 text-white'
+                              : 'border-gray-300 bg-white text-transparent hover:border-blue-400'
+                          }`}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            handleToggleAssignedRole(role.id)
+                          }}
+                        >
+                          <Check className="h-3 w-3" />
+                        </button>
                         {role.name}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-xs text-gray-400 font-mono">{role.code}</div>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-xs text-gray-400 font-mono">{role.code}</div>
+                        <div className="flex items-center gap-2">
+                          {isAssigned && <Badge variant="outline">已分配</Badge>}
+                          {isActive && <Badge variant="secondary">当前查看</Badge>}
+                        </div>
+                      </div>
                       {role.description && (
                         <div className="text-xs text-gray-500 mt-1 line-clamp-2">{role.description}</div>
                       )}
@@ -274,6 +419,108 @@ export default function UserDetailPage() {
                 )
               })}
             </div>
+          )}
+
+          {activeRole && (
+            <Card className="mt-6">
+              <CardHeader>
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <CardTitle className="text-base">角色权限与资源</CardTitle>
+                    <div className="mt-1 text-sm text-gray-500">
+                      当前查看：{activeRole.name}
+                      {activeRole.description ? ` · ${activeRole.description}` : ''}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                    <Badge variant={assignedRoleIds.includes(activeRole.id) ? 'default' : 'outline'}>
+                      {assignedRoleIds.includes(activeRole.id) ? '已分配' : '未分配'}
+                    </Badge>
+                    <span>权限 {activeRolePermissions.length} 项</span>
+                    {roleDetailLoading && hasLoadedRoleDetails && (
+                      <span className="inline-flex items-center gap-1 text-indigo-600">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        更新中
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="min-h-[220px]">
+                {!hasLoadedRoleDetails && roleDetailLoading ? (
+                  <div className="flex min-h-[188px] items-center justify-center gap-2 py-8 text-sm text-slate-500">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    加载角色权限与资源中...
+                  </div>
+                ) : (
+                  <div
+                    className={`transition-opacity duration-200 ease-in-out ${
+                      roleDetailLoading && hasLoadedRoleDetails ? 'opacity-55' : 'opacity-100'
+                    }`}
+                  >
+                    {roleDetailError ? (
+                      <div className="rounded bg-red-50 p-3 text-sm text-red-600">{roleDetailError}</div>
+                    ) : activeRolePermissions.length === 0 ? (
+                      <div className="rounded border border-dashed p-6 text-center text-sm text-gray-500">
+                        当前角色暂无权限或资源配置
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {activeRolePermissions.map((permission) => {
+                          const resources = activeRoleResources[permission.id] || []
+
+                          return (
+                            <div key={permission.id} className="rounded-lg border bg-white p-4">
+                              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                <div className="space-y-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="font-medium text-slate-900">{permission.name}</span>
+                                    <Badge variant="outline">{permission.resource || '未分类资源'}</Badge>
+                                    {!permission.is_active && <Badge variant="secondary">已禁用</Badge>}
+                                  </div>
+                                  <div className="font-mono text-xs text-slate-500">{permission.code}</div>
+                                  {permission.description && (
+                                    <div className="text-sm text-slate-600">{permission.description}</div>
+                                  )}
+                                </div>
+                                <div className="text-xs text-slate-500">
+                                  关联资源 {resources.length} 项
+                                </div>
+                              </div>
+
+                              <div className="mt-4 space-y-2">
+                                {resources.length === 0 ? (
+                                  <div className="text-sm text-gray-500">暂无关联资源</div>
+                                ) : (
+                                  resources.map((resource) => (
+                                    <div
+                                      key={resource.id}
+                                      className="flex flex-col gap-2 rounded-md bg-slate-50 px-3 py-2 md:flex-row md:items-center md:justify-between"
+                                    >
+                                      <div className="space-y-1">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <Badge variant="secondary">{getResourceTypeLabel(resource.resource_type)}</Badge>
+                                          <span className="text-sm font-medium text-slate-900">
+                                            {resource.resource_name}
+                                          </span>
+                                        </div>
+                                        <div className="font-mono text-xs text-slate-500">
+                                          {resource.resource_id}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
         </main>
       </div>

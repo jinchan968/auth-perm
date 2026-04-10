@@ -286,7 +286,7 @@ func (p *AssignRoleToAccountParams) Validate() error {
 	if p.AccountID == "" {
 		return errEmpty("账户ID")
 	}
-	if len(p.RoleIDs) == 0 {
+	if p.RoleIDs == nil {
 		return errEmpty("角色ID列表")
 	}
 	if p.TenantID == "" {

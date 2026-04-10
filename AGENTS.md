@@ -13,28 +13,28 @@
 - [用户管理快速开始](./docs/USER_MANAGEMENT_QUICKSTART.md)
 
 ## 项目速览
-- 后端：Go + Gin + GORM + Redis，入口在 `[GoBase]/cmd/api/main.go`
-- 依赖装配：`[GoBase]/internal/container/`
-- HTTP 路由：`[GoBase]/internal/controller/http/route.go`
-- 领域模块：`[GoBase]/internal/domain/{auth,permission,tenant,todo}`
-- 前端：Next.js App Router，主目录为 `[GoBase]/ui/`
-- 前端权限控制：`[GoBase]/ui/hooks/use-permissions.ts` + `[GoBase]/ui/components/ui/perm-guard.tsx`
+- 后端：Go + Gin + GORM + Redis，入口 `./cmd/api/main.go`
+- 依赖装配：`./internal/container/`
+- HTTP 路由：`./internal/controller/http/route.go`
+- 领域模块：`./internal/domain/{auth,permission,tenant,todo}`
+- 前端：Next.js App Router，主目录为 `./ui/`
+- 前端权限控制：`./ui/hooks/use-permissions.ts` + `./ui/components/ui/perm-guard.tsx`
 
 ## 必守规则
 1. 请使用中文交流。
-2. 在脚本、文档、说明中统一使用 `[GoBase]/相对路径` 表示项目位置，避免写绝对路径；本地偏好见 `AGENTS.local.md`。
+2. 在脚本、文档、说明中统一使用 `./相对路径` 表示项目位置，即当前仓库根目录下的相对路径；避免写绝对路径，本地偏好见 `AGENTS.local.md`。
 3. 修改代码前，先定位所属层级与相邻文件；不要只改一个点而忽略依赖注入、路由注册、类型定义、测试或前后端契约同步。
 4. 不要把业务逻辑塞进路由、Handler、页面组件或临时脚本；按既有分层落位。
 5. 后端新增能力通常至少检查：领域模块注册、`container` 装配、路由注册、DTO/VO、测试。
-6. 前端新增能力通常至少检查：`ui/lib/api`、`ui/hooks`、`ui/types`、页面/组件、权限显隐。
+6. 前端新增能力通常至少检查：`ui/components/ui`、`ui/components`、`ui/lib/api`、`ui/hooks`、`ui/types`、页面/组件、权限显隐；新增页面或交互前优先复用已有共享组件，无合适抽象再新增。
 7. 认证、权限、租户相关接口一旦变化，必须同步检查后端接口、前端调用、权限资源标识和相关文档。
 8. 使用结构化日志思维，禁止新增 `console.log` / `print()` / `fmt.Println()` 这类调试式输出。
 9. 单文件尽量不超过 2000 行；命名遵循 PascalCase（类型）、camelCase（函数）、kebab-case（文件名）。
 10. `ui/types/` 仅放纯类型定义，避免引入运行时依赖。
 
 ## 任务路由
-- **后端任务**：先读 `docs/ARCHITECTURE.md`，重点看 `[GoBase]/internal/container/`、`[GoBase]/internal/controller/http/`、对应领域模块。
-- **前端任务**：先读 `docs/ARCHITECTURE.md` 与 `docs/DEVELOPMENT.md`，重点看 `[GoBase]/ui/app/`、`[GoBase]/ui/components/`、`[GoBase]/ui/hooks/`、`[GoBase]/ui/lib/api/`。
+- **后端任务**：先读 `docs/ARCHITECTURE.md`，重点看 `./internal/container/`、`./internal/controller/http/`、对应领域模块。
+- **前端任务**：先读 `docs/ARCHITECTURE.md` 与 `docs/DEVELOPMENT.md`，重点看 `./ui/components/ui/`、`./ui/components/`、`./ui/app/`、`./ui/hooks/`、`./ui/lib/api/`；优先复用已有组件再考虑新增抽象。
 - **全栈任务**：先明确 API 契约，再按“后端接口 → 前端 API 封装 → Hook/Store → 页面/组件 → 文档/测试”顺序推进。
 - **文档/规范任务**：优先更新 `AGENTS.md` 的索引，再把长内容写入 `docs/` 下对应专题。
 
