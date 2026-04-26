@@ -187,7 +187,7 @@
 ### 1. 运行数据库迁移
 
 ```bash
-cd /Users/looper/Documents/workspace/golang/auth-perm
+cd ./
 
 # 执行迁移
 goose -dir migrations postgres "host=localhost port=5432 user=auth_perm password=your_secure_password_here dbname=auth_perm sslmode=disable" up

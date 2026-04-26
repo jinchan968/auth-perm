@@ -12,7 +12,8 @@
 ✅ **前端功能**
 - 用户列表页面（`/permissions/users`）
 - 用户详情页面（`/permissions/users/[id]`）
-- 角色分配功能
+- 角色分配与角色详情查看分离
+- 角色权限与资源展示
 - 创建用户对话框
 - 状态管理
 
@@ -21,7 +22,7 @@
 ### 1. 启动后端服务
 
 ```bash
-cd /Users/looper/Documents/workspace/golang/auth-perm
+cd ./
 
 # 编译（如果还没编译）
 go build -o bin/auth-perm cmd/api/main.go
@@ -35,13 +36,13 @@ go build -o bin/auth-perm cmd/api/main.go
 ### 2. 启动前端服务
 
 ```bash
-cd /Users/looper/Documents/workspace/golang/auth-perm/ui
+cd ./ui
 
 # 安装依赖（如果还没安装）
-npm install
+pnpm install
 
 # 启动开发服务器
-npm run dev
+pnpm dev
 ```
 
 前端将在 `http://localhost:3000` 启动

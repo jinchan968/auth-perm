@@ -138,8 +138,12 @@
 - ✅ 角色分配功能
   - 从当前租户加载可用角色列表
   - 显示已分配的角色
-  - 多选复选框界面
+  - 将“查看详情”和“分配角色”拆分为独立交互
   - 保存角色分配
+- ✅ 角色权限与资源展示
+  - 支持按角色查看权限列表
+  - 支持查看权限关联资源
+  - 本地缓存角色详情，减少重复请求并保持平滑切换
 - ✅ 租户隔离（角色和账户在同一租户下）
 
 ## 权限控制
@@ -217,25 +221,25 @@ curl -X PATCH "http://localhost:8080/api/v1/users/{account_id}/status" \
 
 ### 后端编译
 ```bash
-cd /Users/looper/Documents/workspace/golang/auth-perm
+cd ./
 go build -o bin/auth-perm cmd/api/main.go
 ```
 
 ### 前端构建
 ```bash
-cd /Users/looper/Documents/workspace/golang/auth-perm/ui
-npm run build
+cd ./ui
+pnpm build
 ```
 
 ### 运行服务
 ```bash
 # 后端
-cd /Users/looper/Documents/workspace/golang/auth-perm
+cd ./
 ./bin/auth-perm
 
 # 前端（开发模式）
-cd /Users/looper/Documents/workspace/golang/auth-perm/ui
-npm run dev
+cd ./ui
+pnpm dev
 ```
 
 ## 架构说明

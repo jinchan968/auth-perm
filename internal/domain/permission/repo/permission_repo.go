@@ -8,7 +8,7 @@ import (
 	"auth-perm/internal/common/model"
 	"auth-perm/internal/domain/permission/dm"
 	"gorm.io/gorm"
-	
+	"gorm.io/gorm/clause"
 )
 
 // PermissionRepo 权限仓储
@@ -125,12 +125,7 @@ func (r *PermissionRepo) DeleteRole(ctx context.Context, id string) error {
 // AssignRoleToAccount 为账户分配角色
 func (r *PermissionRepo) AssignRoleToAccount(ctx context.Context, accountID, roleID, tenantID string) error {
 	ar := dm.NewAccountRole(accountID, roleID, tenantID)
-	return r.db.WithContext(ctx).
-		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "account_id"}, {Name: "role_id"}},
-			DoNothing: true,
-		}).
-		Create(ar).Error
+	return r.createAccountRolesIgnoreDuplicates(r.db.WithContext(ctx), ar)
 }
 
 // RemoveRoleFromAccount 从账户移除角色
@@ -197,10 +192,7 @@ func (r *PermissionRepo) SyncAccountRoles(ctx context.Context, accountID string,
 				accountRoles = append(accountRoles, dm.NewAccountRole(accountID, roleID, tenantID))
 			}
 
-			if err := tx.Clauses(clause.OnConflict{
-				Columns:   []clause.Column{{Name: "account_id"}, {Name: "role_id"}},
-				DoNothing: true,
-			}).Create(&accountRoles).Error; err != nil {
+			if err := r.createAccountRolesIgnoreDuplicates(tx, accountRoles); err != nil {
 				return errors.WrapBizError(err, "新增账户角色关联失败")
 			}
 		}
@@ -359,17 +351,8 @@ func (r *PermissionRepo) DeletePermission(ctx context.Context, id string) error 
 
 // AssignPermissionToRole 为角色分配权限
 func (r *PermissionRepo) AssignPermissionToRole(ctx context.Context, roleID, permissionID, tenantID string) error {
-	// 先检查是否已存在
-	var count int64
-	r.db.WithContext(ctx).Model(&dm.RolePermissionDO{}).
-		Where("role_id = ? AND permission_id = ?", roleID, permissionID).
-		Count(&count)
-	if count > 0 {
-		return nil // 已存在，直接返回
-	}
-	// 不存在则创建 - 使用 NewRolePermission 生成 ID
 	rp := dm.NewRolePermission(roleID, permissionID, tenantID)
-	return r.db.WithContext(ctx).Create(rp).Error
+	return r.createRolePermissionsIgnoreDuplicates(r.db.WithContext(ctx), rp)
 }
 
 // RemovePermissionFromRole 从角色移除权限
@@ -433,7 +416,7 @@ func (r *PermissionRepo) SyncRolePermissions(ctx context.Context, roleID string,
 			for _, permissionID := range toAdd {
 				rolePermissions = append(rolePermissions, dm.NewRolePermission(roleID, permissionID, tenantID))
 			}
-			if err := tx.Create(&rolePermissions).Error; err != nil {
+			if err := r.createRolePermissionsIgnoreDuplicates(tx, rolePermissions); err != nil {
 				return errors.WrapBizError(err, "新增角色权限关联失败")
 			}
 		}
@@ -540,7 +523,7 @@ func (r *PermissionRepo) FindMaxPermissionCodeByPrefix(ctx context.Context, tena
 		Where("tenant_id = ? AND code LIKE ?", tenantID, prefix+"%").
 		Order("code DESC").
 		First(&permission).Error
-	if errStd.Is(err, gorm.ErrRecordNotFound) {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", nil
 	}
 	if err != nil {
@@ -588,4 +571,26 @@ func (r *PermissionRepo) applyPagination(query *gorm.DB, pagination *model.Pagin
 	}
 
 	return query
+}
+
+func (r *PermissionRepo) createAccountRolesIgnoreDuplicates(db *gorm.DB, value interface{}) error {
+	return db.Clauses(accountRoleOnConflictClause()).Create(value).Error
+}
+
+func (r *PermissionRepo) createRolePermissionsIgnoreDuplicates(db *gorm.DB, value interface{}) error {
+	return db.Clauses(rolePermissionOnConflictClause()).Create(value).Error
+}
+
+func accountRoleOnConflictClause() clause.OnConflict {
+	return clause.OnConflict{
+		Columns:   []clause.Column{{Name: "account_id"}, {Name: "role_id"}},
+		DoNothing: true,
+	}
+}
+
+func rolePermissionOnConflictClause() clause.OnConflict {
+	return clause.OnConflict{
+		Columns:   []clause.Column{{Name: "role_id"}, {Name: "permission_id"}},
+		DoNothing: true,
+	}
 }

@@ -52,6 +52,8 @@
       ✓ 用户基本信息展示
       ✓ 账户信息展示
       ✓ 角色分配功能（同租户限制）
+      ✓ 角色权限与资源展示
+      ✓ 查看角色与分配角色交互拆分
       ✓ 保存角色分配
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -59,14 +61,14 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 后端:
-  $ cd /Users/looper/Documents/workspace/golang/auth-perm
+  $ cd ./
   $ go build -o bin/auth-perm cmd/api/main.go
   $ ./bin/auth-perm
 
 前端:
-  $ cd /Users/looper/Documents/workspace/golang/auth-perm/ui
-  $ npm install
-  $ npm run dev
+  $ cd ./ui
+  $ pnpm install
+  $ pnpm dev
 
 访问: http://localhost:3000/permissions/users
 

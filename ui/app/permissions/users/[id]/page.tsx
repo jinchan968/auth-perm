@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Save, Check, Loader2 } from 'lucide-react'
+import { Save, Check, Eye, Loader2 } from 'lucide-react'
 import { User } from '@/lib/api/auth'
 import { getUser } from '@/lib/api/user'
 import { listRoles, assignRoleToAccount, getUserRoles, getRolePermissions } from '@/lib/api/role'
@@ -129,7 +129,7 @@ export default function UserDetailPage() {
       }
     }
     fetchData()
-  }, [selectedTenantId, accountId])
+  }, [selectedTenantId, accountId, router])
 
   useEffect(() => {
     roleDetailCacheRef.current = {}
@@ -164,6 +164,10 @@ export default function UserDetailPage() {
         setActiveRolePermissions(permissions)
 
         if (permissions.length === 0) {
+          roleDetailCacheRef.current[cacheKey] = {
+            permissions: [],
+            resources: {},
+          }
           setActiveRoleResources({})
           setHasLoadedRoleDetails(true)
           return
@@ -361,6 +365,9 @@ export default function UserDetailPage() {
           <div className="text-sm text-gray-500 mb-4">
             已选择 {assignedRoleIds.length} / {roles.length} 个角色
           </div>
+          <div className="mb-4 text-xs text-slate-500">
+            使用“查看详情”浏览角色权限与资源，使用“分配角色/取消分配”调整当前用户的角色关联。
+          </div>
 
           {roles.length === 0 ? (
             <Card>
@@ -377,29 +384,12 @@ export default function UserDetailPage() {
                 return (
                   <Card
                     key={role.id}
-                    className={`cursor-pointer transition-all hover:shadow-md ${
+                    className={`transition-all hover:shadow-md ${
                       isActive ? 'border-indigo-300 ring-2 ring-indigo-500 shadow-md' : 'border-slate-200'
                     }`}
-                    onClick={() => handleSelectRole(role.id)}
                   >
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base flex items-center gap-2">
-                        <button
-                          type="button"
-                          aria-label={isAssigned ? `取消分配角色 ${role.name}` : `分配角色 ${role.name}`}
-                          aria-pressed={isAssigned}
-                          className={`h-4 w-4 flex-shrink-0 rounded border transition-colors ${
-                            isAssigned
-                              ? 'border-blue-600 bg-blue-600 text-white'
-                              : 'border-gray-300 bg-white text-transparent hover:border-blue-400'
-                          }`}
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            handleToggleAssignedRole(role.id)
-                          }}
-                        >
-                          <Check className="h-3 w-3" />
-                        </button>
                         {role.name}
                       </CardTitle>
                     </CardHeader>
@@ -414,6 +404,26 @@ export default function UserDetailPage() {
                       {role.description && (
                         <div className="text-xs text-gray-500 mt-1 line-clamp-2">{role.description}</div>
                       )}
+                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={isActive ? 'default' : 'outline'}
+                          onClick={() => handleSelectRole(role.id)}
+                        >
+                          <Eye className="h-4 w-4" />
+                          {isActive ? '查看中' : '查看详情'}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={isAssigned ? 'secondary' : 'outline'}
+                          onClick={() => handleToggleAssignedRole(role.id)}
+                        >
+                          <Check className="h-4 w-4" />
+                          {isAssigned ? '取消分配' : '分配角色'}
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 )
