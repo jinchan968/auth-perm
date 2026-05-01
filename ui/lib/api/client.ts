@@ -173,7 +173,13 @@ class ApiClient {
       try {
         const errorData = await processedResponse.json()
         // 后端返回格式: { code, msg, error, data }
-        errorMessage = errorData.msg || errorData.message || errorData.error || errorMessage
+        let msg = errorData.msg || errorData.message || ''
+        const detail = errorData.error || ''
+        if (msg && detail && msg !== detail) {
+          errorMessage = `${msg}: ${detail}`
+        } else {
+          errorMessage = msg || detail || errorMessage
+        }
         errorCode = errorData.code || errorCode
         errorDetails = errorData.details || errorData
       } catch (e) {

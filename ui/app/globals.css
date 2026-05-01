@@ -298,3 +298,11 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
 }
+
+/* ========================================
+   Toast 通知容器
+   ======================================== */
+[data-sonner-toaster] {
+  top: 2.25rem !important;
+  right: 0.75rem !important;
+}

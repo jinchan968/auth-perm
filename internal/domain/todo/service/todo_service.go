@@ -72,6 +72,13 @@ func (s *TodoService) UpdateCategory(ctx context.Context, id, accountID, tenantI
 
 // DeleteCategory 软删除分类
 func (s *TodoService) DeleteCategory(ctx context.Context, id, accountID, tenantID string) error {
+	count, err := s.todoRepo.CountByCategoryID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return errors.NewValidationError("该分类下存在待办事项，无法删除")
+	}
 	return s.categoryRepo.SoftDelete(ctx, id, accountID, tenantID)
 }
 

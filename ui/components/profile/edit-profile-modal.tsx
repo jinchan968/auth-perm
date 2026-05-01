@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { AppModal } from '@/components/ui/app-modal'
 import { useAuthStore } from '@/store/auth-store'
 import { useRouter } from 'next/navigation'
+import { showError } from '@/lib/toast'
 
 const editProfileSchema = z.object({
   nickname: z.string().min(1, '请输入昵称').max(50, '昵称过长'),
@@ -29,7 +30,7 @@ interface EditProfileModalProps {
 
 export function EditProfileModal({ isOpen, onClose, user }: EditProfileModalProps) {
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [sessionExpired, setSessionExpired] = useState(false)
   const { setUser } = useAuthStore()
   const router = useRouter()
 
@@ -58,13 +59,13 @@ export function EditProfileModal({ isOpen, onClose, user }: EditProfileModalProp
         phone: user.profile?.phone || '',
         avatar: user.avatar || '',
       })
-      setError(null)
+      setSessionExpired(false)
     }
   }, [isOpen, user, form])
 
   const onSubmit = async (data: EditProfileForm) => {
     setIsLoading(true)
-    setError(null)
+    setSessionExpired(false)
     try {
       const updatedUser = await authApi.updateProfile({
         ...data,
@@ -75,9 +76,10 @@ export function EditProfileModal({ isOpen, onClose, user }: EditProfileModalProp
       alert('个人资料更新成功！')
     } catch (err) {
       if (err instanceof Error && err.message.includes('登录状态已过期')) {
-        setError('您的登录状态已过期，请重新登录')
+        setSessionExpired(true)
+        showError('您的登录状态已过期，请重新登录')
       } else {
-        setError(err instanceof Error ? err.message : '更新失败，请重试')
+        showError(err instanceof Error ? err.message : '更新失败，请重试')
       }
     } finally {
       setIsLoading(false)
@@ -87,21 +89,19 @@ export function EditProfileModal({ isOpen, onClose, user }: EditProfileModalProp
   return (
     <AppModal open={isOpen} onClose={onClose} title="编辑个人资料">
       <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 space-y-4">
-        {error && (
-          <div className="p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex items-start justify-between">
-              <span>{error}</span>
-              {error.includes('登录状态已过期') && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleReLogin}
-                  className="ml-2 text-xs h-6 border-red-300 text-red-600 hover:bg-red-50"
-                >
-                  重新登录
-                </Button>
-              )}
+        {sessionExpired && (
+          <div className="p-3 text-sm text-red-700 bg-red-50 border-2 border-red-400 rounded-lg">
+            <div className="flex items-center justify-between">
+              <span>登录状态已过期</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleReLogin}
+                className="ml-2 text-xs h-6 border-red-300 text-red-600 hover:bg-red-50"
+              >
+                重新登录
+              </Button>
             </div>
           </div>
         )}

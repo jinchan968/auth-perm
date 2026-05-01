@@ -21,6 +21,7 @@ import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
 import { useTenant } from '@/lib/tenant-context'
 import { DetailActionBar } from '@/components/ui/detail-action-bar'
 import { DetailPageHeader } from '@/components/ui/detail-page-header'
+import { showError } from '@/lib/toast'
 import { useNavigationTransition } from '@/components/providers/navigation-transition-provider'
 
 export default function NewPermissionPage() {
@@ -32,7 +33,6 @@ export default function NewPermissionPage() {
   const { tenants, selectedTenantId, setSelectedTenantId, tenantId, loading: tenantLoading } = useTenant()
 
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
 
   const [formData, setFormData] = useState({
     name: '',
@@ -41,12 +41,11 @@ export default function NewPermissionPage() {
 
   const handleSave = async () => {
     if (!formData.name) {
-      setError('请填写必填字段')
+      showError('请填写必填字段')
       return
     }
 
     setSaving(true)
-    setError('')
     try {
       await createPermission({
         tenant_id: tenantId,
@@ -55,7 +54,7 @@ export default function NewPermissionPage() {
       })
       navigateWithTransition(permissionsListHref)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create permission')
+      showError(err instanceof Error ? err.message : 'Failed to create permission')
     } finally {
       setSaving(false)
     }
@@ -105,10 +104,6 @@ export default function NewPermissionPage() {
               </DetailActionBar>
             }
           />
-
-          {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
-          )}
 
           <Card>
             <CardHeader>

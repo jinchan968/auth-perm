@@ -29,6 +29,7 @@ import {
 import { useTenant } from '@/lib/tenant-context'
 import { useAuthStore } from '@/store/auth-store'
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
+import { showError } from '@/lib/toast'
 
 export default function UsersPage() {
   const { user } = useAuthStore()
@@ -40,7 +41,6 @@ export default function UsersPage() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [size] = useState(10)
-  const [error, setError] = useState('')
 
   // 创建用户对话框
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -58,7 +58,6 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     if (!selectedTenantId) return
     setLoading(true)
-    setError('')
     try {
       const data = await listUsers({
         tenant_id: selectedTenantId,
@@ -69,7 +68,7 @@ export default function UsersPage() {
       setUsers(data.data || [])
       setTotal(data.total)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch users')
+      showError(err instanceof Error ? err.message : 'Failed to fetch users')
     } finally {
       setLoading(false)
     }
@@ -99,31 +98,30 @@ export default function UsersPage() {
         )
       )
     } catch (err) {
-      setError(err instanceof Error ? err.message : '状态更新失败')
+      showError(err instanceof Error ? err.message : '状态更新失败')
     }
   }
 
   const handleCreateUser = async () => {
     // 验证
     if (!createForm.username || !createForm.password || !createForm.confirm_password) {
-      setError('请填写必填项')
+      showError('请填写必填项')
       return
     }
     if (createForm.password !== createForm.confirm_password) {
-      setError('两次密码输入不一致')
+      showError('两次密码输入不一致')
       return
     }
     if (createForm.identifier_type === 'email' && !createForm.email) {
-      setError('请输入邮箱')
+      showError('请输入邮箱')
       return
     }
     if (createForm.identifier_type === 'phone' && !createForm.phone) {
-      setError('请输入手机号')
+      showError('请输入手机号')
       return
     }
 
     setCreating(true)
-    setError('')
     try {
       await createUser({
         ...createForm,
@@ -141,7 +139,7 @@ export default function UsersPage() {
       })
       fetchUsers()
     } catch (err) {
-      setError(err instanceof Error ? err.message : '创建用户失败')
+      showError(err instanceof Error ? err.message : '创建用户失败')
     } finally {
       setCreating(false)
     }
@@ -222,11 +220,6 @@ export default function UsersPage() {
                   搜索
                 </Button>
               </div>
-
-              {/* Error */}
-              {error && (
-                <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
-              )}
 
               {/* Table */}
               <div className="border rounded">

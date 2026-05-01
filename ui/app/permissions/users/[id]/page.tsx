@@ -27,6 +27,7 @@ import { useTenant } from '@/lib/tenant-context'
 import { useAuthStore } from '@/store/auth-store'
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
 import { ListReturnButton } from '@/components/ui/list-return-button'
+import { showError } from '@/lib/toast'
 
 // 公共 Header，与角色详情页保持一致
 function PageHeader({ user }: { user: User | null }) {
@@ -79,7 +80,7 @@ export default function UserDetailPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveSuccessOpen, setSaveSuccessOpen] = useState(false)
-  const [error, setError] = useState('')
+  
   const roleDetailCacheRef = useRef<Record<string, RoleDetailCacheEntry>>({})
 
   const refreshAssignedRoles = async (tenantId: string) => {
@@ -104,7 +105,6 @@ export default function UserDetailPage() {
     const fetchData = async () => {
       if (!selectedTenantId) return
       setLoading(true)
-      setError('')
       try {
         const [user, rolesData, userRolesData] = await Promise.all([
           getUser(accountId, selectedTenantId),
@@ -123,7 +123,7 @@ export default function UserDetailPage() {
           return nextAssignedRoleIds[0] || rolesData.data?.[0]?.id || null
         })
       } catch (err) {
-        setError(err instanceof Error ? err.message : '加载数据失败')
+        showError(err instanceof Error ? err.message : '加载数据失败')
       } finally {
         setLoading(false)
       }
@@ -194,6 +194,7 @@ export default function UserDetailPage() {
       } catch (err) {
         setActiveRolePermissions([])
         setActiveRoleResources({})
+        showError(err instanceof Error ? err.message : '加载角色权限与资源失败')
         setRoleDetailError(err instanceof Error ? err.message : '加载角色权限与资源失败')
         setHasLoadedRoleDetails(true)
       } finally {
@@ -215,9 +216,8 @@ export default function UserDetailPage() {
   }
 
   const handleSave = async () => {
-    if (!selectedTenantId) { setError('租户ID缺失'); return }
+    if (!selectedTenantId) { showError('租户ID缺失'); return }
     setSaving(true)
-    setError('')
     try {
       await assignRoleToAccount({
         account_id: accountId,
@@ -228,7 +228,7 @@ export default function UserDetailPage() {
       await refreshAssignedRoles(selectedTenantId)
       setSaveSuccessOpen(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '保存失败')
+      showError(err instanceof Error ? err.message : '保存失败')
     } finally {
       setSaving(false)
     }
@@ -284,7 +284,6 @@ export default function UserDetailPage() {
         <div className="flex">
           <DashboardSidebar pathname="/permissions" />
           <main className="flex-1 p-8">
-            <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error || '用户不存在'}</div>
             <ListReturnButton href={usersListHref} label="返回列表" />
           </main>
         </div>
@@ -312,10 +311,6 @@ export default function UserDetailPage() {
               </DetailActionBar>
             }
           />
-
-          {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
-          )}
 
           {/* ── 用户基本信息 ── */}
           <Card className="mb-6">
@@ -468,9 +463,7 @@ export default function UserDetailPage() {
                       roleDetailLoading && hasLoadedRoleDetails ? 'opacity-55' : 'opacity-100'
                     }`}
                   >
-                    {roleDetailError ? (
-                      <div className="rounded bg-red-50 p-3 text-sm text-red-600">{roleDetailError}</div>
-                    ) : activeRolePermissions.length === 0 ? (
+                    {activeRolePermissions.length === 0 ? (
                       <div className="rounded border border-dashed p-6 text-center text-sm text-gray-500">
                         当前角色暂无权限或资源配置
                       </div>

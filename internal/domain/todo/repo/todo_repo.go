@@ -142,6 +142,18 @@ func (r *TodoRepo) SoftDelete(ctx context.Context, id, accountID, tenantID strin
 	return nil
 }
 
+// CountByCategoryID 统计指定分类下的待办数量
+func (r *TodoRepo) CountByCategoryID(ctx context.Context, categoryID string) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&dm.TodoDO{}).
+		Where("category_id = ?", categoryID).
+		Count(&count).Error
+	if err != nil {
+		return 0, errors.WrapBizError(err, "统计分类待办数量失败")
+	}
+	return count, nil
+}
+
 // EscalateOverdue 将过期且未完成的待办优先级提升为 urgent
 // 返回受影响的行数，供调度器日志使用
 func (r *TodoRepo) EscalateOverdue(ctx context.Context) (int64, error) {

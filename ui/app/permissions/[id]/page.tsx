@@ -31,6 +31,7 @@ import {
 import { useAuthStore } from '@/store/auth-store'
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
 import { ListReturnButton } from '@/components/ui/list-return-button'
+import { showError } from '@/lib/toast'
 import { useNavigationTransition } from '@/components/providers/navigation-transition-provider'
 
 export default function PermissionDetailPage() {
@@ -44,7 +45,7 @@ export default function PermissionDetailPage() {
 
   const [permission, setPermission] = useState<Permission | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [loadFailed, setLoadFailed] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   // Edit mode state
@@ -76,7 +77,8 @@ export default function PermissionDetailPage() {
         const data = await getPermission(id, tenantId)
         setPermission(data)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch permission')
+        showError(err instanceof Error ? err.message : 'Failed to fetch permission')
+        setLoadFailed(true)
       } finally {
         setLoading(false)
       }
@@ -138,7 +140,7 @@ export default function PermissionDetailPage() {
       setPermission(updated)
       setIsEditing(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save permission')
+      showError(err instanceof Error ? err.message : 'Failed to save permission')
     } finally {
       setSaving(false)
     }
@@ -152,7 +154,7 @@ export default function PermissionDetailPage() {
       await deletePermission(id, tenantId)
       navigateWithTransition(permissionsListHref)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete permission')
+      showError(err instanceof Error ? err.message : 'Failed to delete permission')
     } finally {
       setDeleting(false)
     }
@@ -160,7 +162,7 @@ export default function PermissionDetailPage() {
 
   const handleAddResource = async () => {
     if (!resourceForm.resource_id || !resourceForm.resource_name) {
-      setError('请填写资源标识和资源名称')
+      showError('请填写资源标识和资源名称')
       return
     }
     setSavingResource(true)
@@ -178,7 +180,7 @@ export default function PermissionDetailPage() {
       setShowResourceForm(false)
       setResourceForm({ resource_id: '', resource_type: 'api_path', resource_name: '' })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add resource')
+      showError(err instanceof Error ? err.message : 'Failed to add resource')
     } finally {
       setSavingResource(false)
     }
@@ -190,7 +192,7 @@ export default function PermissionDetailPage() {
       await deletePermissionResource(id, resourceId, tenantId)
       setResources(resources.filter(r => r.id !== resourceId))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete resource')
+      showError(err instanceof Error ? err.message : 'Failed to delete resource')
     }
   }
 
@@ -235,7 +237,7 @@ export default function PermissionDetailPage() {
     )
   }
 
-  if (error && !permission) {
+  if (loadFailed && !permission) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
         <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
@@ -251,7 +253,6 @@ export default function PermissionDetailPage() {
         <div className="flex">
           <DashboardSidebar pathname="/permissions" />
           <main className="flex-1 p-8">
-            <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
             <ListReturnButton href={permissionsListHref} label="返回列表" />
           </main>
         </div>
@@ -336,10 +337,6 @@ export default function PermissionDetailPage() {
               </DetailActionBar>
             }
           />
-
-          {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
-          )}
 
           <div className="grid gap-4 md:grid-cols-2">
             <Card>

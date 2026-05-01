@@ -15,6 +15,7 @@ import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
 import { useAuthStore } from '@/store/auth-store'
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
+import { showError } from '@/lib/toast'
 import { DetailActionBar } from '@/components/ui/detail-action-bar'
 import { DetailPageHeader } from '@/components/ui/detail-page-header'
 import { ListReturnButton } from '@/components/ui/list-return-button'
@@ -35,7 +36,7 @@ export default function TenantDetailPage() {
 
   const [tenant, setTenant] = useState<Tenant | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [loadFailed, setLoadFailed] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
 
   // Edit mode state
@@ -58,7 +59,8 @@ export default function TenantDetailPage() {
         const data = await getTenant(id)
         setTenant(data)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch tenant')
+        showError(err instanceof Error ? err.message : 'Failed to fetch tenant')
+        setLoadFailed(true)
       } finally {
         setLoading(false)
       }
@@ -109,7 +111,7 @@ export default function TenantDetailPage() {
       setTenant(updated)
       setIsEditing(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save tenant')
+      showError(err instanceof Error ? err.message : 'Failed to save tenant')
     } finally {
       setSaving(false)
     }
@@ -148,14 +150,14 @@ export default function TenantDetailPage() {
   const handleSuspend = async () => {
     if (!confirm('确定要禁用此租户吗？')) return
     setActionLoading(true)
-    setError('')
+    setLoadFailed(false)
     try {
       await changeTenantStatus(id, 'suspended')
       // Refresh tenant data
       const data = await getTenant(id)
       setTenant(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '禁用租户失败')
+      showError(err instanceof Error ? err.message : '禁用租户失败')
     } finally {
       setActionLoading(false)
     }
@@ -163,14 +165,14 @@ export default function TenantDetailPage() {
 
   const handleActivate = async () => {
     setActionLoading(true)
-    setError('')
+    setLoadFailed(false)
     try {
       await changeTenantStatus(id, 'active')
       // Refresh tenant data
       const data = await getTenant(id)
       setTenant(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '启用租户失败')
+      showError(err instanceof Error ? err.message : '启用租户失败')
     } finally {
       setActionLoading(false)
     }
@@ -245,7 +247,7 @@ export default function TenantDetailPage() {
     )
   }
 
-  if (error && !tenant) {
+  if (loadFailed && !tenant) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
         <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
@@ -261,7 +263,6 @@ export default function TenantDetailPage() {
         <div className="flex">
           <DashboardSidebar pathname="/tenants" />
           <main className="flex-1 p-8">
-            <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
             <ListReturnButton href={tenantsListHref} label="返回列表" />
           </main>
         </div>
@@ -351,10 +352,6 @@ export default function TenantDetailPage() {
               </DetailActionBar>
             }
           />
-
-          {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
-          )}
 
           <div className="grid gap-4 md:grid-cols-2">
             <Card>

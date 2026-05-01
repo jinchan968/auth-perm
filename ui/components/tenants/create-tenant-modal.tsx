@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { showError } from '@/lib/toast'
 import {
   Select,
   SelectContent,
@@ -31,17 +32,15 @@ interface CreateTenantModalProps {
 
 export function CreateTenantModal({ open, onOpenChange, onSuccess }: CreateTenantModalProps) {
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
 
   const [name, setName] = useState('')
   const [plan, setPlan] = useState<TenantPlan>('free')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
 
     if (!name.trim()) {
-      setError('请输入租户名称')
+      showError('请输入租户名称')
       return
     }
 
@@ -54,7 +53,7 @@ export function CreateTenantModal({ open, onOpenChange, onSuccess }: CreateTenan
       onSuccess?.()
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '创建失败')
+      showError(err instanceof Error ? err.message : '创建失败')
     } finally {
       setLoading(false)
     }
@@ -64,7 +63,6 @@ export function CreateTenantModal({ open, onOpenChange, onSuccess }: CreateTenan
     if (!loading) {
       setName('')
       setPlan('free')
-      setError('')
       onOpenChange(false)
     }
   }
@@ -81,12 +79,6 @@ export function CreateTenantModal({ open, onOpenChange, onSuccess }: CreateTenan
 
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
-            {error && (
-              <div className="bg-red-50 text-red-600 text-sm p-3 rounded-md">
-                {error}
-              </div>
-            )}
-
             <div className="grid gap-2">
               <Label htmlFor="name">租户名称 *</Label>
               <Input

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { showError } from '@/lib/toast'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
 import { useAuthStore } from '@/store/auth-store'
@@ -30,19 +31,17 @@ export default function TenantsPage() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [size] = useState(10)
-  const [error, setError] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null)
 
   const fetchTenants = async () => {
     setLoading(true)
-    setError('')
     try {
       const data = await listTenants({ keyword, page, size })
       setTenants(data.data)
       setTotal(data.total)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch tenants')
+      showError(err instanceof Error ? err.message : 'Failed to fetch tenants')
     } finally {
       setLoading(false)
     }
@@ -66,7 +65,7 @@ export default function TenantsPage() {
         prev.map((t) => (t.id === tenantId ? { ...t, status: newStatus } : t))
       )
     } catch (err) {
-      setError(err instanceof Error ? err.message : '状态更新失败')
+      showError(err instanceof Error ? err.message : '状态更新失败')
     } finally {
       setUpdatingStatusId(null)
     }
@@ -131,11 +130,6 @@ export default function TenantsPage() {
                 />
                 <Button onClick={handleSearch}>搜索</Button>
               </div>
-
-              {/* Error */}
-              {error && (
-                <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
-              )}
 
               {/* Table */}
               <div className="border rounded">

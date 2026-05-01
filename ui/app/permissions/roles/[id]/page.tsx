@@ -24,6 +24,7 @@ import { useTenant } from '@/lib/tenant-context'
 import { useAuthStore } from '@/store/auth-store'
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
 import { ListReturnButton } from '@/components/ui/list-return-button'
+import { showError } from '@/lib/toast'
 import { useNavigationTransition } from '@/components/providers/navigation-transition-provider'
 
 export default function RolePermissionsPage() {
@@ -43,14 +44,14 @@ export default function RolePermissionsPage() {
   const [saving, setSaving] = useState(false)
   const [saveSuccessOpen, setSaveSuccessOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [error, setError] = useState('')
+  const [loadFailed, setLoadFailed] = useState(false)
 
 
   useEffect(() => {
     const fetchData = async () => {
       if (!selectedTenantId) return
       setLoading(true)
-      setError('')
+      setLoadFailed(false)
       try {
         const [roleData, permissionsData, assignedData] = await Promise.all([
           getRole(roleId, selectedTenantId),
@@ -61,7 +62,8 @@ export default function RolePermissionsPage() {
         setAllPermissions(permissionsData.data || [])
         setAssignedPermissionIds(assignedData.map((p) => p.id))
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch data')
+        showError(err instanceof Error ? err.message : 'Failed to fetch data')
+        setLoadFailed(true)
       } finally {
         setLoading(false)
       }
@@ -81,12 +83,11 @@ export default function RolePermissionsPage() {
 
   const handleSave = async () => {
     if (!selectedTenantId) {
-      setError('租户ID缺失')
+      showError('租户ID缺失')
       return
     }
 
     setSaving(true)
-    setError('')
     try {
       await assignPermissionsToRole({
         role_id: roleId,
@@ -95,7 +96,7 @@ export default function RolePermissionsPage() {
       })
       setSaveSuccessOpen(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save permissions')
+      showError(err instanceof Error ? err.message : 'Failed to save permissions')
     } finally {
       setSaving(false)
     }
@@ -124,7 +125,7 @@ export default function RolePermissionsPage() {
     )
   }
 
-  if (error && !role) {
+  if (loadFailed && !role) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
         <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
@@ -140,7 +141,6 @@ export default function RolePermissionsPage() {
         <div className="flex">
           <DashboardSidebar pathname="/permissions" />
           <main className="flex-1 p-8">
-            <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
             <ListReturnButton href={rolesListHref} label="返回列表" />
           </main>
         </div>
@@ -236,7 +236,7 @@ export default function RolePermissionsPage() {
                               onBeforeNavigate: () => setDeleteDialogOpen(false),
                             })
                           } catch (err) {
-                            setError(err instanceof Error ? err.message : '删除失败')
+                            showError(err instanceof Error ? err.message : '删除失败')
                             setDeleteDialogOpen(false)
                           }
                         }}
@@ -269,10 +269,6 @@ export default function RolePermissionsPage() {
               </DetailActionBar>
             }
           />
-
-          {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
-          )}
 
           <div className="text-sm text-gray-500 mb-4">
             已选择 {assignedPermissionIds.length} / {allPermissions.length} 个权限

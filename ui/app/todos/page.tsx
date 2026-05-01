@@ -24,6 +24,7 @@ import {
 import { useTenant } from '@/lib/tenant-context'
 import { useAuthStore } from '@/store/auth-store'
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
+import { showError } from '@/lib/toast'
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -95,20 +96,19 @@ export default function TodosPage() {
   const [filterPriority, setFilterPriority] = useState<string>('')
   const [activeCategoryId, setActiveCategoryId] = useState<string>('') // '' = all, 'none' = uncategorised
 
-  // error
-  const [error, setError] = useState('')
 
   const ensureTenant = () => {
     if (!selectedTenantId) {
-      setError('请选择租户')
+      showError('请选择租户')
       return false
     }
     return true
   }
 
-  // ── Create/Edit Todo dialog ──
+  // ── Create/Edit/View Todo dialog ──
   const [todoDialogOpen, setTodoDialogOpen] = useState(false)
   const [editingTodo, setEditingTodo] = useState<TodoItem | null>(null)
+  const [viewingTodo, setViewingTodo] = useState<TodoItem | null>(null)
   const [todoSaving, setTodoSaving] = useState(false)
   const [todoForm, setTodoForm] = useState({
     title: '',
@@ -139,7 +139,6 @@ export default function TodosPage() {
   const fetchTodos = useCallback(async (p = page) => {
     if (!selectedTenantId) return
     setLoading(true)
-    setError('')
     try {
       const res = await listTodos({
         tenant_id: selectedTenantId,
@@ -153,7 +152,7 @@ export default function TodosPage() {
       setTodos(res.data || [])
       setTotal(res.total)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '加载失败')
+      showError(e instanceof Error ? e.message : '加载失败')
     } finally {
       setLoading(false)
     }
@@ -174,12 +173,28 @@ export default function TodosPage() {
 
   const openCreate = () => {
     setEditingTodo(null)
-    setTodoForm({ title: '', description: '', priority: 'medium', category_id: '', deadline: '' })
+    setViewingTodo(null)
+    const defaultCategoryId = (activeCategoryId && activeCategoryId !== 'none') ? activeCategoryId : ''
+    setTodoForm({ title: '', description: '', priority: 'medium', category_id: defaultCategoryId, deadline: '' })
     setTodoDialogOpen(true)
   }
 
   const openEdit = (t: TodoItem) => {
     setEditingTodo(t)
+    setViewingTodo(null)
+    setTodoForm({
+      title: t.title,
+      description: t.description || '',
+      priority: t.priority,
+      category_id: t.category_id || '',
+      deadline: t.deadline ? new Date(t.deadline).toISOString().slice(0, 16) : '',
+    })
+    setTodoDialogOpen(true)
+  }
+
+  const openView = (t: TodoItem) => {
+    setEditingTodo(null)
+    setViewingTodo(t)
     setTodoForm({
       title: t.title,
       description: t.description || '',
@@ -192,9 +207,8 @@ export default function TodosPage() {
 
   const handleSaveTodo = async () => {
     if (!ensureTenant()) return
-    if (!todoForm.title.trim()) { setError('标题不能为空'); return }
+    if (!todoForm.title.trim()) { showError('标题不能为空'); return }
     setTodoSaving(true)
-    setError('')
     try {
       const payload = {
         tenant_id: selectedTenantId,
@@ -218,7 +232,7 @@ export default function TodosPage() {
       }
       setTodoDialogOpen(false)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '保存失败')
+      showError(e instanceof Error ? e.message : '保存失败')
     } finally {
       setTodoSaving(false)
     }
@@ -231,7 +245,7 @@ export default function TodosPage() {
       const updated = await updateTodoStatus(t.id, newStatus, selectedTenantId)
       setTodos(prev => prev.map(x => x.id === updated.id ? updated : x))
     } catch (e) {
-      setError(e instanceof Error ? e.message : '更新失败')
+      showError(e instanceof Error ? e.message : '更新失败')
     }
   }
 
@@ -242,7 +256,7 @@ export default function TodosPage() {
       const updated = await updateTodoStatus(t.id, s, selectedTenantId)
       setTodos(prev => prev.map(x => x.id === updated.id ? updated : x))
     } catch (e) {
-      setError(e instanceof Error ? e.message : '更新失败')
+      showError(e instanceof Error ? e.message : '更新失败')
     }
   }
 
@@ -253,7 +267,7 @@ export default function TodosPage() {
       const updated = await updateTodoPriority(t.id, p, selectedTenantId)
       setTodos(prev => prev.map(x => x.id === updated.id ? updated : x))
     } catch (e) {
-      setError(e instanceof Error ? e.message : '更新失败')
+      showError(e instanceof Error ? e.message : '更新失败')
     }
   }
 
@@ -264,7 +278,7 @@ export default function TodosPage() {
       setTodos(prev => prev.filter(t => t.id !== id))
       setTotal(t => t - 1)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '删除失败')
+      showError(e instanceof Error ? e.message : '删除失败')
     } finally {
       setDeletingId(null)
     }
@@ -280,7 +294,7 @@ export default function TodosPage() {
       setCatDialogOpen(false)
       setCatForm({ name: '', color: CATEGORY_COLORS[0] })
     } catch (e) {
-      setError(e instanceof Error ? e.message : '创建分类失败')
+      showError(e instanceof Error ? e.message : '创建分类失败')
     } finally {
       setCatSaving(false)
     }
@@ -297,7 +311,7 @@ export default function TodosPage() {
         fetchTodos(1)
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : '删除分类失败')
+      showError(e instanceof Error ? e.message : '删除分类失败')
     }
   }
 
@@ -329,14 +343,6 @@ export default function TodosPage() {
 
         <main className="flex-1 p-8">
           <Breadcrumb items={breadcrumbItems} />
-
-          {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded mb-4 flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              {error}
-              <button className="ml-auto" onClick={() => setError('')}><X className="h-4 w-4" /></button>
-            </div>
-          )}
 
           <div className="flex gap-6 mt-4">
             {/* ── Left: Category panel ── */}
@@ -454,6 +460,7 @@ export default function TodosPage() {
                       onToggle={handleToggleComplete}
                       onStatus={handleStatusChange}
                       onEdit={openEdit}
+                      onView={openView}
                       onPriority={handlePriorityClick}
                       onDelete={id => setDeletingId(id)}
                       disabled={!tenantReady}
@@ -479,11 +486,11 @@ export default function TodosPage() {
         </main>
       </div>
 
-      {/* ── Todo Dialog (Create / Edit) ── */}
-      <Dialog open={todoDialogOpen} onOpenChange={setTodoDialogOpen}>
+      {/* ── Todo Dialog (Create / Edit / View) ── */}
+      <Dialog open={todoDialogOpen} onOpenChange={v => { setTodoDialogOpen(v); if (!v) { setViewingTodo(null); setEditingTodo(null) } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editingTodo ? '编辑待办' : '新建待办'}</DialogTitle>
+            <DialogTitle>{viewingTodo ? '查看待办' : editingTodo ? '编辑待办' : '新建待办'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-1">
             <div>
@@ -492,23 +499,26 @@ export default function TodosPage() {
                 value={todoForm.title}
                 onChange={e => setTodoForm(f => ({ ...f, title: e.target.value }))}
                 placeholder="待办标题"
-                autoFocus
+                autoFocus={!viewingTodo}
+                disabled={!!viewingTodo}
+                className={viewingTodo ? 'opacity-60 cursor-not-allowed bg-slate-50' : ''}
               />
             </div>
             <div>
               <Label>描述</Label>
               <textarea
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px] resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                className={`w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px] resize-none focus:outline-none focus:ring-1 focus:ring-ring ${viewingTodo ? 'opacity-60 cursor-not-allowed bg-slate-50' : ''}`}
                 value={todoForm.description}
                 onChange={e => setTodoForm(f => ({ ...f, description: e.target.value }))}
                 placeholder="可选描述..."
+                disabled={!!viewingTodo}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>优先级</Label>
-                <Select value={todoForm.priority} onValueChange={v => setTodoForm(f => ({ ...f, priority: v as TodoPriority }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select value={todoForm.priority} onValueChange={v => setTodoForm(f => ({ ...f, priority: v as TodoPriority }))} disabled={!!viewingTodo}>
+                  <SelectTrigger className={viewingTodo ? 'opacity-60 cursor-not-allowed bg-slate-50' : ''}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="low">低</SelectItem>
                     <SelectItem value="medium">中</SelectItem>
@@ -519,8 +529,8 @@ export default function TodosPage() {
               </div>
               <div>
                 <Label>分类</Label>
-                <Select value={todoForm.category_id || '_none'} onValueChange={v => setTodoForm(f => ({ ...f, category_id: v === '_none' ? '' : v }))}>
-                  <SelectTrigger><SelectValue placeholder="未分类" /></SelectTrigger>
+                <Select value={todoForm.category_id || '_none'} onValueChange={v => setTodoForm(f => ({ ...f, category_id: v === '_none' ? '' : v }))} disabled={!!viewingTodo}>
+                  <SelectTrigger className={viewingTodo ? 'opacity-60 cursor-not-allowed bg-slate-50' : ''}><SelectValue placeholder="未分类" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="_none">未分类</SelectItem>
                     {categories.map(c => (
@@ -541,14 +551,25 @@ export default function TodosPage() {
                 type="datetime-local"
                 value={todoForm.deadline}
                 onChange={e => setTodoForm(f => ({ ...f, deadline: e.target.value }))}
+                disabled={!!viewingTodo}
+                className={viewingTodo ? 'opacity-60 cursor-not-allowed bg-slate-50' : ''}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTodoDialogOpen(false)}>取消</Button>
-            <Button onClick={handleSaveTodo} disabled={todoSaving}>
-              {todoSaving ? '保存中...' : '保存'}
-            </Button>
+            {viewingTodo ? (
+              <>
+                <Button variant="outline" onClick={() => setTodoDialogOpen(false)}>关闭</Button>
+                <Button onClick={() => { openEdit(viewingTodo) }}>编辑</Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setTodoDialogOpen(false)}>取消</Button>
+                <Button onClick={handleSaveTodo} disabled={todoSaving}>
+                  {todoSaving ? '保存中...' : '保存'}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -626,13 +647,14 @@ function CategoryNavItem({
 }
 
 function TodoRow({
-  todo, categories, onToggle, onStatus, onEdit, onPriority, onDelete, disabled,
+  todo, categories, onToggle, onStatus, onEdit, onView, onPriority, onDelete, disabled,
 }: {
   todo: TodoItem
   categories: TodoCategory[]
   onToggle: (t: TodoItem) => void
   onStatus: (t: TodoItem, s: TodoStatus) => void
   onEdit: (t: TodoItem) => void
+  onView: (t: TodoItem) => void
   onPriority: (t: TodoItem, p: TodoPriority) => void
   onDelete: (id: string) => void
   disabled?: boolean
@@ -677,9 +699,14 @@ function TodoRow({
       </button>
 
       {/* Content */}
-      <div className="flex-1 min-w-0">
+      <div
+        className="flex-1 min-w-0 cursor-pointer"
+        onClick={() => !disabled && onView(todo)}
+      >
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={`text-sm font-medium ${done ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+          <span
+            className={`text-sm font-medium hover:text-blue-600 transition-colors ${done ? 'line-through text-slate-400' : 'text-slate-800'}`}
+          >
             {todo.title}
           </span>
 
@@ -687,7 +714,7 @@ function TodoRow({
           <div className="relative">
             <button
               className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-medium ${STATUS_COLOR[todo.status]} transition-opacity hover:opacity-80 ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-              onClick={() => !disabled && setStatusOpen(p => !p)}
+              onClick={(e) => { e.stopPropagation(); if (!disabled) setStatusOpen(p => !p) }}
               title="点击更改状态"
               disabled={disabled}
             >
@@ -718,7 +745,7 @@ function TodoRow({
           <div className="relative">
             <button
               className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-medium ${PRIORITY_COLOR[todo.priority]} transition-opacity hover:opacity-80 ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-              onClick={() => !disabled && setPriorityOpen(p => !p)}
+              onClick={(e) => { e.stopPropagation(); if (!disabled) setPriorityOpen(p => !p) }}
               title="点击更改优先级"
               disabled={disabled}
             >

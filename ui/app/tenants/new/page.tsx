@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/auth-store'
 import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
 import { DetailActionBar } from '@/components/ui/detail-action-bar'
 import { DetailPageHeader } from '@/components/ui/detail-page-header'
+import { showError } from '@/lib/toast'
 import { useNavigationTransition } from '@/components/providers/navigation-transition-provider'
 import {
   Select,
@@ -29,17 +30,15 @@ export default function NewTenantPage() {
   const { navigateWithTransition } = useNavigationTransition()
 
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
 
   const [name, setName] = useState('')
   const [plan, setPlan] = useState<TenantPlan>('free')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
 
     if (!name.trim()) {
-      setError('请输入租户名称')
+      showError('请输入租户名称')
       return
     }
 
@@ -48,7 +47,7 @@ export default function NewTenantPage() {
       await createTenant({ name, plan })
       navigateWithTransition(tenantsListHref)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '创建失败')
+      showError(err instanceof Error ? err.message : '创建失败')
     } finally {
       setLoading(false)
     }
@@ -105,10 +104,6 @@ export default function NewTenantPage() {
                 <CardTitle>租户信息</CardTitle>
               </CardHeader>
               <CardContent>
-                {error && (
-                  <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
-                )}
-
                 <form id="new-tenant-form" onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">租户名称 *</Label>

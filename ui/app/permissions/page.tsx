@@ -17,6 +17,7 @@ import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
 import { AppModal } from '@/components/ui/app-modal'
 import { PermGuard } from '@/components/ui/perm-guard'
+import { showError } from '@/lib/toast'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -65,7 +66,6 @@ function PermissionsPageContent() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [size] = useState(10)
-  const [error, setError] = useState('')
 
   // 租户过滤（封装了 showAllTenants / filteredTenants / tenantListLoading 的逻辑）
   const { filteredTenants, showAllTenants, setShowAllTenants, tenantListLoading } = useTenantFilter(tenants, canShowAllTenants)
@@ -104,13 +104,12 @@ function PermissionsPageContent() {
     if (!tenantId) return
     const targetPage = pageOverride ?? page
     setLoading(true)
-    setError('')
     try {
       const data = await listPermissions({ tenant_id: tenantId, keyword, page: targetPage, size })
       setPermissions(data.data)
       setTotal(data.total)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch permissions')
+      showError(err instanceof Error ? err.message : 'Failed to fetch permissions')
     } finally {
       setLoading(false)
     }
@@ -120,13 +119,12 @@ function PermissionsPageContent() {
     if (!tenantId) return
     const targetPage = pageOverride ?? page
     setRolesLoading(true)
-    setError('')
     try {
       const data = await listRoles({ tenant_id: tenantId, keyword, page: targetPage, size })
       setRoles(data.data)
       setTotal(data.total)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch roles')
+      showError(err instanceof Error ? err.message : 'Failed to fetch roles')
     } finally {
       setRolesLoading(false)
     }
@@ -136,13 +134,12 @@ function PermissionsPageContent() {
     if (!tenantId) return
     const targetPage = pageOverride ?? page
     setUsersLoading(true)
-    setError('')
     try {
       const data = await listUsers({ tenant_id: tenantId, keyword, page: targetPage, page_size: size })
       setUsers(data.data || [])
       setTotal(data.total)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch users')
+      showError(err instanceof Error ? err.message : 'Failed to fetch users')
     } finally {
       setUsersLoading(false)
     }
@@ -178,7 +175,6 @@ function PermissionsPageContent() {
     setActiveTab(tab)
     setPage(1)
     setKeyword('')
-    setError('')
   }
 
   // 搜索时重置页码
@@ -206,12 +202,11 @@ function PermissionsPageContent() {
 
   const handleSaveRole = async () => {
     if (!roleFormData.name) {
-      setError('请填写必填字段')
+      showError('请填写必填字段')
       return
     }
 
     setRoleSaving(true)
-    setError('')
     try {
       await createRole({
         tenant_id: tenantId,
@@ -224,7 +219,7 @@ function PermissionsPageContent() {
         fetchRoles(page)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save role')
+      showError(err instanceof Error ? err.message : 'Failed to save role')
     } finally {
       setRoleSaving(false)
     }
@@ -243,12 +238,11 @@ function PermissionsPageContent() {
 
   const handleSavePermission = async () => {
     if (!permissionFormData.name) {
-      setError('请填写权限名称')
+      showError('请填写权限名称')
       return
     }
 
     setPermissionSaving(true)
-    setError('')
     try {
       await createPermission({
         tenant_id: tenantId,
@@ -260,7 +254,7 @@ function PermissionsPageContent() {
         fetchPermissions(page)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '创建权限失败')
+      showError(err instanceof Error ? err.message : '创建权限失败')
     } finally {
       setPermissionSaving(false)
     }
@@ -443,11 +437,6 @@ function PermissionsPageContent() {
                 />
                 <Button onClick={handleSearch}>搜索</Button>
               </div>
-
-              {/* Error */}
-              {error && (
-                <div className="bg-red-50 text-red-600 p-3 rounded mb-4">{error}</div>
-              )}
 
               {/* Permissions Table */}
               {activeTab === 'permissions' && (
