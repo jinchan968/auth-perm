@@ -8,7 +8,7 @@ import (
 
 	"auth-perm/internal/common/dto/response"
 	"auth-perm/internal/controller/util"
-	"auth-perm/internal/domain/todo/dm"
+	"auth-perm/internal/domain/todo/constant"
 	"auth-perm/internal/domain/todo/repo"
 	"auth-perm/internal/domain/todo/service"
 	"auth-perm/internal/domain/todo/vo"
@@ -186,7 +186,7 @@ func (h *TodoHandler) CreateTodo(c *gin.Context) {
 		Deadline:    req.Deadline,
 	}
 	if params.Priority == "" {
-		params.Priority = dm.TodoPriorityMedium
+		params.Priority = constant.TodoPriorityMedium
 	}
 
 	result, err := h.svc.CreateTodo(c.Request.Context(), params)
@@ -380,9 +380,9 @@ func respondValidationError(c *gin.Context, msg string) {
 }
 
 // validateTodoStatus 校验状态值
-func validateTodoStatus(status dm.TodoStatus) bool {
+func validateTodoStatus(status constant.TodoStatus) bool {
 	switch status {
-	case dm.TodoStatusPending, dm.TodoStatusInProgress, dm.TodoStatusCompleted, dm.TodoStatusCancelled:
+	case constant.TodoStatusPending, constant.TodoStatusInProgress, constant.TodoStatusCompleted, constant.TodoStatusCancelled:
 		return true
 	default:
 		return false
@@ -390,9 +390,9 @@ func validateTodoStatus(status dm.TodoStatus) bool {
 }
 
 // validateTodoPriority 校验优先级值
-func validateTodoPriority(priority dm.TodoPriority) bool {
+func validateTodoPriority(priority constant.TodoPriority) bool {
 	switch priority {
-	case dm.TodoPriorityLow, dm.TodoPriorityMedium, dm.TodoPriorityHigh, dm.TodoPriorityUrgent:
+	case constant.TodoPriorityLow, constant.TodoPriorityMedium, constant.TodoPriorityHigh, constant.TodoPriorityUrgent:
 		return true
 	default:
 		return false

@@ -7,6 +7,7 @@ import (
 	"auth-perm/config"
 	"auth-perm/internal/common/dto/response"
 	"auth-perm/internal/domain/auth/service"
+	"auth-perm/internal/domain/permission/constant"
 	permissionParam "auth-perm/internal/domain/permission/param"
 	permissionService "auth-perm/internal/domain/permission/service"
 
@@ -56,7 +57,7 @@ func APIPermissionMiddleware(
 		}
 
 		// 获取用户拥有的所有 API 资源
-		resources, err := permService.GetAccountResources(c.Request.Context(), permissionParam.NewGetAccountResourcesParams(accountIDStr, "api_path"))
+		resources, err := permService.GetAccountResources(c.Request.Context(), permissionParam.NewGetAccountResourcesParams(accountIDStr, constant.ResourceTypeAPIPath))
 		if err != nil {
 			response.Error(c, http.StatusInternalServerError, "权限检查失败", err.Error())
 			c.Abort()

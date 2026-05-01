@@ -10,6 +10,7 @@ import (
 	commonConstant "auth-perm/internal/common/constant"
 	"auth-perm/internal/common/errors"
 	"auth-perm/internal/common/utils"
+	"auth-perm/internal/domain/auth/constant"
 	"auth-perm/internal/domain/auth/dm"
 	"auth-perm/internal/domain/auth/dto"
 	"auth-perm/internal/domain/auth/param"
@@ -136,8 +137,8 @@ func (s *LoginService) Login(ctx context.Context, params *param.LoginParams) (*d
 
 	// 记录审计日志
 	s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
-		Action:       "login",
-		ResourceType: "account",
+		Action:       constant.ActionLogin,
+		ResourceType: constant.AuditResourceAccount,
 		ResourceID:   account.ID,
 		UserID:       user.ID,
 		Success:      true,
@@ -193,8 +194,8 @@ func (s *LoginService) CreateSession(ctx context.Context, params *param.CreateSe
 	// 会话固定攻击防护：在创建新会话前，使该用户在当前租户下的所有旧会话失效
 	if err := s.sessionRepo.InvalidateUserTenantSessions(ctx, params.UserID, params.TenantID); err != nil {
 		s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
-			Action:       "invalidate_sessions_error",
-			ResourceType: "session",
+			Action:       constant.ActionInvalidateSessionsError,
+			ResourceType: constant.AuditResourceSession,
 			ResourceID:   params.UserID,
 			Success:      false,
 		})
@@ -252,8 +253,8 @@ func (s *LoginService) CreateSession(ctx context.Context, params *param.CreateSe
 
 	// 异步记录审计日志
 	s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
-		Action:       "create_session",
-		ResourceType: "session",
+		Action:       constant.ActionCreateSession,
+		ResourceType: constant.AuditResourceSession,
 		ResourceID:   sessionDTO.ID,
 		Success:      true,
 	})
@@ -368,8 +369,8 @@ func (s *LoginService) RefreshToken(ctx context.Context, refreshToken string) (s
 
 	// 异步记录审计日志
 	s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
-		Action:       "refresh_token",
-		ResourceType: "session",
+		Action:       constant.ActionRefreshToken,
+		ResourceType: constant.AuditResourceSession,
 		ResourceID:   session.ID,
 		Success:      true,
 	})

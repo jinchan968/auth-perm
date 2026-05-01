@@ -2,6 +2,7 @@ package dto
 
 import (
 	"auth-perm/internal/common/errors"
+	permissionConstant "auth-perm/internal/domain/permission/constant"
 	"strings"
 	"time"
 
@@ -245,12 +246,12 @@ func (r *RoleDTO) GetRoleHierarchy() int {
 	// 根据角色代码确定层级
 	// super_admin > admin > manager > user
 	roleHierarchy := map[string]int{
-		"super_admin": 100,
-		"admin":       80,
-		"org_admin":   70,
-		"manager":     50,
-		"user":        10,
-		"guest":       0,
+		permissionConstant.RoleCodeSuperAdmin: 100,
+		permissionConstant.RoleCodeAdmin:      80,
+		permissionConstant.RoleCodeOrgAdmin:   70,
+		permissionConstant.RoleCodeManager:    50,
+		permissionConstant.RoleCodeUser:       10,
+		permissionConstant.RoleCodeGuest:      0,
 	}
 
 	if level, exists := roleHierarchy[r.Code]; exists {

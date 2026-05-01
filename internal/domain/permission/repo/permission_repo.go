@@ -233,7 +233,7 @@ func (r *PermissionRepo) FindPermissionByID(ctx context.Context, id string) (*dm
 	var permission dm.PermissionDO
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&permission).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.NewNotFoundErrorF("权限不存在: %s", id)
 		}
 		return nil, errors.WrapBizError(err, "查找权限失败")
@@ -247,7 +247,7 @@ func (r *PermissionRepo) FindPermissionByCode(ctx context.Context, tenantID, cod
 	var permission dm.PermissionDO
 	err := r.db.WithContext(ctx).Where("tenant_id = ? AND code = ?", tenantID, code).First(&permission).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			// 不存在时返回 nil，用于创建新权限前的检查
 			return nil, nil
 		}
@@ -261,7 +261,7 @@ func (r *PermissionRepo) FindByID(ctx context.Context, id string) (*dm.Permissio
 	var permission dm.PermissionDO
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&permission).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err

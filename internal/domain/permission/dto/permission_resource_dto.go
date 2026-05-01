@@ -3,6 +3,8 @@ package dto
 import (
 	"strings"
 	"time"
+
+	"auth-perm/internal/domain/permission/constant"
 )
 
 // PermissionResourceDTO 权限资源关联传输对象
@@ -17,17 +19,8 @@ type PermissionResourceDTO struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
-// ResourceType 定义资源类型常量
-const (
-	ResourceTypeAPIPath = "api_path"
-	ResourceTypeMenu    = "menu"
-	ResourceTypeButton  = "button"
-	ResourceTypeField   = "field"
-	ResourceTypeOther   = "other"
-)
-
-// AllResourceTypes 所有资源类型
-var AllResourceTypes = []string{ResourceTypeAPIPath, ResourceTypeMenu, ResourceTypeButton, ResourceTypeField, ResourceTypeOther}
+// AllResourceTypes 所有资源类型（委托给 constant 包）
+var AllResourceTypes = constant.AllResourceTypes
 
 // IsValidResourceType 检查资源类型是否有效
 func (pr *PermissionResourceDTO) IsValidResourceType() bool {
@@ -56,25 +49,25 @@ func (pr *PermissionResourceDTO) GetDisplayName() string {
 
 // IsAPIPath 检查是否为API路径
 func (pr *PermissionResourceDTO) IsAPIPath() bool {
-	return pr.ResourceType == ResourceTypeAPIPath
+	return pr.ResourceType == constant.ResourceTypeAPIPath
 }
 
 // IsMenu 检查是否为菜单
 func (pr *PermissionResourceDTO) IsMenu() bool {
-	return pr.ResourceType == ResourceTypeMenu
+	return pr.ResourceType == constant.ResourceTypeMenu
 }
 
 // IsButton 检查是否为按钮
 func (pr *PermissionResourceDTO) IsButton() bool {
-	return pr.ResourceType == ResourceTypeButton
+	return pr.ResourceType == constant.ResourceTypeButton
 }
 
 // IsField 检查是否为字段
 func (pr *PermissionResourceDTO) IsField() bool {
-	return pr.ResourceType == ResourceTypeField
+	return pr.ResourceType == constant.ResourceTypeField
 }
 
 // IsOther 检查是否为其他资源
 func (pr *PermissionResourceDTO) IsOther() bool {
-	return pr.ResourceType == ResourceTypeOther
+	return pr.ResourceType == constant.ResourceTypeOther
 }

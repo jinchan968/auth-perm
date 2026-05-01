@@ -32,6 +32,7 @@
 9. 单文件尽量不超过 2000 行；命名遵循 PascalCase（类型）、camelCase（函数）、kebab-case（文件名）。
 10. `ui/types/` 仅放纯类型定义，避免引入运行时依赖。
 11. 前端通用交互组件（错误提示、确认弹窗、Toast 通知、加载/空状态等）须封装到 `./ui/components/ui/` 下统一复用；全局样式（配色、动画、间距、圆角等）统一走 Tailwind 主题配置与 `./ui/components/ui/` 现有组件体系，禁止在页面或业务组件中硬编码颜色值或独立定义动画。
+12. 后端领域常量（枚举值、资源类型、状态码等）统一放到对应领域的 `./internal/domain/<module>/constant/` 目录下；禁止在 `dto`、`repo`、`service`、`handler` 中硬编码魔法字符串，引用方通过 `import constant` 包使用。
 
 ## 任务路由
 - **后端任务**：先读 `docs/ARCHITECTURE.md`，重点看 `./internal/container/`、`./internal/controller/http/`、对应领域模块。

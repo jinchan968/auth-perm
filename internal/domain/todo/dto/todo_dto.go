@@ -1,8 +1,10 @@
 package dto
 
 import (
-	"auth-perm/internal/domain/todo/dm"
 	"time"
+
+	"auth-perm/internal/domain/todo/constant"
+	"auth-perm/internal/domain/todo/dm"
 )
 
 // TodoCategoryDTO 分类数据传输对象
@@ -20,21 +22,21 @@ type TodoCategoryDTO struct {
 
 // TodoDTO 待办数据传输对象
 type TodoDTO struct {
-	ID          string           `json:"id"`
-	TenantID    string           `json:"tenant_id"`
-	AccountID   string           `json:"account_id"`
-	CategoryID  *string          `json:"category_id,omitempty"`
-	Category    *TodoCategoryDTO `json:"category,omitempty"`
-	Title       string           `json:"title"`
-	Description *string          `json:"description,omitempty"`
-	Status      dm.TodoStatus    `json:"status"`
-	Priority    dm.TodoPriority  `json:"priority"`
-	Deadline    *time.Time       `json:"deadline,omitempty"`
-	CompletedAt *time.Time       `json:"completed_at,omitempty"`
-	SortOrder   int              `json:"sort_order"`
-	IsOverdue   bool             `json:"is_overdue"`
-	CreatedAt   time.Time        `json:"created_at"`
-	UpdatedAt   time.Time        `json:"updated_at"`
+	ID          string                `json:"id"`
+	TenantID    string                `json:"tenant_id"`
+	AccountID   string                `json:"account_id"`
+	CategoryID  *string               `json:"category_id,omitempty"`
+	Category    *TodoCategoryDTO      `json:"category,omitempty"`
+	Title       string                `json:"title"`
+	Description *string               `json:"description,omitempty"`
+	Status      constant.TodoStatus   `json:"status"`
+	Priority    constant.TodoPriority `json:"priority"`
+	Deadline    *time.Time            `json:"deadline,omitempty"`
+	CompletedAt *time.Time            `json:"completed_at,omitempty"`
+	SortOrder   int                   `json:"sort_order"`
+	IsOverdue   bool                  `json:"is_overdue"`
+	CreatedAt   time.Time             `json:"created_at"`
+	UpdatedAt   time.Time             `json:"updated_at"`
 }
 
 // TodoListResult 待办列表结果

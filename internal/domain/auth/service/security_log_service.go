@@ -6,6 +6,7 @@ import (
 
 	"auth-perm/internal/common/errors"
 	"auth-perm/internal/common/model"
+	"auth-perm/internal/domain/auth/constant"
 	"auth-perm/internal/domain/auth/dto"
 	"auth-perm/internal/domain/auth/repo"
 )
@@ -133,7 +134,7 @@ func (s *SecurityLogService) GetLoginLogByID(ctx context.Context, logID string) 
 
 	// 检查是否是登录相关日志
 	loginActions := map[string]bool{
-		"login": true, "logout": true, "create_session": true, "refresh_token": true,
+		constant.ActionLogin: true, constant.ActionLogout: true, constant.ActionCreateSession: true, constant.ActionRefreshToken: true,
 	}
 	if !loginActions[log.Action] {
 		return nil, errors.NewNotFoundError("登录日志不存在")

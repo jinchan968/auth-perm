@@ -1,8 +1,10 @@
 package dm
 
 import (
-	"auth-perm/internal/domain/tenant/dto"
 	"time"
+
+	"auth-perm/internal/domain/tenant/constant"
+	"auth-perm/internal/domain/tenant/dto"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -10,13 +12,13 @@ import (
 
 // TenantDO 租户领域对象
 type TenantDO struct {
-	ID        string             `gorm:"primaryKey;type:uuid"`
-	Name      string             `gorm:"column:name;not null"`
-	Code      string             `gorm:"column:code;uniqueIndex;not null"`
-	Status    dto.TenantStatus   `gorm:"column:status;not null;default:active"`
-	Plan      dto.TenantPlan     `gorm:"column:plan;not null;default:free"`
-	ExpireAt  *time.Time         `gorm:"column:expire_at"`
-	Settings  dto.TenantSettings `gorm:"column:settings;type:jsonb;default:'{}'"`
+	ID        string                `gorm:"primaryKey;type:uuid"`
+	Name      string                `gorm:"column:name;not null"`
+	Code      string                `gorm:"column:code;uniqueIndex;not null"`
+	Status    constant.TenantStatus `gorm:"column:status;not null;default:active"`
+	Plan      constant.TenantPlan   `gorm:"column:plan;not null;default:free"`
+	ExpireAt  *time.Time            `gorm:"column:expire_at"`
+	Settings  dto.TenantSettings    `gorm:"column:settings;type:jsonb;default:'{}'"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -32,10 +34,10 @@ func (t *TenantDO) BeforeCreate(tx *gorm.DB) error {
 		t.ID = uuid.New().String()
 	}
 	if t.Status == "" {
-		t.Status = dto.TenantStatusActive
+		t.Status = constant.TenantStatusActive
 	}
 	if t.Plan == "" {
-		t.Plan = dto.TenantPlanFree
+		t.Plan = constant.TenantPlanFree
 	}
 	// 设置默认设置（检查 Features 和 Quota 是否都是零值）
 	if t.Settings.Features == (dto.FeaturesConfig{}) && t.Settings.Quota == (dto.QuotaConfig{}) {

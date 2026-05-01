@@ -47,7 +47,7 @@ func (r *TOTPSecretRepository) FindByAccountID(accountID string) (*dm.TOTPSecret
 		First(&totpSecret).Error
 
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, errors.WrapBizError(err, "查找TOTP密钥失败")

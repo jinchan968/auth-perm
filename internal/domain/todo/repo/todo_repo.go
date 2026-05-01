@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"auth-perm/internal/common/errors"
+	"auth-perm/internal/domain/todo/constant"
 	"auth-perm/internal/domain/todo/dm"
 )
 
@@ -160,11 +161,11 @@ func (r *TodoRepo) EscalateOverdue(ctx context.Context) (int64, error) {
 	result := r.db.WithContext(ctx).Model(&dm.TodoDO{}).
 		Where("deadline <= ? AND status IN ? AND priority != ? AND deleted_at IS NULL",
 			time.Now(),
-			[]dm.TodoStatus{dm.TodoStatusPending, dm.TodoStatusInProgress},
-			dm.TodoPriorityUrgent,
+			[]constant.TodoStatus{constant.TodoStatusPending, constant.TodoStatusInProgress},
+			constant.TodoPriorityUrgent,
 		).
 		Updates(map[string]interface{}{
-			"priority":   dm.TodoPriorityUrgent,
+			"priority":   constant.TodoPriorityUrgent,
 			"updated_at": time.Now(),
 		})
 	if result.Error != nil {

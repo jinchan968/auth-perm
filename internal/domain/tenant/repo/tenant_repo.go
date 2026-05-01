@@ -3,11 +3,12 @@ package repo
 import (
 	"context"
 
+	errStd "errors"
+
 	"auth-perm/internal/common/model"
 	authDm "auth-perm/internal/domain/auth/dm"
+	"auth-perm/internal/domain/tenant/constant"
 	"auth-perm/internal/domain/tenant/dm"
-	"auth-perm/internal/domain/tenant/dto"
-	errStd "errors"
 
 	"gorm.io/gorm"
 )
@@ -38,7 +39,7 @@ func (r *TenantRepo) Delete(ctx context.Context, id string) error {
 }
 
 // UpdateStatus 更新租户状态
-func (r *TenantRepo) UpdateStatus(ctx context.Context, id string, status dto.TenantStatus) error {
+func (r *TenantRepo) UpdateStatus(ctx context.Context, id string, status constant.TenantStatus) error {
 	return r.db.WithContext(ctx).Model(&dm.TenantDO{}).Where("id = ?", id).Update("status", status).Error
 }
 

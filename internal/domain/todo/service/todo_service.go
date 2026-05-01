@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"auth-perm/internal/common/errors"
+	"auth-perm/internal/domain/todo/constant"
 	"auth-perm/internal/domain/todo/dm"
 	"auth-perm/internal/domain/todo/dto"
 	"auth-perm/internal/domain/todo/repo"
@@ -91,7 +92,7 @@ type CreateTodoParams struct {
 	CategoryID  *string
 	Title       string
 	Description *string
-	Priority    dm.TodoPriority
+	Priority    constant.TodoPriority
 	Deadline    *time.Time
 }
 
@@ -103,7 +104,7 @@ type UpdateTodoParams struct {
 	CategoryID    *string // nil = 不变；空字符串 ptr = 清空
 	Title         *string
 	Description   *string
-	Priority      *dm.TodoPriority
+	Priority      *constant.TodoPriority
 	Deadline      *time.Time
 	ClearDeadline bool // 明确清空 deadline
 }
@@ -114,7 +115,7 @@ func (s *TodoService) CreateTodo(ctx context.Context, p *CreateTodoParams) (*dto
 		return nil, errors.NewValidationError("待办标题不能为空")
 	}
 	if p.Priority == "" {
-		p.Priority = dm.TodoPriorityMedium
+		p.Priority = constant.TodoPriorityMedium
 	}
 
 	// 如果指定了分类，验证分类属于该账户
@@ -209,7 +210,7 @@ func (s *TodoService) UpdateTodo(ctx context.Context, p *UpdateTodoParams) (*dto
 }
 
 // UpdateTodoStatus 更新待办状态
-func (s *TodoService) UpdateTodoStatus(ctx context.Context, id, accountID, tenantID string, status dm.TodoStatus) (*dto.TodoDTO, error) {
+func (s *TodoService) UpdateTodoStatus(ctx context.Context, id, accountID, tenantID string, status constant.TodoStatus) (*dto.TodoDTO, error) {
 	todo, err := s.todoRepo.FindByIDAndAccount(ctx, id, accountID, tenantID)
 	if err != nil {
 		return nil, err
@@ -217,7 +218,7 @@ func (s *TodoService) UpdateTodoStatus(ctx context.Context, id, accountID, tenan
 
 	// 完成时记录完成时间；反完成时清空
 	now := time.Now()
-	if status == dm.TodoStatusCompleted {
+	if status == constant.TodoStatusCompleted {
 		todo.CompletedAt = &now
 	} else {
 		todo.CompletedAt = nil
@@ -233,7 +234,7 @@ func (s *TodoService) UpdateTodoStatus(ctx context.Context, id, accountID, tenan
 }
 
 // UpdateTodoPriority 更新待办优先级
-func (s *TodoService) UpdateTodoPriority(ctx context.Context, id, accountID, tenantID string, priority dm.TodoPriority) (*dto.TodoDTO, error) {
+func (s *TodoService) UpdateTodoPriority(ctx context.Context, id, accountID, tenantID string, priority constant.TodoPriority) (*dto.TodoDTO, error) {
 	todo, err := s.todoRepo.FindByIDAndAccount(ctx, id, accountID, tenantID)
 	if err != nil {
 		return nil, err

@@ -1,16 +1,18 @@
 package param
 
 import (
-	"auth-perm/internal/domain/tenant/dto"
 	"time"
+
+	"auth-perm/internal/domain/tenant/constant"
+	"auth-perm/internal/domain/tenant/dto"
 )
 
 // CreateTenantParams 创建租户参数
 type CreateTenantParams struct {
-	Name     string         `json:"name"`
-	Code     string         `json:"code"`
-	Plan     dto.TenantPlan `json:"plan"`
-	ExpireAt *time.Time     `json:"expire_at"`
+	Name     string              `json:"name"`
+	Code     string              `json:"code"`
+	Plan     constant.TenantPlan `json:"plan"`
+	ExpireAt *time.Time          `json:"expire_at"`
 }
 
 // Validate 验证创建参数
@@ -20,7 +22,7 @@ func (p *CreateTenantParams) Validate() error {
 	}
 	// Code字段改为可选，后端自动生成
 	if p.Plan == "" {
-		p.Plan = dto.TenantPlanFree
+		p.Plan = constant.TenantPlanFree
 	}
 	if !p.Plan.IsValid() {
 		return errInvalid("套餐")
@@ -30,12 +32,12 @@ func (p *CreateTenantParams) Validate() error {
 
 // UpdateTenantParams 更新租户参数（包含基本信息和设置）
 type UpdateTenantParams struct {
-	ID       string              `json:"id"`
-	Name     string              `json:"name"`
-	Status   *dto.TenantStatus   `json:"status"`
-	Plan     *dto.TenantPlan     `json:"plan"`
-	ExpireAt *time.Time          `json:"expire_at"`
-	Settings *dto.TenantSettings `json:"settings"`
+	ID       string                 `json:"id"`
+	Name     string                 `json:"name"`
+	Status   *constant.TenantStatus `json:"status"`
+	Plan     *constant.TenantPlan   `json:"plan"`
+	ExpireAt *time.Time             `json:"expire_at"`
+	Settings *dto.TenantSettings    `json:"settings"`
 }
 
 // Validate 验证更新参数

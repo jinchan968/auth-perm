@@ -106,12 +106,12 @@ func (s *PasswordService) ChangePassword(ctx context.Context, params *param.Chan
 	}
 
 	// 密码修改后使该用户所有会话失效（安全策略：防止旧会话被滥用）
-	s.invalidateUserSessions(ctx, params.UserID, "password_change")
+	s.invalidateUserSessions(ctx, params.UserID, authConstant.ReasonPasswordChange)
 
 	// 记录审计日志
 	s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
-		Action:       "change_password",
-		ResourceType: "user",
+		Action:       authConstant.ActionChangePassword,
+		ResourceType: authConstant.AuditResourceUser,
 		ResourceID:   params.UserID,
 		Success:      true,
 	})
@@ -179,12 +179,12 @@ func (s *PasswordService) ResetPassword(ctx context.Context, identifier, newPass
 	}
 
 	// 密码重置后使该用户所有会话失效
-	s.invalidateUserSessions(ctx, account.UserID, "password_reset")
+	s.invalidateUserSessions(ctx, account.UserID, authConstant.ReasonPasswordReset)
 
 	// 异步记录审计日志
 	s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
-		Action:       "reset_password",
-		ResourceType: "account",
+		Action:       authConstant.ActionResetPassword,
+		ResourceType: authConstant.AuditResourceAccount,
 		ResourceID:   account.ID,
 		NewValues: dto.AuditLogValuesDTO{
 			ChangedFields: map[string]interface{}{"identifier": identifier},
@@ -281,12 +281,12 @@ func (s *PasswordService) ResetPasswordWithToken(ctx context.Context, tokenHash,
 	}
 
 	// 7. 密码重置后使该用户所有会话失效
-	s.invalidateUserSessions(ctx, account.UserID, "password_reset_with_token")
+	s.invalidateUserSessions(ctx, account.UserID, authConstant.ReasonPasswordResetWithToken)
 
 	// 8. 记录审计日志
 	s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
-		Action:       "reset_password_with_token",
-		ResourceType: "account",
+		Action:       authConstant.ActionResetPasswordWithToken,
+		ResourceType: authConstant.AuditResourceAccount,
 		ResourceID:   account.ID,
 		Success:      true,
 	})

@@ -6,6 +6,7 @@ import (
 
 	"auth-perm/internal/common/constant"
 	"auth-perm/internal/common/errors"
+	permissionConstant "auth-perm/internal/domain/permissi
 	permissionDM "auth-perm/internal/domain/permission/dm"
 	"auth-perm/internal/domain/permission/dto"
 	"auth-perm/internal/domain/permission/param"
@@ -383,7 +384,7 @@ func (s *PermissionService) IsSystemAdmin(ctx context.Context, params *param.IsA
 	if err := params.Validate(); err != nil {
 		return false, errors.NewValidationError(err.Error())
 	}
-	return s.CheckAnyRole(ctx, params.AccountID, []string{"super_admin", "admin"})
+	return s.CheckAnyRole(ctx, params.AccountID, []string{permissionConstant.RoleCodeSuperAdmin, permissionConstant.RoleCodeAdmin})
 }
 
 // IsOrgAdmin 检查是否为组织管理员
@@ -400,7 +401,7 @@ func (s *PermissionService) IsOrgAdmin(ctx context.Context, params *param.IsAdmi
 
 	isOrgAdmin := false
 	for _, role := range roles {
-		if role.IsActive && role.Code == "org_admin" && role.OrgID == params.OrgID {
+		if role.IsActive && role.Code == permissionConstant.RoleCodeOrgAdmin && role.OrgID == params.OrgID {
 			isOrgAdmin = true
 			break
 		}

@@ -9,6 +9,7 @@ import (
 
 	"auth-perm/internal/common/errors"
 	"auth-perm/internal/common/model"
+	"auth-perm/internal/domain/auth/constant"
 	"auth-perm/internal/domain/auth/dm"
 	"auth-perm/internal/domain/auth/dto"
 )
@@ -79,7 +80,7 @@ func (r *AuditLogRepo) FindByID(ctx context.Context, id string) (*dm.AuditLogDO,
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&auditLog).Error
 
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.NewNotFoundErrorF("审计日志不存在: %s", id)
 		}
 		return nil, errors.WrapBizError(err, "查找审计日志失败")
@@ -380,7 +381,7 @@ func (r *AuditLogRepo) FindLoginLogs(ctx context.Context, userID string, paginat
 		}
 	} else {
 		// 如果没有指定action，默认只查询登录相关操作
-		query = query.Where("action IN ?", []string{"login", "logout", "create_session", "refresh_token"})
+		query = query.Where("action IN ?", []string{constant.ActionLogin, constant.ActionLogout, constant.ActionCreateSession, constant.ActionRefreshToken})
 	}
 
 	// 添加搜索条件（IP、设备信息）
@@ -417,7 +418,7 @@ func (r *AuditLogRepo) FindAllLoginLogs(ctx context.Context, tenantID string, pa
 	var auditLogs []*dm.AuditLogDO
 
 	query := r.db.WithContext(ctx).
-		Where("action IN ?", []string{"login", "logout", "create_session", "refresh_token"})
+		Where("action IN ?", []string{constant.ActionLogin, constant.ActionLogout, constant.ActionCreateSession, constant.ActionRefreshToken})
 
 	// 租户筛选
 	if tenantID != "" {
@@ -483,7 +484,7 @@ func (r *AuditLogRepo) CountLoginLogs(ctx context.Context, userID, action string
 		}
 	} else {
 		// 如果没有指定action，默认只统计登录相关操作
-		query = query.Where("action IN ?", []string{"login", "logout", "create_session", "refresh_token"})
+		query = query.Where("action IN ?", []string{constant.ActionLogin, constant.ActionLogout, constant.ActionCreateSession, constant.ActionRefreshToken})
 	}
 
 	err := query.Count(&count).Error

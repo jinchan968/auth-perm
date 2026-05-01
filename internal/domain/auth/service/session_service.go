@@ -5,6 +5,7 @@ import (
 
 	"auth-perm/internal/common/errors"
 	"auth-perm/internal/common/model"
+	"auth-perm/internal/domain/auth/constant"
 	"auth-perm/internal/domain/auth/dm"
 	"auth-perm/internal/domain/auth/dto"
 	"auth-perm/internal/domain/auth/param"
@@ -47,7 +48,7 @@ func (s *SessionService) Logout(ctx context.Context, sessionID string, logoutAll
 		// 登出用户在所有租户下的会话
 		reasonParam := reason
 		if reasonParam == "" {
-			reasonParam = "user_request_all_tenants"
+			reasonParam = constant.ReasonUserRequestAllTenants
 		}
 		return s.logoutWithAllTenants(ctx, session.UserID, reasonParam)
 	}
@@ -55,7 +56,7 @@ func (s *SessionService) Logout(ctx context.Context, sessionID string, logoutAll
 	// 登出单个会话
 	reasonParam := reason
 	if reasonParam == "" {
-		reasonParam = "user_logout"
+		reasonParam = constant.ReasonUserLogout
 	}
 
 	// 使会话失效
@@ -72,8 +73,8 @@ func (s *SessionService) Logout(ctx context.Context, sessionID string, logoutAll
 
 	// 异步记录审计日志
 	s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
-		Action:       "logout",
-		ResourceType: "session",
+		Action:       constant.ActionLogout,
+		ResourceType: constant.AuditResourceSession,
 		ResourceID:   session.ID,
 		NewValues: dto.AuditLogValuesDTO{
 			ChangedFields: map[string]interface{}{"reason": reasonParam},
@@ -117,8 +118,8 @@ func (s *SessionService) LogoutAllByTenant(ctx context.Context, tenantID string,
 	// 记录审计日志（批量）
 	for _, session := range sessions {
 		s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
-			Action:       "logout_all_by_tenant",
-			ResourceType: "session",
+			Action:       constant.ActionLogoutAllByTenant,
+			ResourceType: constant.AuditResourceSession,
 			ResourceID:   session.ID,
 			NewValues: dto.AuditLogValuesDTO{
 				ChangedFields: map[string]interface{}{"reason": reason},
@@ -134,7 +135,7 @@ func (s *SessionService) LogoutAllByTenant(ctx context.Context, tenantID string,
 func (s *SessionService) LogoutAllByUser(ctx context.Context, userID string, reason string) error {
 	reasonParam := reason
 	if reasonParam == "" {
-		reasonParam = "user_logout_all"
+		reasonParam = constant.ReasonUserLogoutAll
 	}
 	return s.logoutWithAllTenants(ctx, userID, reasonParam)
 }
@@ -172,8 +173,8 @@ func (s *SessionService) logoutWithAllTenants(ctx context.Context, userID string
 	// 记录审计日志（批量）
 	for _, session := range sessions {
 		s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
-			Action:       "logout_all_by_user",
-			ResourceType: "session",
+			Action:       constant.ActionLogoutAllByUser,
+			ResourceType: constant.AuditResourceSession,
 			ResourceID:   session.ID,
 			NewValues: dto.AuditLogValuesDTO{
 				ChangedFields: map[string]interface{}{"reason": reason},

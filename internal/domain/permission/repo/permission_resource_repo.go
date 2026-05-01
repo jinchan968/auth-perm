@@ -5,6 +5,8 @@ import (
 
 	"gorm.io/gorm"
 
+	"auth-perm/internal/common/errors"
+	"auth-perm/internal/domain/permission/constant"
 	"auth-perm/internal/domain/permission/dm"
 )
 
@@ -74,7 +76,7 @@ func (r *PermissionResourceRepo) FindByPermissionAndResource(ctx context.Context
 		Where("deleted_at IS NULL").
 		First(&resource).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
@@ -136,12 +138,12 @@ func (r *PermissionResourceRepo) GetPermissionResourceMap(ctx context.Context, p
 // GetResourcesByAPIPath 根据API路径查找权限资源（支持模糊匹配）
 // 使用 useWildcard 参数控制是否使用 LIKE 模糊匹配
 func (r *PermissionResourceRepo) GetResourcesByAPIPath(ctx context.Context, apiPath string, useWildcard bool) ([]*dm.PermissionResourceDO, error) {
-	return r.FindResources(ctx, "api_path", apiPath, useWildcard)
+	return r.FindResources(ctx, constant.ResourceTypeAPIPath, apiPath, useWildcard)
 }
 
 // GetResourcesByMenu 根据菜单查找权限资源
 func (r *PermissionResourceRepo) GetResourcesByMenu(ctx context.Context, menuID string) ([]*dm.PermissionResourceDO, error) {
-	return r.FindResources(ctx, "menu", menuID, false)
+	return r.FindResources(ctx, constant.ResourceTypeMenu, menuID, false)
 }
 
 // DeleteByID 根据ID删除（软删除）

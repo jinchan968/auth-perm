@@ -6,6 +6,7 @@ import (
 
 	"auth-perm/internal/common/errors"
 	"auth-perm/internal/common/model"
+	"auth-perm/internal/domain/tenant/constant"
 	"auth-perm/internal/domain/tenant/dm"
 	"auth-perm/internal/domain/tenant/dto"
 	"auth-perm/internal/domain/tenant/param"
@@ -61,7 +62,7 @@ func (s *TenantService) Create(ctx context.Context, params *param.CreateTenantPa
 		Code:     code,
 		Plan:     params.Plan,
 		ExpireAt: params.ExpireAt,
-		Status:   dto.TenantStatusActive,
+		Status:   constant.TenantStatusActive,
 	}
 
 	if err := s.tenantRepo.Create(ctx, tenant); err != nil {
@@ -140,7 +141,7 @@ func (s *TenantService) Delete(ctx context.Context, params *param.DeleteTenantPa
 	}
 
 	// 删除租户（更新状态为 deleted）
-	if err := s.tenantRepo.UpdateStatus(ctx, params.ID, dto.TenantStatusDeleted); err != nil {
+	if err := s.tenantRepo.UpdateStatus(ctx, params.ID, constant.TenantStatusDeleted); err != nil {
 		return errors.WrapBizError(err, "删除租户失败")
 	}
 
@@ -170,7 +171,7 @@ func (s *TenantService) Enable(ctx context.Context, params *param.EnableTenantPa
 	}
 
 	// 启用租户（更新状态为 active）
-	return s.tenantRepo.UpdateStatus(ctx, params.ID, dto.TenantStatusActive)
+	return s.tenantRepo.UpdateStatus(ctx, params.ID, constant.TenantStatusActive)
 }
 
 // Get 获取租户详情
@@ -273,7 +274,7 @@ func (s *TenantService) UpdateSettings(ctx context.Context, params *param.Update
 }
 
 // ChangeStatus 变更租户状态
-func (s *TenantService) ChangeStatus(ctx context.Context, tenantID string, status dto.TenantStatus) error {
+func (s *TenantService) ChangeStatus(ctx context.Context, tenantID string, status constant.TenantStatus) error {
 	// 验证状态是否有效
 	if !status.IsValid() {
 		return errors.NewValidationError("无效的状态值，支持: active, suspended, deleted")

@@ -5,26 +5,8 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-)
 
-// TodoStatus 待办状态
-type TodoStatus string
-
-const (
-	TodoStatusPending    TodoStatus = "pending"
-	TodoStatusInProgress TodoStatus = "in_progress"
-	TodoStatusCompleted  TodoStatus = "completed"
-	TodoStatusCancelled  TodoStatus = "cancelled"
-)
-
-// TodoPriority 优先级
-type TodoPriority string
-
-const (
-	TodoPriorityLow    TodoPriority = "low"
-	TodoPriorityMedium TodoPriority = "medium"
-	TodoPriorityHigh   TodoPriority = "high"
-	TodoPriorityUrgent TodoPriority = "urgent"
+	"auth-perm/internal/domain/todo/constant"
 )
 
 // TodoCategoryDO 待办分类领域对象
@@ -60,17 +42,17 @@ func NewTodoCategory(tenantID, accountID, name, color string, icon *string) *Tod
 
 // TodoDO 待办领域对象
 type TodoDO struct {
-	ID          string       `gorm:"primaryKey;type:uuid"`
-	TenantID    string       `gorm:"column:tenant_id;type:uuid;not null;index"`
-	AccountID   string       `gorm:"column:account_id;type:uuid;not null;index"`
-	CategoryID  *string      `gorm:"column:category_id;type:uuid"`
-	Title       string       `gorm:"column:title;not null"`
-	Description *string      `gorm:"column:description;type:text"`
-	Status      TodoStatus   `gorm:"column:status;not null;default:pending"`
-	Priority    TodoPriority `gorm:"column:priority;not null;default:medium"`
-	Deadline    *time.Time   `gorm:"column:deadline"`
-	CompletedAt *time.Time   `gorm:"column:completed_at"`
-	SortOrder   int          `gorm:"column:sort_order;default:0"`
+	ID          string                `gorm:"primaryKey;type:uuid"`
+	TenantID    string                `gorm:"column:tenant_id;type:uuid;not null;index"`
+	AccountID   string                `gorm:"column:account_id;type:uuid;not null;index"`
+	CategoryID  *string               `gorm:"column:category_id;type:uuid"`
+	Title       string                `gorm:"column:title;not null"`
+	Description *string               `gorm:"column:description;type:text"`
+	Status      constant.TodoStatus   `gorm:"column:status;not null;default:pending"`
+	Priority    constant.TodoPriority `gorm:"column:priority;not null;default:medium"`
+	Deadline    *time.Time            `gorm:"column:deadline"`
+	CompletedAt *time.Time            `gorm:"column:completed_at"`
+	SortOrder   int                   `gorm:"column:sort_order;default:0"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	DeletedAt   gorm.DeletedAt `gorm:"index"`
@@ -82,14 +64,14 @@ type TodoDO struct {
 func (*TodoDO) TableName() string { return "todos" }
 
 // NewTodo 创建新待办
-func NewTodo(tenantID, accountID, title string, priority TodoPriority) *TodoDO {
+func NewTodo(tenantID, accountID, title string, priority constant.TodoPriority) *TodoDO {
 	now := time.Now()
 	return &TodoDO{
 		ID:        uuid.New().String(),
 		TenantID:  tenantID,
 		AccountID: accountID,
 		Title:     title,
-		Status:    TodoStatusPending,
+		Status:    constant.TodoStatusPending,
 		Priority:  priority,
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -98,5 +80,5 @@ func NewTodo(tenantID, accountID, title string, priority TodoPriority) *TodoDO {
 
 // IsActive 是否活跃（未完成未取消）
 func (t *TodoDO) IsActive() bool {
-	return t.Status == TodoStatusPending || t.Status == TodoStatusInProgress
+	return t.Status == constant.TodoStatusPending || t.Status == constant.TodoStatusInProgress
 }

@@ -5,6 +5,7 @@ import (
 	"auth-perm/internal/common/dto/response"
 	controllerUtil "auth-perm/internal/controller/util"
 	controllerVo "auth-perm/internal/controller/vo"
+	authConstant "auth-perm/internal/domain/auth/constant"
 	"auth-perm/internal/domain/auth/param"
 	"auth-perm/internal/domain/auth/service"
 	"net/http"
@@ -146,7 +147,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "无效的token", "invalid token")
 		return
 	}
-	if err := h.sessionService.Logout(c.Request.Context(), parts[1], false, "user_logout"); err != nil {
+	if err := h.sessionService.Logout(c.Request.Context(), parts[1], false, authConstant.ReasonUserLogout); err != nil {
 		response.Error(c, http.StatusInternalServerError, "登出失败", err.Error())
 		return
 	}
@@ -175,7 +176,7 @@ func (h *AuthHandler) LogoutAllByTenant(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "请求参数错误", err.Error())
 		return
 	}
-	if err := h.sessionService.LogoutAllByTenant(c.Request.Context(), req.TenantID, "admin_force_logout"); err != nil {
+	if err := h.sessionService.LogoutAllByTenant(c.Request.Context(), req.TenantID, authConstant.ReasonAdminForceLogout); err != nil {
 		response.Error(c, http.StatusInternalServerError, "登出失败", err.Error())
 		return
 	}
@@ -329,7 +330,7 @@ func (h *AuthHandler) RevokeSession(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "请求参数错误", "sessionId不能为空")
 		return
 	}
-	if err := h.sessionService.Logout(c.Request.Context(), sessionID, false, "用户主动撤销会话"); err != nil {
+	if err := h.sessionService.Logout(c.Request.Context(), sessionID, false, authConstant.ReasonUserRevokeSession); err != nil {
 		response.Error(c, http.StatusBadRequest, "撤销会话失败", err.Error())
 		return
 	}
@@ -342,7 +343,7 @@ func (h *AuthHandler) RevokeAllSessions(c *gin.Context) {
 		response.Error(c, http.StatusUnauthorized, "未认证", "用户未登录")
 		return
 	}
-	if err := h.sessionService.LogoutAllByUser(c.Request.Context(), userID, "用户主动撤销所有会话"); err != nil {
+	if err := h.sessionService.LogoutAllByUser(c.Request.Context(), userID, authConstant.ReasonUserRevokeAllSessions); err != nil {
 		response.Error(c, http.StatusBadRequest, "撤销所有会话失败", err.Error())
 		return
 	}
@@ -395,7 +396,7 @@ func (h *AuthHandler) RevokeDevice(c *gin.Context) {
 	revokedCount := 0
 	for _, session := range sessions {
 		if deviceInfo := session.GetDeviceInfo(); deviceInfo != nil && deviceInfo.Fingerprint == deviceID {
-			if err := h.sessionService.Logout(c.Request.Context(), session.ID, false, "用户撤销设备"); err == nil {
+			if err := h.sessionService.Logout(c.Request.Context(), session.ID, false, authConstant.ReasonUserRevokeDevice); err == nil {
 				revokedCount++
 			}
 		}
@@ -414,7 +415,7 @@ func (h *AuthHandler) TrustDevice(c *gin.Context) {
 		response.Error(c, http.StatusUnauthorized, "未认证", "用户未登录")
 		return
 	}
-	if err := h.deviceService.TrustDevice(c.Request.Context(), userID, deviceID, "用户主动信任"); err != nil {
+	if err := h.deviceService.TrustDevice(c.Request.Context(), userID, deviceID, authConstant.ReasonUserTrustDevice); err != nil {
 		response.Error(c, http.StatusInternalServerError, "保存设备信任状态失败", err.Error())
 		return
 	}
@@ -432,7 +433,7 @@ func (h *AuthHandler) UnTrustDevice(c *gin.Context) {
 		response.Error(c, http.StatusUnauthorized, "未认证", "用户未登录")
 		return
 	}
-	if err := h.deviceService.UnTrustDevice(c.Request.Context(), userID, deviceID, "用户主动取消信任"); err != nil {
+	if err := h.deviceService.UnTrustDevice(c.Request.Context(), userID, deviceID, authConstant.ReasonUserUntrustDevice); err != nil {
 		response.Error(c, http.StatusInternalServerError, "取消设备信任状态失败", err.Error())
 		return
 	}

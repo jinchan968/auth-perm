@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"auth-perm/internal/common/errors"
+	"auth-perm/internal/domain/permission/constant"
 	"auth-perm/internal/domain/permission/dto"
 	"auth-perm/internal/domain/permission/param"
 )
@@ -11,28 +12,28 @@ import (
 // CheckAPIPermission 检查API访问权限（支持资源关联）
 // 内部委托给 CheckResourcePermission 统一方法
 func (s *PermissionService) CheckAPIPermission(ctx context.Context, accountID, apiPath string) (bool, error) {
-	params := param.NewCheckResourcePermissionParams(accountID, apiPath, dto.ResourceTypeAPIPath)
+	params := param.NewCheckResourcePermissionParams(accountID, apiPath, constant.ResourceTypeAPIPath)
 	return s.CheckResourcePermission(ctx, params)
 }
 
 // CheckMenuPermission 检查菜单访问权限（支持资源关联）
 // 内部委托给 CheckResourcePermission 统一方法
 func (s *PermissionService) CheckMenuPermission(ctx context.Context, accountID, menuID string) (bool, error) {
-	params := param.NewCheckResourcePermissionParams(accountID, menuID, dto.ResourceTypeMenu)
+	params := param.NewCheckResourcePermissionParams(accountID, menuID, constant.ResourceTypeMenu)
 	return s.CheckResourcePermission(ctx, params)
 }
 
 // CheckButtonPermission 检查按钮访问权限（支持资源关联）
 // 内部委托给 CheckResourcePermission 统一方法
 func (s *PermissionService) CheckButtonPermission(ctx context.Context, accountID, buttonID string) (bool, error) {
-	params := param.NewCheckResourcePermissionParams(accountID, buttonID, dto.ResourceTypeButton)
+	params := param.NewCheckResourcePermissionParams(accountID, buttonID, constant.ResourceTypeButton)
 	return s.CheckResourcePermission(ctx, params)
 }
 
 // CheckFieldPermission 检查字段访问权限（支持资源关联）
 // 内部委托给 CheckResourcePermission 统一方法
 func (s *PermissionService) CheckFieldPermission(ctx context.Context, accountID, fieldID string) (bool, error) {
-	params := param.NewCheckResourcePermissionParams(accountID, fieldID, dto.ResourceTypeField)
+	params := param.NewCheckResourcePermissionParams(accountID, fieldID, constant.ResourceTypeField)
 	return s.CheckResourcePermission(ctx, params)
 }
 

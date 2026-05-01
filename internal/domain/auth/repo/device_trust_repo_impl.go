@@ -42,7 +42,7 @@ func (r *DeviceTrustRepository) FindByID(ctx context.Context, id string) (*dm.De
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&deviceTrust).Error
 
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.NewNotFoundErrorF("设备信任记录不存在: %s", id)
 		}
 		return nil, errors.WrapBizError(err, "查找设备信任记录失败")
@@ -57,7 +57,7 @@ func (r *DeviceTrustRepository) FindByUserIDAndDeviceID(ctx context.Context, use
 	err := r.db.WithContext(ctx).Where("user_id = ? AND device_id = ?", userID, deviceID).First(&deviceTrust).Error
 
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.NewNotFoundErrorF("设备信任记录不存在: user=%s, device=%s", userID, deviceID)
 		}
 		return nil, errors.WrapBizError(err, "查找设备信任记录失败")

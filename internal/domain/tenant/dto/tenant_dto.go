@@ -4,6 +4,8 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"time"
+
+	"auth-perm/internal/domain/tenant/constant"
 )
 
 // TenantSettings 租户设置
@@ -81,75 +83,29 @@ func DefaultTenantSettings() TenantSettings {
 	}
 }
 
-// ==================== 租户套餐 ====================
-
-// TenantPlan 租户套餐
-type TenantPlan string
-
-const (
-	TenantPlanFree       TenantPlan = "free"
-	TenantPlanBasic      TenantPlan = "basic"
-	TenantPlanPro        TenantPlan = "pro"
-	TenantPlanEnterprise TenantPlan = "enterprise"
-)
-
-// IsValid 检查套餐是否有效
-func (p TenantPlan) IsValid() bool {
-	switch p {
-	case TenantPlanFree, TenantPlanBasic, TenantPlanPro, TenantPlanEnterprise:
-		return true
-	}
-	return false
-}
-
-// ==================== 租户状态 ====================
-
-// TenantStatus 租户状态
-type TenantStatus string
-
-const (
-	TenantStatusActive    TenantStatus = "active"
-	TenantStatusSuspended TenantStatus = "suspended"
-	TenantStatusDeleted   TenantStatus = "deleted"
-)
-
-// IsValid 检查状态是否有效
-func (s TenantStatus) IsValid() bool {
-	switch s {
-	case TenantStatusActive, TenantStatusSuspended, TenantStatusDeleted:
-		return true
-	}
-	return false
-}
-
-// IsActive 检查租户是否活跃
-func (s TenantStatus) IsActive() bool {
-	return s == TenantStatusActive
-}
-
 // ==================== 租户 DTO ====================
 
 // TenantDTO 租户数据传输对象
 type TenantDTO struct {
-	ID        string         `json:"id"`
-	Name      string         `json:"name"`
-	Code      string         `json:"code"`
-	Status    TenantStatus   `json:"status"`
-	Plan      TenantPlan     `json:"plan"`
-	ExpireAt  *time.Time     `json:"expire_at,omitempty"`
-	Settings  TenantSettings `json:"settings"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
+	ID        string                `json:"id"`
+	Name      string                `json:"name"`
+	Code      string                `json:"code"`
+	Status    constant.TenantStatus `json:"status"`
+	Plan      constant.TenantPlan   `json:"plan"`
+	ExpireAt  *time.Time            `json:"expire_at,omitempty"`
+	Settings  TenantSettings        `json:"settings"`
+	CreatedAt time.Time             `json:"created_at"`
+	UpdatedAt time.Time             `json:"updated_at"`
 }
 
 // TenantListItemDTO 租户列表项DTO
 type TenantListItemDTO struct {
-	ID        string       `json:"id"`
-	Name      string       `json:"name"`
-	Code      string       `json:"code"`
-	Status    TenantStatus `json:"status"`
-	Plan      TenantPlan   `json:"plan"`
-	ExpireAt  *time.Time   `json:"expire_at,omitempty"`
-	UserCount int64        `json:"user_count"`
-	CreatedAt time.Time    `json:"created_at"`
+	ID        string                `json:"id"`
+	Name      string                `json:"name"`
+	Code      string                `json:"code"`
+	Status    constant.TenantStatus `json:"status"`
+	Plan      constant.TenantPlan   `json:"plan"`
+	ExpireAt  *time.Time            `json:"expire_at,omitempty"`
+	UserCount int64                 `json:"user_count"`
+	CreatedAt time.Time             `json:"created_at"`
 }

@@ -153,7 +153,7 @@ func (s *OAuthService) GitHubOAuthCallback(ctx context.Context, params *param.Gi
 
 		// 找到GitHub账户
 		for _, acc := range accounts {
-			if acc.OAuthProvider == "github" {
+			if acc.OAuthProvider == authConstant.OAuthProviderGitHub {
 				account = acc.ToDTO()
 				break
 			}
@@ -164,7 +164,7 @@ func (s *OAuthService) GitHubOAuthCallback(ctx context.Context, params *param.Gi
 		}
 	} else {
 		// 2b. 用户不存在，注册新用户
-		loginParams := param.NewLoginWithOAuthParams("github", userInfo.ProviderID, userInfo.Name)
+		loginParams := param.NewLoginWithOAuthParams(authConstant.OAuthProviderGitHub, userInfo.ProviderID, userInfo.Name)
 		newUser, newAccount, err := s.LoginWithOAuth(ctx, loginParams)
 		if err != nil {
 			return nil, nil, nil, errors.WrapBizError(err, "OAuth登录失败")
@@ -217,7 +217,7 @@ func (s *OAuthService) GoogleOAuthCallback(ctx context.Context, params *param.Go
 
 		// 找到Google账户
 		for _, acc := range accounts {
-			if acc.OAuthProvider == "google" {
+			if acc.OAuthProvider == authConstant.OAuthProviderGoogle {
 				account = acc.ToDTO()
 				break
 			}
@@ -228,7 +228,7 @@ func (s *OAuthService) GoogleOAuthCallback(ctx context.Context, params *param.Go
 		}
 	} else {
 		// 2b. 用户不存在，注册新用户
-		loginParams := param.NewLoginWithOAuthParams("google", userInfo.ProviderID, userInfo.Name)
+		loginParams := param.NewLoginWithOAuthParams(authConstant.OAuthProviderGoogle, userInfo.ProviderID, userInfo.Name)
 		newUser, newAccount, err := s.LoginWithOAuth(ctx, loginParams)
 		if err != nil {
 			return nil, nil, nil, errors.WrapBizError(err, "OAuth登录失败")
@@ -281,7 +281,7 @@ func (s *OAuthService) WeChatOAuthCallback(ctx context.Context, params *param.We
 
 		// 找到微信账户
 		for _, acc := range accounts {
-			if acc.OAuthProvider == "wechat" {
+			if acc.OAuthProvider == authConstant.OAuthProviderWeChat {
 				account = acc.ToDTO()
 				break
 			}
@@ -292,7 +292,7 @@ func (s *OAuthService) WeChatOAuthCallback(ctx context.Context, params *param.We
 		}
 	} else {
 		// 2b. 用户不存在，注册新用户
-		loginParams := param.NewLoginWithOAuthParams("wechat", userInfo.ProviderID, userInfo.Name)
+		loginParams := param.NewLoginWithOAuthParams(authConstant.OAuthProviderWeChat, userInfo.ProviderID, userInfo.Name)
 		newUser, newAccount, err := s.LoginWithOAuth(ctx, loginParams)
 		if err != nil {
 			return nil, nil, nil, errors.WrapBizError(err, "微信OAuth登录失败")
@@ -323,8 +323,8 @@ func (s *OAuthService) CreateSession(ctx context.Context, params *param.CreateSe
 	if err := s.sessionRepo.InvalidateUserTenantSessions(ctx, params.UserID, params.TenantID); err != nil {
 		// 记录错误但不影响登录流程
 		s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
-			Action:       "invalidate_sessions_error",
-			ResourceType: "session",
+			Action:       authConstant.ActionInvalidateSessionsError,
+			ResourceType: authConstant.AuditResourceSession,
 			ResourceID:   params.UserID,
 			Success:      false,
 		})
@@ -372,8 +372,8 @@ func (s *OAuthService) CreateSession(ctx context.Context, params *param.CreateSe
 
 	// 异步记录审计日志
 	s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
-		Action:       "create_session",
-		ResourceType: "session",
+		Action:       authConstant.ActionCreateSession,
+		ResourceType: authConstant.AuditResourceSession,
 		ResourceID:   sessionDTO.ID,
 		Success:      true,
 	})
