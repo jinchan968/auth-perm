@@ -287,11 +287,9 @@ func (m *SecurityMonitor) getRecentTOTPFailures(accountID string) int64 {
 }
 
 func (m *SecurityMonitor) triggerAlert(alert *SecurityAlert) {
-	if m.alertHandler != nil {
-		go func() {
-			_ = m.alertHandler.HandleAlert(alert)
-		}()
-	}
+	go func() {
+		_ = m.alertHandler.HandleAlert(alert)
+	}()
 
 	// 同时记录到审计日志（异步）
 	entry := &dto.AuditLogEntryDTO{

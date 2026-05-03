@@ -215,6 +215,21 @@ func (r *PermissionRepo) FindAccountIDsByRoleIDs(ctx context.Context, roleIDs []
 	return accountIDs, err
 }
 
+// FindAccountIDsByPermissionID 根据权限ID查找所有拥有该权限的账户ID（通过 role_permissions + account_roles JOIN）
+func (r *PermissionRepo) FindAccountIDsByPermissionID(ctx context.Context, permissionID string) ([]string, error) {
+	if permissionID == "" {
+		return []string{}, nil
+	}
+	var accountIDs []string
+	err := r.db.WithContext(ctx).
+		Table("account_roles").
+		Joins("JOIN role_permissions ON role_permissions.role_id = account_roles.role_id").
+		Where("role_permissions.permission_id = ?", permissionID).
+		Distinct("account_roles.account_id").
+		Pluck("account_roles.account_id", &accountIDs).Error
+	return accountIDs, err
+}
+
 // ==================== 权限相关方法 ====================
 
 // FindPermissionsByRoleIDs 根据角色ID列表查找权限

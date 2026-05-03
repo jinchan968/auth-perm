@@ -149,9 +149,7 @@ func (s *TOTPService) EnableTOTP(accountID, secret string, backupCodes []string)
 	}
 
 	// 清除缓存
-	if s.cache != nil {
-		_ = s.cache.DeleteTOTPSecret(accountID)
-	}
+	_ = s.cache.DeleteTOTPSecret(accountID)
 
 	return &vo.TOTPEnableResponse{
 		Success:     true,
@@ -205,11 +203,9 @@ func (s *TOTPService) DisableTOTP(accountID, password string) (*vo.TOTPDisableRe
 	}
 
 	// 清除缓存
-	if s.cache != nil {
-		err := s.cache.DeleteTOTPSecret(accountID)
-		if err != nil {
-			return nil, err
-		}
+	err = s.cache.DeleteTOTPSecret(accountID)
+	if err != nil {
+		return nil, err
 	}
 
 	return &vo.TOTPDisableResponse{
@@ -339,9 +335,7 @@ func (s *TOTPService) ChangeTOTPSecret(accountID, token, newSecret string, backu
 	}
 
 	// 清除缓存
-	if s.cache != nil {
-		_ = s.cache.DeleteTOTPSecret(accountID)
-	}
+	_ = s.cache.DeleteTOTPSecret(accountID)
 
 	return &vo.TOTPChangeSecretResponse{
 		Success:     true,
@@ -417,9 +411,7 @@ func (s *TOTPService) verifyBackupCode(accountID, code string, totpSecret *dm.TO
 	}
 
 	// 清除缓存
-	if s.cache != nil {
-		_ = s.cache.DeleteTOTPSecret(accountID)
-	}
+	_ = s.cache.DeleteTOTPSecret(accountID)
 
 	return &vo.TOTPVerifyResponse{
 		Valid:          true,
@@ -430,23 +422,21 @@ func (s *TOTPService) verifyBackupCode(accountID, code string, totpSecret *dm.TO
 
 // getTOTPSecret 获取TOTP密钥
 func (s *TOTPService) getTOTPSecret(accountID string) (*dm.TOTPSecretDO, error) {
-	if s.cache != nil {
-		cached, err := s.cache.GetTOTPSecret(accountID)
-		if err == nil && cached != nil {
-			// 转换为DO对象
-			return &dm.TOTPSecretDO{
-				ID:          cached.ID,
-				AccountID:   cached.AccountID,
-				Secret:      cached.Secret,
-				Algorithm:   cached.Algorithm,
-				Digits:      cached.Digits,
-				Period:      cached.Period,
-				IsEnabled:   cached.IsEnabled,
-				BackupCodes: []string{},
-				CreatedAt:   cached.CreatedAt,
-				UpdatedAt:   cached.UpdatedAt,
-			}, nil
-		}
+	cached, err := s.cache.GetTOTPSecret(accountID)
+	if err == nil && cached != nil {
+		// 转换为DO对象
+		return &dm.TOTPSecretDO{
+			ID:          cached.ID,
+			AccountID:   cached.AccountID,
+			Secret:      cached.Secret,
+			Algorithm:   cached.Algorithm,
+			Digits:      cached.Digits,
+			Period:      cached.Period,
+			IsEnabled:   cached.IsEnabled,
+			BackupCodes: []string{},
+			CreatedAt:   cached.CreatedAt,
+			UpdatedAt:   cached.UpdatedAt,
+		}, nil
 	}
 
 	totpSecret, err := s.totpRepo.FindByAccountID(accountID)
@@ -454,9 +444,9 @@ func (s *TOTPService) getTOTPSecret(accountID string) (*dm.TOTPSecretDO, error) 
 		return nil, err
 	}
 
-	if s.cache != nil && totpSecret != nil {
+	if totpSecret != nil {
 		// 转换为DTO进行缓存
-		dto := &dto.TOTPSecretDTO{
+		cacheDTO := &dto.TOTPSecretDTO{
 			ID:          totpSecret.ID,
 			AccountID:   totpSecret.AccountID,
 			Secret:      totpSecret.Secret,
@@ -468,7 +458,7 @@ func (s *TOTPService) getTOTPSecret(accountID string) (*dm.TOTPSecretDO, error) 
 			CreatedAt:   totpSecret.CreatedAt,
 			UpdatedAt:   totpSecret.UpdatedAt,
 		}
-		if err := s.cache.SetTOTPSecret(accountID, dto, constant.CacheTTLLong); err != nil {
+		if err := s.cache.SetTOTPSecret(accountID, cacheDTO, constant.CacheTTLLong); err != nil {
 			log.Printf("设置TOTP缓存失败: %v", err)
 		}
 	}
@@ -478,18 +468,12 @@ func (s *TOTPService) getTOTPSecret(accountID string) (*dm.TOTPSecretDO, error) 
 
 // getFailedAttempts 获取失败次数
 func (s *TOTPService) getFailedAttempts(accountID string) int {
-	if s.cache == nil {
-		return 0
-	}
 	count, _ := s.cache.GetTOTPFailedAttempts(accountID)
 	return int(count)
 }
 
 // incrementFailedAttempts 增加失败次数
 func (s *TOTPService) incrementFailedAttempts(accountID string) {
-	if s.cache == nil {
-		return
-	}
 	_, err := s.cache.IncrementTOTPFailedAttempts(accountID)
 	if err != nil {
 		return
@@ -498,9 +482,6 @@ func (s *TOTPService) incrementFailedAttempts(accountID string) {
 
 // clearFailedAttempts 清除失败次数
 func (s *TOTPService) clearFailedAttempts(accountID string) {
-	if s.cache == nil {
-		return
-	}
 	err := s.cache.ClearTOTPFailedAttempts(accountID)
 	if err != nil {
 		return

@@ -51,10 +51,8 @@ func NewAuthService(
 // FindUserByID finds a user by their ID.
 func (s *AuthService) FindUserByID(ctx context.Context, userID string) (*dto.UserDTO, error) {
 	// 优先从缓存获取
-	if s.cache != nil {
-		if cachedUser, err := s.cache.GetUserByID(ctx, userID); err == nil {
-			return cachedUser, nil
-		}
+	if cachedUser, err := s.cache.GetUserByID(ctx, userID); err == nil {
+		return cachedUser, nil
 	}
 
 	// 缓存未命中，从数据库查询
@@ -69,11 +67,9 @@ func (s *AuthService) FindUserByID(ctx context.Context, userID string) (*dto.Use
 	userDTO := user.ToDTO()
 
 	// 写入缓存（24小时TTL）
-	if s.cache != nil {
-		err := s.cache.SetUser(ctx, userDTO, commonConstant.SessionExpiryDefault)
-		if err != nil {
-			return nil, err
-		}
+	err = s.cache.SetUser(ctx, userDTO, commonConstant.SessionExpiryDefault)
+	if err != nil {
+		return nil, err
 	}
 
 	return userDTO, nil
@@ -82,10 +78,8 @@ func (s *AuthService) FindUserByID(ctx context.Context, userID string) (*dto.Use
 // FindAccountByID 根据账户ID查找账户
 func (s *AuthService) FindAccountByID(ctx context.Context, accountID string) (*dto.AccountDTO, error) {
 	// 优先从缓存获取
-	if s.cache != nil {
-		if cachedAccount, err := s.cache.GetAccountByID(ctx, accountID); err == nil {
-			return cachedAccount, nil
-		}
+	if cachedAccount, err := s.cache.GetAccountByID(ctx, accountID); err == nil {
+		return cachedAccount, nil
 	}
 
 	// 缓存未命中，从数据库查询
@@ -100,11 +94,9 @@ func (s *AuthService) FindAccountByID(ctx context.Context, accountID string) (*d
 	accountDTO := account.ToDTO()
 
 	// 写入缓存（24小时TTL）
-	if s.cache != nil {
-		err := s.cache.SetAccount(ctx, accountDTO, commonConstant.SessionExpiryDefault)
-		if err != nil {
-			return nil, err
-		}
+	err = s.cache.SetAccount(ctx, accountDTO, commonConstant.SessionExpiryDefault)
+	if err != nil {
+		return nil, err
 	}
 
 	return accountDTO, nil
@@ -159,11 +151,9 @@ func (s *AuthService) UpdateProfile(ctx context.Context, params *param.UpdatePro
 	}
 
 	// 更新缓存
-	if s.cache != nil {
-		err := s.cache.SetUser(ctx, userDTO, commonConstant.SessionExpiryDefault)
-		if err != nil {
-			log.Printf("更新用户缓存失败: %v", err)
-		}
+	err = s.cache.SetUser(ctx, userDTO, commonConstant.SessionExpiryDefault)
+	if err != nil {
+		log.Printf("更新用户缓存失败: %v", err)
 	}
 
 	return userDTO, nil
@@ -283,11 +273,11 @@ func (s *AuthService) UpdateAccountStatus(ctx context.Context, accountID, tenant
 	}
 
 	// 清除账户缓存
-	if s.cache != nil {
-		if err := s.cache.DeleteAccount(ctx, accountID); err != nil {
-			log.Printf("清除账户缓存失败: %v", err)
-		}
+	if err := s.cache.DeleteAccount(ctx, accountID); err != nil {
+		log.Printf("清除账户缓存失败: %v", err)
 	}
+	_ = s.cache.DeletePermissions(ctx, accountID)
+	_ = s.cache.DeleteAccountResources(ctx, accountID)
 
 	// 当账户被禁用/暂停时，使该账户所有会话失效
 	if !status.IsActive() {
@@ -303,7 +293,7 @@ func (s *AuthService) UpdateAccountStatus(ctx context.Context, accountID, tenant
 		}
 
 		// 清理会话缓存
-		if s.cache != nil && len(sessions) > 0 {
+		if len(sessions) > 0 {
 			for _, session := range sessions {
 				sessionDTO := session.ToDTO()
 				_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())

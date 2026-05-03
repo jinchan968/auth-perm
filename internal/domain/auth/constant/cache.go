@@ -31,6 +31,9 @@ const (
 
 	// 登录尝试缓存键前缀
 	LoginAttemptCacheKeyPrefix = "auth:login_attempt:"
+
+	// 账户资源缓存键前缀（按资源类型分组）
+	ResourceCacheKeyPrefix = "auth:resource:"
 )
 
 // CacheKeyGenerator 缓存键生成器
@@ -89,4 +92,9 @@ func (g *CacheKeyGenerator) TOTPSecretFailedAttemptsKey(accountID string) string
 // LoginAttemptCacheKey 生成登录尝试缓存键
 func (g *CacheKeyGenerator) LoginAttemptCacheKey(identifier string) string {
 	return LoginAttemptCacheKeyPrefix + identifier
+}
+
+// ResourceCacheKey 生成账户资源缓存键（按资源类型）
+func (g *CacheKeyGenerator) ResourceCacheKey(accountID, resourceType string) string {
+	return ResourceCacheKeyPrefix + accountID + ":" + resourceType
 }

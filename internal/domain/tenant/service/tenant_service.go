@@ -146,10 +146,8 @@ func (s *TenantService) Delete(ctx context.Context, params *param.DeleteTenantPa
 	}
 
 	// 使该租户下所有会话失效
-	if s.sessionInvalidator != nil {
-		if err := s.sessionInvalidator.InvalidateTenantSessions(ctx, params.ID); err != nil {
-			log.Printf("警告：使租户 %s 的会话失效失败: %v", params.ID, err)
-		}
+	if err := s.sessionInvalidator.InvalidateTenantSessions(ctx, params.ID); err != nil {
+		log.Printf("警告：使租户 %s 的会话失效失败: %v", params.ID, err)
 	}
 
 	return nil

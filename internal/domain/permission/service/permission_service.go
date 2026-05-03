@@ -6,7 +6,7 @@ import (
 
 	"auth-perm/internal/common/constant"
 	"auth-perm/internal/common/errors"
-	permissionConstant "auth-perm/internal/domain/permissi
+	permissionConstant "auth-perm/internal/domain/permission/constant"
 	permissionDM "auth-perm/internal/domain/permission/dm"
 	"auth-perm/internal/domain/permission/dto"
 	"auth-perm/internal/domain/permission/param"
@@ -49,10 +49,8 @@ func NewPermissionServiceWithResourceRepo(authService *authService.AuthService, 
 // getAccountPermissions 获取账户权限（带缓存）
 func (s *PermissionService) getAccountPermissions(ctx context.Context, accountID string) ([]string, error) {
 	// 优先从缓存获取
-	if s.cache != nil {
-		if cachedPerms, err := s.cache.GetPermissions(ctx, accountID); err == nil {
-			return cachedPerms, nil
-		}
+	if cachedPerms, err := s.cache.GetPermissions(ctx, accountID); err == nil {
+		return cachedPerms, nil
 	}
 
 	// 缓存未命中，从数据库查询
@@ -84,10 +82,8 @@ func (s *PermissionService) getAccountPermissions(ctx context.Context, accountID
 	}
 
 	// 写入缓存（10分钟TTL）
-	if s.cache != nil {
-		if err := s.cache.SetPermissions(ctx, accountID, permissionCodes, constant.CacheTTLPermission); err != nil {
-			log.Printf("WARN: Failed to set permissions cache for account %s: %v", accountID, err)
-		}
+	if err := s.cache.SetPermissions(ctx, accountID, permissionCodes, constant.CacheTTLPermission); err != nil {
+		log.Printf("WARN: Failed to set permissions cache for account %s: %v", accountID, err)
 	}
 
 	return permissionCodes, nil
@@ -544,6 +540,9 @@ func (s *PermissionService) CreatePermissionResourcesBatch(ctx context.Context, 
 		return nil, errors.WrapBizError(err, "批量创建关联失败")
 	}
 
+	// 失效持有该权限的所有账户的资源缓存
+	s.invalidateResourceCacheByPermissionID(ctx, params.PermissionID)
+
 	// 转换为DTO
 	dtos := make([]*dto.PermissionResourceDTO, 0, len(resources))
 	for _, r := range resources {
@@ -583,6 +582,9 @@ func (s *PermissionService) UpdatePermissionResource(ctx context.Context, params
 		return nil, errors.WrapBizError(err, "更新关联失败")
 	}
 
+	// 失效持有该权限的所有账户的资源缓存
+	s.invalidateResourceCacheByPermissionID(ctx, existing.PermissionID)
+
 	return existing.ToDTO(), nil
 }
 
@@ -592,9 +594,23 @@ func (s *PermissionService) DeletePermissionResource(ctx context.Context, id str
 		return errors.NewValidationError("ID不能为空")
 	}
 
+	// 先查询资源关联，获取权限ID用于失效缓存
+	resource, err := s.permissionResourceRepo.FindByID(ctx, id)
+	if err != nil {
+		return errors.WrapBizError(err, "查询关联失败")
+	}
+	if resource == nil {
+		return errors.NewBusinessError("关联不存在")
+	}
+
+	permissionID := resource.PermissionID
+
 	if err := s.permissionResourceRepo.DeleteByID(ctx, id); err != nil {
 		return errors.WrapBizError(err, "删除关联失败")
 	}
+
+	// 失效持有该权限的所有账户的资源缓存
+	s.invalidateResourceCacheByPermissionID(ctx, permissionID)
 
 	return nil
 }
@@ -647,6 +663,9 @@ func (s *PermissionService) UnbindPermissionResources(ctx context.Context, param
 			return errors.WrapBizError(err, "解绑资源失败")
 		}
 	}
+
+	// 失效持有该权限的所有账户的资源缓存
+	s.invalidateResourceCacheByPermissionID(ctx, params.PermissionID)
 
 	return nil
 }
@@ -732,6 +751,9 @@ func (s *PermissionService) UpdatePermission(ctx context.Context, params *param.
 		return nil, errors.WrapBizError(err, "更新权限失败")
 	}
 
+	// 失效持有该权限的所有账户的权限缓存和资源缓存
+	s.invalidatePermissionCachesByPermissionID(ctx, params.ID)
+
 	return permission.ToDTO(), nil
 }
 
@@ -777,10 +799,8 @@ func (s *PermissionService) DeletePermission(ctx context.Context, params *param.
 		return errors.WrapBizError(err, "删除权限失败")
 	}
 
-	// 清除缓存
-	if s.cache != nil {
-		s.cache.DeletePermissions(ctx, "")
-	}
+	// 失效持有该权限的所有账户的权限缓存和资源缓存
+	s.invalidatePermissionCachesByPermissionID(ctx, params.ID)
 
 	return nil
 }
@@ -953,8 +973,9 @@ func (s *PermissionService) UpdateRole(ctx context.Context, params *param.Update
 	}
 
 	// 失效相关账户的权限缓存
-	if len(accountIDs) > 0 && s.cache != nil {
+	if len(accountIDs) > 0 {
 		_ = s.cache.DeletePermissionsByAccountIDs(ctx, accountIDs)
+		_ = s.cache.DeleteAccountResourcesByAccountIDs(ctx, accountIDs)
 	}
 
 	return role.ToDTO(), nil
@@ -1001,8 +1022,9 @@ func (s *PermissionService) DeleteRole(ctx context.Context, params *param.Delete
 	}
 
 	// 失效相关账户的权限缓存
-	if len(accountIDs) > 0 && s.cache != nil {
+	if len(accountIDs) > 0 {
 		_ = s.cache.DeletePermissionsByAccountIDs(ctx, accountIDs)
+		_ = s.cache.DeleteAccountResourcesByAccountIDs(ctx, accountIDs)
 	}
 
 	return nil
@@ -1133,6 +1155,35 @@ func (s *PermissionService) ListRoles(ctx context.Context, params *param.ListRol
 
 // ==================== Role-Permission 关联管理 ====================
 
+// invalidateResourceCacheByPermissionID 根据权限ID失效所有持有该权限的账户的资源缓存
+func (s *PermissionService) invalidateResourceCacheByPermissionID(ctx context.Context, permissionID string) {
+	if permissionID == "" {
+		return
+	}
+	accountIDs, err := s.permissionRepo.FindAccountIDsByPermissionID(ctx, permissionID)
+	if err != nil {
+		return
+	}
+	if len(accountIDs) > 0 {
+		_ = s.cache.DeleteAccountResourcesByAccountIDs(ctx, accountIDs)
+	}
+}
+
+// invalidatePermissionCachesByPermissionID 根据权限ID失效所有持有该权限的账户的权限码缓存和资源缓存
+func (s *PermissionService) invalidatePermissionCachesByPermissionID(ctx context.Context, permissionID string) {
+	if permissionID == "" {
+		return
+	}
+	accountIDs, err := s.permissionRepo.FindAccountIDsByPermissionID(ctx, permissionID)
+	if err != nil {
+		return
+	}
+	if len(accountIDs) > 0 {
+		_ = s.cache.DeletePermissionsByAccountIDs(ctx, accountIDs)
+		_ = s.cache.DeleteAccountResourcesByAccountIDs(ctx, accountIDs)
+	}
+}
+
 // AssignPermissionToRole 同步角色权限（全量替换）
 func (s *PermissionService) AssignPermissionToRole(ctx context.Context, params *param.AssignPermissionToRoleParams) error {
 	if err := params.Validate(); err != nil {
@@ -1160,8 +1211,9 @@ func (s *PermissionService) AssignPermissionToRole(ctx context.Context, params *
 	}
 
 	// 失效相关账户的权限缓存
-	if len(accountIDs) > 0 && s.cache != nil {
+	if len(accountIDs) > 0 {
 		_ = s.cache.DeletePermissionsByAccountIDs(ctx, accountIDs)
+		_ = s.cache.DeleteAccountResourcesByAccountIDs(ctx, accountIDs)
 	}
 
 	return nil
@@ -1184,8 +1236,9 @@ func (s *PermissionService) RemovePermissionFromRole(ctx context.Context, params
 	}
 
 	// 失效相关账户的权限缓存
-	if len(accountIDs) > 0 && s.cache != nil {
+	if len(accountIDs) > 0 {
 		_ = s.cache.DeletePermissionsByAccountIDs(ctx, accountIDs)
+		_ = s.cache.DeleteAccountResourcesByAccountIDs(ctx, accountIDs)
 	}
 
 	return nil
@@ -1259,10 +1312,11 @@ func (s *PermissionService) AssignRoleToAccount(ctx context.Context, params *par
 	}
 
 	// 清除缓存
-	if s.cache != nil {
-		if err := s.cache.DeletePermissions(ctx, params.AccountID); err != nil {
-			log.Printf("WARN: AssignRoleToAccount: Failed to delete permissions cache for account %s: %v", params.AccountID, err)
-		}
+	if err := s.cache.DeletePermissions(ctx, params.AccountID); err != nil {
+		log.Printf("WARN: AssignRoleToAccount: Failed to delete permissions cache for account %s: %v", params.AccountID, err)
+	}
+	if err := s.cache.DeleteAccountResources(ctx, params.AccountID); err != nil {
+		log.Printf("WARN: AssignRoleToAccount: Failed to delete resources cache for account %s: %v", params.AccountID, err)
 	}
 
 	return nil
@@ -1279,10 +1333,11 @@ func (s *PermissionService) RemoveRoleFromAccount(ctx context.Context, params *p
 	}
 
 	// 清除缓存
-	if s.cache != nil {
-		if err := s.cache.DeletePermissions(ctx, params.AccountID); err != nil {
-			log.Printf("WARN: RemoveRoleFromAccount: Failed to delete permissions cache for account %s: %v", params.AccountID, err)
-		}
+	if err := s.cache.DeletePermissions(ctx, params.AccountID); err != nil {
+		log.Printf("WARN: RemoveRoleFromAccount: Failed to delete permissions cache for account %s: %v", params.AccountID, err)
+	}
+	if err := s.cache.DeleteAccountResources(ctx, params.AccountID); err != nil {
+		log.Printf("WARN: RemoveRoleFromAccount: Failed to delete resources cache for account %s: %v", params.AccountID, err)
 	}
 
 	return nil

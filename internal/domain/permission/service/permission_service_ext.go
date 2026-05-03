@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"log"
 
+	"auth-perm/internal/common/constant"
 	"auth-perm/internal/common/errors"
-	"auth-perm/internal/domain/permission/constant"
+	permissionConstant "auth-perm/internal/domain/permission/constant"
 	"auth-perm/internal/domain/permission/dto"
 	"auth-perm/internal/domain/permission/param"
 )
@@ -12,32 +14,32 @@ import (
 // CheckAPIPermission 检查API访问权限（支持资源关联）
 // 内部委托给 CheckResourcePermission 统一方法
 func (s *PermissionService) CheckAPIPermission(ctx context.Context, accountID, apiPath string) (bool, error) {
-	params := param.NewCheckResourcePermissionParams(accountID, apiPath, constant.ResourceTypeAPIPath)
+	params := param.NewCheckResourcePermissionParams(accountID, apiPath, permissionConstant.ResourceTypeAPIPath)
 	return s.CheckResourcePermission(ctx, params)
 }
 
 // CheckMenuPermission 检查菜单访问权限（支持资源关联）
 // 内部委托给 CheckResourcePermission 统一方法
 func (s *PermissionService) CheckMenuPermission(ctx context.Context, accountID, menuID string) (bool, error) {
-	params := param.NewCheckResourcePermissionParams(accountID, menuID, constant.ResourceTypeMenu)
+	params := param.NewCheckResourcePermissionParams(accountID, menuID, permissionConstant.ResourceTypeMenu)
 	return s.CheckResourcePermission(ctx, params)
 }
 
 // CheckButtonPermission 检查按钮访问权限（支持资源关联）
 // 内部委托给 CheckResourcePermission 统一方法
 func (s *PermissionService) CheckButtonPermission(ctx context.Context, accountID, buttonID string) (bool, error) {
-	params := param.NewCheckResourcePermissionParams(accountID, buttonID, constant.ResourceTypeButton)
+	params := param.NewCheckResourcePermissionParams(accountID, buttonID, permissionConstant.ResourceTypeButton)
 	return s.CheckResourcePermission(ctx, params)
 }
 
 // CheckFieldPermission 检查字段访问权限（支持资源关联）
 // 内部委托给 CheckResourcePermission 统一方法
 func (s *PermissionService) CheckFieldPermission(ctx context.Context, accountID, fieldID string) (bool, error) {
-	params := param.NewCheckResourcePermissionParams(accountID, fieldID, constant.ResourceTypeField)
+	params := param.NewCheckResourcePermissionParams(accountID, fieldID, permissionConstant.ResourceTypeField)
 	return s.CheckResourcePermission(ctx, params)
 }
 
-// GetAccountResources 获取账户可访问的资源（支持资源关联）
+// GetAccountResources 获取账户可访问的资源（支持资源关联，带缓存）
 func (s *PermissionService) GetAccountResources(ctx context.Context, params *param.GetAccountResourcesParams) ([]string, error) {
 	account, err := s.authService.FindAccountByID(ctx, params.AccountID)
 	if err != nil {
@@ -49,9 +51,11 @@ func (s *PermissionService) GetAccountResources(ctx context.Context, params *par
 		return nil, errors.NewBusinessError("账户未激活")
 	}
 
-	// 如果没有资源仓储，返回错误
-	if s.permissionResourceRepo == nil {
-		return nil, errors.NewBusinessError("权限资源服务未初始化")
+	// 优先从缓存获取资源列表
+	if params.ResourceType != "" {
+		if cachedResources, err := s.cache.GetAccountResources(ctx, params.AccountID, params.ResourceType); err == nil {
+			return cachedResources, nil
+		}
 	}
 
 	// 获取账户的所有权限
@@ -61,6 +65,12 @@ func (s *PermissionService) GetAccountResources(ctx context.Context, params *par
 	}
 
 	if len(permissionCodes) == 0 {
+		// 缓存空结果
+		if params.ResourceType != "" {
+			if err := s.cache.SetAccountResources(ctx, params.AccountID, params.ResourceType, []string{}, constant.CacheTTLPermission); err != nil {
+				log.Printf("WARN: Failed to set resources cache for account %s: %v", params.AccountID, err)
+			}
+		}
 		return []string{}, nil
 	}
 
@@ -71,6 +81,11 @@ func (s *PermissionService) GetAccountResources(ctx context.Context, params *par
 	}
 
 	if len(permissions) == 0 {
+		if params.ResourceType != "" {
+			if err := s.cache.SetAccountResources(ctx, params.AccountID, params.ResourceType, []string{}, constant.CacheTTLPermission); err != nil {
+				log.Printf("WARN: Failed to set resources cache for account %s: %v", params.AccountID, err)
+			}
+		}
 		return []string{}, nil
 	}
 
@@ -105,6 +120,13 @@ func (s *PermissionService) GetAccountResources(ctx context.Context, params *par
 		result = append(result, id)
 	}
 
+	// 写入缓存
+	if params.ResourceType != "" {
+		if err := s.cache.SetAccountResources(ctx, params.AccountID, params.ResourceType, result, constant.CacheTTLPermission); err != nil {
+			log.Printf("WARN: Failed to set resources cache for account %s: %v", params.AccountID, err)
+		}
+	}
+
 	return result, nil
 }
 
@@ -119,11 +141,6 @@ func (s *PermissionService) GetAccountResourcesDetailed(ctx context.Context, acc
 	// 检查账户状态
 	if !account.IsActive() {
 		return nil, errors.NewBusinessError("账户未激活")
-	}
-
-	// 如果没有资源仓储，返回错误
-	if s.permissionResourceRepo == nil {
-		return nil, errors.NewBusinessError("权限资源服务未初始化")
 	}
 
 	// 获取账户的所有权限
@@ -181,10 +198,6 @@ func (s *PermissionService) GetAccountResourcesDetailed(ctx context.Context, acc
 
 // GetAllResourcesForSuperAdmin 获取所有权限资源（超管专用）
 func (s *PermissionService) GetAllResourcesForSuperAdmin(ctx context.Context) ([]*dto.PermissionResourceDTO, error) {
-	if s.permissionResourceRepo == nil {
-		return nil, errors.NewBusinessError("权限资源服务未初始化")
-	}
-
 	resources, err := s.permissionResourceRepo.FindAllResources(ctx)
 	if err != nil {
 		return nil, errors.WrapBizError(err, "获取全部资源失败")
@@ -222,11 +235,6 @@ func (s *PermissionService) CheckResourcePermission(ctx context.Context, params 
 	// 检查账户状态
 	if !account.IsActive() {
 		return false, errors.NewBusinessError("账户未激活")
-	}
-
-	// 如果没有资源仓储，返回错误
-	if s.permissionResourceRepo == nil {
-		return false, errors.NewBusinessError("权限资源服务未初始化")
 	}
 
 	// 使用统一的 FindResources 方法查找资源（支持通配符）
@@ -278,11 +286,6 @@ func (s *PermissionService) GetPermissionWithResources(ctx context.Context, perm
 
 	// 转换为 DTO
 	permissionDTO := permission.ToDTO()
-
-	// 如果没有资源仓储，返回空资源列表
-	if s.permissionResourceRepo == nil {
-		return permissionDTO, []*dto.PermissionResourceDTO{}, nil
-	}
 
 	// 获取关联资源
 	resources, err := s.permissionResourceRepo.FindByPermissionID(ctx, permissionID)

@@ -234,6 +234,57 @@ func (s *CacheService) DeletePermissionsByAccountIDs(ctx context.Context, accoun
 	return nil
 }
 
+// GetAccountResources 获取账户的资源缓存（按资源类型）
+func (s *CacheService) GetAccountResources(ctx context.Context, accountID, resourceType string) ([]string, error) {
+	key := s.keyGenerator.ResourceCacheKey(accountID, resourceType)
+
+	data, err := s.cache.Get(ctx, key)
+	if err == nil {
+		if dataStr, ok := data.(string); ok {
+			var resources []string
+			if err := json.Unmarshal([]byte(dataStr), &resources); err == nil {
+				return resources, nil
+			}
+		}
+	}
+
+	return nil, errors.NewBusinessError("Resources not found in cache")
+}
+
+// SetAccountResources 缓存账户的资源列表
+func (s *CacheService) SetAccountResources(ctx context.Context, accountID, resourceType string, resources []string, ttl time.Duration) error {
+	key := s.keyGenerator.ResourceCacheKey(accountID, resourceType)
+
+	data, err := json.Marshal(resources)
+	if err != nil {
+		return errors.WrapBizError(err, "Failed to marshal resources data")
+	}
+
+	return s.cache.Set(ctx, key, data, ttl)
+}
+
+// DeleteAccountResources 删除单个账户的所有资源缓存（使用延迟双删）
+func (s *CacheService) DeleteAccountResources(ctx context.Context, accountID string) error {
+	for _, rt := range []string{"api_path", "menu", "button", "field"} {
+		key := s.keyGenerator.ResourceCacheKey(accountID, rt)
+		if err := s.permissionCache.Delete(ctx, key); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// DeleteAccountResourcesByAccountIDs 批量删除多个账户的所有资源缓存（使用延迟双删）
+func (s *CacheService) DeleteAccountResourcesByAccountIDs(ctx context.Context, accountIDs []string) error {
+	if len(accountIDs) == 0 {
+		return nil
+	}
+	for _, accountID := range accountIDs {
+		_ = s.DeleteAccountResources(ctx, accountID)
+	}
+	return nil
+}
+
 // IncrementFailedLogin 增加登录失败计数
 func (s *CacheService) IncrementFailedLogin(ctx context.Context, accountID, ip string) (int64, error) {
 	key := s.keyGenerator.FailedLoginCacheKey(accountID, ip)

@@ -331,15 +331,13 @@ func (s *OAuthService) CreateSession(ctx context.Context, params *param.CreateSe
 	}
 
 	// 如果有缓存，清理该用户在当前租户下的旧会话缓存
-	if s.cache != nil {
-		// 查找用户在当前租户下的旧会话并删除缓存
-		oldSessions, err := s.sessionRepo.FindByUserIDAndTenantID(ctx, params.UserID, params.TenantID)
-		if err == nil && len(oldSessions) > 0 {
-			for _, oldSession := range oldSessions {
-				// 删除会话相关缓存
-				_ = s.cache.DeleteSession(ctx, oldSession.ID, oldSession.TenantID)
-				_ = s.cache.Delete(ctx, s.cache.keyGenerator.TokenHashCacheKey(oldSession.TokenHash))
-			}
+	// 查找用户在当前租户下的旧会话并删除缓存
+	oldSessions, err := s.sessionRepo.FindByUserIDAndTenantID(ctx, params.UserID, params.TenantID)
+	if err == nil && len(oldSessions) > 0 {
+		for _, oldSession := range oldSessions {
+			// 删除会话相关缓存
+			_ = s.cache.DeleteSession(ctx, oldSession.ID, oldSession.TenantID)
+			_ = s.cache.Delete(ctx, s.cache.keyGenerator.TokenHashCacheKey(oldSession.TokenHash))
 		}
 	}
 
@@ -357,17 +355,15 @@ func (s *OAuthService) CreateSession(ctx context.Context, params *param.CreateSe
 	}
 
 	// 缓存会话信息（完整session数据，7天TTL）
-	if s.cache != nil {
-		// 计算实际TTL（不超过rememberMe时间）
-		ttl := time.Until(sessionDTO.ExpiresAt)
-		if ttl > commonConstant.TokenExpiryRememberMe {
-			ttl = commonConstant.TokenExpiryRememberMe
-		}
+	// 计算实际TTL（不超过rememberMe时间）
+	ttl := time.Until(sessionDTO.ExpiresAt)
+	if ttl > commonConstant.TokenExpiryRememberMe {
+		ttl = commonConstant.TokenExpiryRememberMe
+	}
 
-		err := s.cache.SetSession(ctx, sessionDTO, ttl)
-		if err != nil {
-			return nil, errors.WrapBizError(err, "缓存会话失败")
-		}
+	err = s.cache.SetSession(ctx, sessionDTO, ttl)
+	if err != nil {
+		return nil, errors.WrapBizError(err, "缓存会话失败")
 	}
 
 	// 异步记录审计日志

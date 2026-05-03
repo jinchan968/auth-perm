@@ -43,21 +43,17 @@ func NewSecurityService(cache *CacheService, auditRepo *repo.AuditLogRepo, polic
 // CheckLoginAttempt 检查登录尝试
 func (s *SecurityService) CheckLoginAttempt(ctx context.Context, accountID, email, ip string) error {
 	// 检查是否被锁定
-	if s.cache != nil {
-		locked, err := s.cache.IsLocked(ctx, accountID, ip)
-		if err == nil && locked {
-			return errors.NewBusinessError("登录尝试次数过多，账户已锁定")
-		}
+	locked, err := s.cache.IsLocked(ctx, accountID, ip)
+	if err == nil && locked {
+		return errors.NewBusinessError("登录尝试次数过多，账户已锁定")
 	}
 
 	// 检查失败次数
-	if s.cache != nil {
-		count, err := s.cache.IncrementFailedLogin(ctx, accountID, ip)
-		if err == nil && count >= int64(s.maxFailedAttempts) {
-			// 记录锁定事件
-			s.recordSecurityEvent(ctx, "account_locked", accountID, email, ip, "too many failed login attempts")
-			return errors.NewBusinessError("登录尝试次数过多，账户已锁定")
-		}
+	count, err := s.cache.IncrementFailedLogin(ctx, accountID, ip)
+	if err == nil && count >= int64(s.maxFailedAttempts) {
+		// 记录锁定事件
+		s.recordSecurityEvent(ctx, "account_locked", accountID, email, ip, "too many failed login attempts")
+		return errors.NewBusinessError("登录尝试次数过多，账户已锁定")
 	}
 
 	return nil
@@ -65,10 +61,7 @@ func (s *SecurityService) CheckLoginAttempt(ctx context.Context, accountID, emai
 
 // ResetFailedLogin 重置失败登录计数
 func (s *SecurityService) ResetFailedLogin(ctx context.Context, accountID, email, ip string) error {
-	if s.cache != nil {
-		return s.cache.ResetFailedLogin(ctx, accountID, ip)
-	}
-	return nil
+	return s.cache.ResetFailedLogin(ctx, accountID, ip)
 }
 
 // RecordFailedLogin 记录失败登录

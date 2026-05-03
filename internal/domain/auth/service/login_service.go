@@ -202,13 +202,11 @@ func (s *LoginService) CreateSession(ctx context.Context, params *param.CreateSe
 	}
 
 	// 如果有缓存，清理该用户在当前租户下的旧会话缓存
-	if s.cache != nil {
-		oldSessions, err := s.sessionRepo.FindByUserIDAndTenantID(ctx, params.UserID, params.TenantID)
-		if err == nil && len(oldSessions) > 0 {
-			for _, oldSession := range oldSessions {
-				_ = s.cache.DeleteSession(ctx, oldSession.ID, oldSession.TenantID)
-				_ = s.cache.Delete(ctx, s.cache.keyGenerator.TokenHashCacheKey(oldSession.TokenHash))
-			}
+	oldSessions, err := s.sessionRepo.FindByUserIDAndTenantID(ctx, params.UserID, params.TenantID)
+	if err == nil && len(oldSessions) > 0 {
+		for _, oldSession := range oldSessions {
+			_ = s.cache.DeleteSession(ctx, oldSession.ID, oldSession.TenantID)
+			_ = s.cache.Delete(ctx, s.cache.keyGenerator.TokenHashCacheKey(oldSession.TokenHash))
 		}
 	}
 
@@ -239,16 +237,14 @@ func (s *LoginService) CreateSession(ctx context.Context, params *param.CreateSe
 	sessionDTO.ID = sessionDO.ID
 
 	// 缓存会话信息（完整session数据，7天TTL）
-	if s.cache != nil {
-		ttl := time.Until(sessionDTO.ExpiresAt)
-		if ttl > commonConstant.TokenExpiryRememberMe {
-			ttl = commonConstant.TokenExpiryRememberMe
-		}
+	ttl := time.Until(sessionDTO.ExpiresAt)
+	if ttl > commonConstant.TokenExpiryRememberMe {
+		ttl = commonConstant.TokenExpiryRememberMe
+	}
 
-		err := s.cache.SetSession(ctx, sessionDTO, ttl)
-		if err != nil {
-			return nil, errors.WrapBizError(err, "缓存会话失败")
-		}
+	err = s.cache.SetSession(ctx, sessionDTO, ttl)
+	if err != nil {
+		return nil, errors.WrapBizError(err, "缓存会话失败")
 	}
 
 	// 异步记录审计日志
@@ -265,14 +261,12 @@ func (s *LoginService) CreateSession(ctx context.Context, params *param.CreateSe
 // ValidateSession 验证会话（优化版：优先使用缓存，减少数据库查询）
 func (s *LoginService) ValidateSession(ctx context.Context, tokenHash string) (*dto.SessionDTO, error) {
 	// 优先从缓存查找完整session信息
-	if s.cache != nil {
-		tokenKey := s.cache.keyGenerator.TokenHashCacheKey(tokenHash)
-		dataStr, err := s.cache.Get(ctx, tokenKey)
-		if err == nil {
-			var cache dto.SessionCache
-			if json.Unmarshal([]byte(dataStr), &cache) == nil && cache.IsValid() {
-				return cache.ToSessionDTO(tokenHash), nil
-			}
+	tokenKey := s.cache.keyGenerator.TokenHashCacheKey(tokenHash)
+	dataStr, err := s.cache.Get(ctx, tokenKey)
+	if err == nil {
+		var cache dto.SessionCache
+		if json.Unmarshal([]byte(dataStr), &cache) == nil && cache.IsValid() {
+			return cache.ToSessionDTO(tokenHash), nil
 		}
 	}
 
@@ -288,9 +282,7 @@ func (s *LoginService) ValidateSession(ctx context.Context, tokenHash string) (*
 
 	// 验证会话是否有效
 	if !sessionDTO.IsValid() {
-		if s.cache != nil {
-			_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())
-		}
+		_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())
 		return nil, errors.NewAuthError("会话无效或已过期")
 	}
 
@@ -301,12 +293,10 @@ func (s *LoginService) ValidateSession(ctx context.Context, tokenHash string) (*
 	}
 
 	// 更新缓存（缓存完整session信息）
-	if s.cache != nil {
-		remainingTTL := time.Until(sessionDTO.ExpiresAt)
-		if remainingTTL > 0 {
-			if err := s.cache.SetSession(ctx, sessionDTO, remainingTTL); err != nil {
-				log.Printf("更新session缓存失败: %v", err)
-			}
+	remainingTTL := time.Until(sessionDTO.ExpiresAt)
+	if remainingTTL > 0 {
+		if err := s.cache.SetSession(ctx, sessionDTO, remainingTTL); err != nil {
+			log.Printf("更新session缓存失败: %v", err)
 		}
 	}
 
@@ -347,10 +337,8 @@ func (s *LoginService) RefreshToken(ctx context.Context, refreshToken string) (s
 	}
 
 	// 删除旧token的缓存
-	if s.cache != nil {
-		_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())
-		_ = s.cache.Delete(ctx, s.cache.keyGenerator.TokenHashCacheKey(session.TokenHash))
-	}
+	_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())
+	_ = s.cache.Delete(ctx, s.cache.keyGenerator.TokenHashCacheKey(session.TokenHash))
 
 	// 保存会话到数据库
 	if err := s.sessionRepo.Save(ctx, dm.SessionFromDTO(sessionDTO)); err != nil {
@@ -358,12 +346,10 @@ func (s *LoginService) RefreshToken(ctx context.Context, refreshToken string) (s
 	}
 
 	// 更新缓存（使用新token信息）
-	if s.cache != nil {
-		remainingTTL := time.Until(sessionDTO.ExpiresAt)
-		if remainingTTL > 0 {
-			if err := s.cache.SetSession(ctx, sessionDTO, remainingTTL); err != nil {
-				log.Printf("更新session缓存失败: %v", err)
-			}
+	remainingTTL := time.Until(sessionDTO.ExpiresAt)
+	if remainingTTL > 0 {
+		if err := s.cache.SetSession(ctx, sessionDTO, remainingTTL); err != nil {
+			log.Printf("更新session缓存失败: %v", err)
 		}
 	}
 

@@ -76,44 +76,53 @@ func APIPermissionMiddleware(
 	}
 }
 
+// 白名单数据 — 包级变量，仅初始化一次，避免每次请求分配 slice
+var (
+	whitelistExact = map[string]bool{
+		"/health":                   true,
+		"/api/v1/auth/validate":     true,
+		"/api/v1/auth/refresh":      true,
+		"/api/v1/auth/logout":       true,
+		"/api/v1/auth/my-resources": true,
+	}
+	// 去掉公共前缀 /api/v1/auth/ 后的后缀，用于前缀匹配
+	whitelistSuffixes = []string{
+		"public/",
+		"profile",
+		"sessions",
+		"devices",
+		"security/logs",
+		"2fa/",
+		"oauth/",
+		"send-verification-email",
+		"verify-email",
+		"resend-verification-email",
+		"request-password-reset",
+		"reset-password",
+		"change-password",
+	}
+)
+
 // isWhitelisted 检查路径是否在白名单中（免权限校验）
 func isWhitelisted(path string) bool {
-	// 精确匹配白名单
-	exactWhitelist := []string{
-		"/health",
-		"/api/v1/auth/validate",
-		"/api/v1/auth/refresh",
-		"/api/v1/auth/logout",
-		"/api/v1/auth/my-resources",
+	// 1. 精确匹配 O(1)
+	if whitelistExact[path] {
+		return true
 	}
-	for _, exact := range exactWhitelist {
-		if path == exact {
+
+	// 2. 快速拒绝：绝大多数非白名单路径共享此公共前缀
+	const authPrefix = "/api/v1/auth/"
+	if !strings.HasPrefix(path, authPrefix) {
+		return false
+	}
+
+	// 3. 前缀匹配已确认的 /api/v1/auth/* 路径
+	suffix := path[len(authPrefix):]
+	for _, allowed := range whitelistSuffixes {
+		if strings.HasPrefix(suffix, allowed) {
 			return true
 		}
 	}
-
-	// 前缀匹配白名单（以 / 结尾表示匹配该路径下所有子路径）
-	prefixWhitelist := []string{
-		"/api/v1/auth/public/",       // 登录、注册、忘记密码等
-		"/api/v1/auth/profile",       // 个人资料（含 GET/PATCH）
-		"/api/v1/auth/sessions",      // 会话管理
-		"/api/v1/auth/devices",       // 设备管理
-		"/api/v1/auth/security/logs", // 安全日志（个人）
-		"/api/v1/auth/2fa/",          // 2FA 相关
-		"/api/v1/auth/oauth/",        // OAuth 回调
-		"/api/v1/auth/send-verification-email",
-		"/api/v1/auth/verify-email",
-		"/api/v1/auth/resend-verification-email",
-		"/api/v1/auth/request-password-reset",
-		"/api/v1/auth/reset-password",
-		"/api/v1/auth/change-password",
-	}
-	for _, prefix := range prefixWhitelist {
-		if strings.HasPrefix(path, prefix) {
-			return true
-		}
-	}
-
 	return false
 }
 

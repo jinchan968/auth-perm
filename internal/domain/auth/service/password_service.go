@@ -205,12 +205,10 @@ func (s *PasswordService) RequestPasswordReset(ctx context.Context, email string
 	}
 
 	// 2. 检查频率限制（24小时内只能请求1次）
-	if s.cache != nil {
-		key := fmt.Sprintf("password_reset:%s", email)
-		exists, err := s.cache.Get(ctx, key)
-		if err == nil && exists != "" {
-			return errors.NewBusinessError("24小时内已发送过重置邮件，请稍后再试")
-		}
+	key := fmt.Sprintf("password_reset:%s", email)
+	exists, err := s.cache.Get(ctx, key)
+	if err == nil && exists != "" {
+		return errors.NewBusinessError("24小时内已发送过重置邮件，请稍后再试")
 	}
 
 	// 3. 生成随机令牌
@@ -231,11 +229,9 @@ func (s *PasswordService) RequestPasswordReset(ctx context.Context, email string
 	}
 
 	// 7. 设置频率限制
-	if s.cache != nil {
-		key := fmt.Sprintf("password_reset:%s", email)
-		if err := s.cache.SetWithTTL(ctx, key, "1", 24*time.Hour); err != nil {
-			log.Printf("警告：设置密码重置频率限制失败: %v", err)
-		}
+	key = fmt.Sprintf("password_reset:%s", email)
+	if err := s.cache.SetWithTTL(ctx, key, "1", 24*time.Hour); err != nil {
+		log.Printf("警告：设置密码重置频率限制失败: %v", err)
 	}
 
 	// 8. TODO: 发送重置邮件（实际应用中应该调用邮件服务）
@@ -296,10 +292,6 @@ func (s *PasswordService) ResetPasswordWithToken(ctx context.Context, tokenHash,
 
 // invalidateUserSessions 使用户所有会话失效并清理缓存
 func (s *PasswordService) invalidateUserSessions(ctx context.Context, userID, reason string) {
-	if s.sessionRepo == nil {
-		return
-	}
-
 	// 先查找用户所有会话（用于清理缓存）
 	sessions, err := s.sessionRepo.FindByUserID(ctx, userID, nil)
 	if err != nil {
@@ -313,7 +305,7 @@ func (s *PasswordService) invalidateUserSessions(ctx context.Context, userID, re
 	}
 
 	// 清理缓存
-	if s.cache != nil && len(sessions) > 0 {
+	if len(sessions) > 0 {
 		for _, session := range sessions {
 			sessionDTO := session.ToDTO()
 			_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())

@@ -67,9 +67,7 @@ func (s *SessionService) Logout(ctx context.Context, sessionID string, logoutAll
 	}
 
 	// 清理缓存
-	if s.cache != nil {
-		_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())
-	}
+	_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())
 
 	// 异步记录审计日志
 	s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
@@ -108,11 +106,9 @@ func (s *SessionService) LogoutAllByTenant(ctx context.Context, tenantID string,
 	}
 
 	// 清理缓存
-	if s.cache != nil {
-		for _, session := range sessions {
-			sessionDTO := session.ToDTO()
-			_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())
-		}
+	for _, session := range sessions {
+		sessionDTO := session.ToDTO()
+		_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())
 	}
 
 	// 记录审计日志（批量）
@@ -163,11 +159,9 @@ func (s *SessionService) logoutWithAllTenants(ctx context.Context, userID string
 	}
 
 	// 清理缓存
-	if s.cache != nil {
-		for _, session := range sessions {
-			sessionDTO := session.ToDTO()
-			_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())
-		}
+	for _, session := range sessions {
+		sessionDTO := session.ToDTO()
+		_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())
 	}
 
 	// 记录审计日志（批量）
@@ -209,11 +203,9 @@ func (s *SessionService) InvalidateTenantSessions(ctx context.Context, tenantID 
 	}
 
 	// 清理缓存
-	if s.cache != nil {
-		for _, session := range sessions {
-			sessionDTO := session.ToDTO()
-			_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())
-		}
+	for _, session := range sessions {
+		sessionDTO := session.ToDTO()
+		_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())
 	}
 
 	return nil
@@ -228,7 +220,7 @@ func (s *SessionService) CleanExpiredSessionsWithCache(ctx context.Context) (int
 	}
 
 	// 清理缓存
-	if s.cache != nil && len(expiredSessions) > 0 {
+	if len(expiredSessions) > 0 {
 		for _, session := range expiredSessions {
 			sessionDTO := session.ToDTO()
 			_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())
