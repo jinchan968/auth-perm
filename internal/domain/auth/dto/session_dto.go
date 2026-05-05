@@ -140,6 +140,11 @@ func (s *SessionDTO) SetTokenHash(tokenHash string) {
 	s.UpdatedAt = time.Now()
 }
 
+// BuildToken 构建完整 token（hash:id 格式）
+func (s *SessionDTO) BuildToken() string {
+	return s.TokenHash + ":" + s.ID
+}
+
 // ==================== 业务方法 ====================
 
 // SetDeviceInfo 设置设备信息

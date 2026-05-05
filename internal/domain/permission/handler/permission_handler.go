@@ -4,6 +4,7 @@ import (
 	"auth-perm/internal/common/dto/response"
 	controllerUtil "auth-perm/internal/controller/util"
 	controllerVo "auth-perm/internal/controller/vo"
+	permissionConstant "auth-perm/internal/domain/permission/constant"
 	"auth-perm/internal/domain/permission/param"
 	permissionService "auth-perm/internal/domain/permission/service"
 	"net/http"
@@ -251,7 +252,7 @@ func (h *PermissionHandler) IsSuperAdmin(c *gin.Context) {
 	}
 	targetAccountID := accountID
 	if accountIDParam := c.Query("account_id"); accountIDParam != "" {
-		canView, err := h.permissionService.CheckPermission(c.Request.Context(), accountID, "users.read")
+		canView, err := h.permissionService.CheckPermission(c.Request.Context(), accountID, permissionConstant.PermissionCodeUsersRead)
 		if err != nil || !canView {
 			response.Error(c, http.StatusForbidden, "没有权限检查其他账户", "")
 			return

@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 
 	authService "auth-perm/internal/domain/auth/service"
+	cacheService "auth-perm/internal/domain/cache/service"
 	permissionRepo "auth-perm/internal/domain/permission/repo"
 	"auth-perm/internal/domain/permission/service"
 	"auth-perm/internal/infra/code_gen"
@@ -44,11 +45,10 @@ func RegisterPermissionDomain(container *dig.Container) error {
 		authService *authService.AuthService,
 		permissionRepo *permissionRepo.PermissionRepo,
 		permissionResourceRepo *permissionRepo.PermissionResourceRepo,
-		cache *authService.CacheService,
+		cacheSvc *cacheService.Service,
 		codeGen code_gen.CodeGenerator,
 	) *service.PermissionService {
-		// 直接使用 auth 服务的实例
-		return service.NewPermissionServiceWithResourceRepo(authService, permissionRepo, permissionResourceRepo, cache, codeGen)
+		return service.NewPermissionServiceWithResourceRepo(authService, permissionRepo, permissionResourceRepo, cacheSvc, codeGen)
 	}); err != nil {
 		return err
 	}

@@ -274,7 +274,7 @@ func (a *AccountDTO) GetLoginMethods() []string {
 
 	// Email/Phone账户总是支持密码登录
 	if !a.AccountType.IsOAuth() {
-		methods = append(methods, "password")
+		methods = append(methods, authConstant.LoginMethodPassword)
 	}
 
 	if a.HasOAuthLinked() {

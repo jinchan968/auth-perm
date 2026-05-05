@@ -8,6 +8,7 @@ import (
 
 	"auth-perm/internal/common/errors"
 	"auth-perm/internal/common/utils"
+	authConstant "auth-perm/internal/domain/auth/constant"
 	"auth-perm/internal/domain/auth/dto"
 
 	"golang.org/x/oauth2"
@@ -140,7 +141,7 @@ func (p *GitHubProvider) GetUserInfo(ctx context.Context, code string) (*dto.OAu
 
 	// 返回标准化用户数据
 	return &dto.OAuthUserInfoDTO{
-		Provider:     "github",
+		Provider:     authConstant.OAuthProviderGitHub,
 		ProviderID:   fmt.Sprintf("%d", githubUser.ID),
 		Email:        userEmail,
 		Name:         githubUser.Name,
@@ -170,7 +171,7 @@ func (p *GitHubProvider) ValidateToken(ctx context.Context, token string) (*dto.
 
 	// 返回标准化用户数据
 	return &dto.OAuthUserInfoDTO{
-		Provider:    "github",
+		Provider:    authConstant.OAuthProviderGitHub,
 		ProviderID:  fmt.Sprintf("%d", githubUser.ID),
 		Email:       githubUser.Email,
 		Name:        githubUser.Name,
@@ -243,7 +244,7 @@ func (p *GoogleProvider) GetUserInfo(ctx context.Context, code string) (*dto.OAu
 
 	// 返回标准化用户数据
 	return &dto.OAuthUserInfoDTO{
-		Provider:     "google",
+		Provider:     authConstant.OAuthProviderGoogle,
 		ProviderID:   googleUser.ID,
 		Email:        googleUser.Email,
 		Name:         googleUser.Name,
@@ -278,7 +279,7 @@ func (p *GoogleProvider) ValidateToken(ctx context.Context, token string) (*dto.
 
 	// 返回标准化用户数据
 	return &dto.OAuthUserInfoDTO{
-		Provider:    "google",
+		Provider:    authConstant.OAuthProviderGoogle,
 		ProviderID:  googleUser.ID,
 		Email:       googleUser.Email,
 		Name:        googleUser.Name,
@@ -345,7 +346,7 @@ func (p *WeChatProvider) GetUserInfo(ctx context.Context, code string) (*dto.OAu
 	virtualEmail := fmt.Sprintf("wechat_%s@oauth.local", wechatUser.OpenID)
 
 	return &dto.OAuthUserInfoDTO{
-		Provider:     "wechat",
+		Provider:     authConstant.OAuthProviderWeChat,
 		ProviderID:   wechatUser.OpenID,
 		Email:        virtualEmail,
 		Name:         wechatUser.Nickname,
@@ -408,7 +409,7 @@ func (p *WeChatProvider) ValidateToken(ctx context.Context, token string) (*dto.
 	virtualEmail := fmt.Sprintf("wechat_%s@oauth.local", wechatUser.OpenID)
 
 	return &dto.OAuthUserInfoDTO{
-		Provider:    "wechat",
+		Provider:    authConstant.OAuthProviderWeChat,
 		ProviderID:  wechatUser.OpenID,
 		Email:       virtualEmail,
 		Name:        wechatUser.Nickname,
@@ -439,11 +440,11 @@ func NewOAuthRepo(githubClientID, githubClientSecret, githubRedirectURL,
 // GetUserInfo 获取用户信息
 func (r *OAuthRepo) GetUserInfo(ctx context.Context, provider, code, redirectURI string) (*dto.OAuthUserInfoDTO, error) {
 	switch provider {
-	case "github":
+	case authConstant.OAuthProviderGitHub:
 		return r.githubProvider.GetUserInfo(ctx, code)
-	case "google":
+	case authConstant.OAuthProviderGoogle:
 		return r.googleProvider.GetUserInfo(ctx, code)
-	case "wechat":
+	case authConstant.OAuthProviderWeChat:
 		return r.wechatProvider.GetUserInfo(ctx, code)
 	default:
 		return nil, errors.NewBusinessError("Unsupported OAuth provider: " + provider)
@@ -453,11 +454,11 @@ func (r *OAuthRepo) GetUserInfo(ctx context.Context, provider, code, redirectURI
 // ValidateToken 验证令牌
 func (r *OAuthRepo) ValidateToken(ctx context.Context, provider, token string) (*dto.OAuthUserInfoDTO, error) {
 	switch provider {
-	case "github":
+	case authConstant.OAuthProviderGitHub:
 		return r.githubProvider.ValidateToken(ctx, token)
-	case "google":
+	case authConstant.OAuthProviderGoogle:
 		return r.googleProvider.ValidateToken(ctx, token)
-	case "wechat":
+	case authConstant.OAuthProviderWeChat:
 		return r.wechatProvider.ValidateToken(ctx, token)
 	default:
 		return nil, errors.NewBusinessError("Unsupported OAuth provider: " + provider)

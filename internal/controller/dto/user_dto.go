@@ -5,37 +5,30 @@ import (
 	"strings"
 
 	"auth-perm/internal/common/constant"
+	authConstant "auth-perm/internal/domain/auth/constant"
 
 	"github.com/go-playground/validator/v10"
 )
 
-// IdentifierType 用户标识类型
-type IdentifierType string
-
-const (
-	IdentifierTypePhone IdentifierType = "phone"
-	IdentifierTypeEmail IdentifierType = "email"
-)
-
 // CreateUserRequest 创建用户请求
 type CreateUserRequest struct {
-	Username        string         `json:"username" binding:"required,min=3,max=50,alphanumhyphen"`
-	IdentifierType  IdentifierType `json:"identifier_type" binding:"required,oneof=phone email"`
-	IdentifierValue string         `json:"identifier_value" binding:"required"`
+	Username        string                      `json:"username" binding:"required,min=3,max=50,alphanumhyphen"`
+	IdentifierType  authConstant.IdentifierType `json:"identifier_type" binding:"required,oneof=phone email"`
+	IdentifierValue string                      `json:"identifier_value" binding:"required"`
 }
 
 // UpdateUserIdentifierRequest 更新用户标识请求
 type UpdateUserIdentifierRequest struct {
-	IdentifierType  IdentifierType `json:"identifier_type" binding:"required,oneof=phone email"`
-	IdentifierValue string         `json:"identifier_value" binding:"required"`
+	IdentifierType  authConstant.IdentifierType `json:"identifier_type" binding:"required,oneof=phone email"`
+	IdentifierValue string                      `json:"identifier_value" binding:"required"`
 }
 
 // RegisterUserRequest 注册用户请求（包含密码）
 type RegisterUserRequest struct {
-	Username        string         `json:"username" binding:"required,min=3,max=50,alphanumhyphen"`
-	Password        string         `json:"password" binding:"required,min=6"`
-	IdentifierType  IdentifierType `json:"identifier_type" binding:"required,oneof=phone email"`
-	IdentifierValue string         `json:"identifier_value" binding:"required"`
+	Username        string                      `json:"username" binding:"required,min=3,max=50,alphanumhyphen"`
+	Password        string                      `json:"password" binding:"required,min=6"`
+	IdentifierType  authConstant.IdentifierType `json:"identifier_type" binding:"required,oneof=phone email"`
+	IdentifierValue string                      `json:"identifier_value" binding:"required"`
 }
 
 // LoginRequest 登录请求
@@ -83,7 +76,7 @@ func init() {
 	// 注册密码长度验证（使用常量）
 	_ = validate.RegisterValidation("password_length", func(fl validator.FieldLevel) bool {
 		value := fl.Field().String()
-		return len(value) >= constant.MinPasswordLength && len(value) <= constant.MaxPasswordLength
+		return len(value) >= authConstant.PasswordMinLength && len(value) <= authConstant.PasswordMaxLength
 	})
 }
 
@@ -96,14 +89,14 @@ func (r *CreateUserRequest) Validate() error {
 
 	// 根据identifier_type验证对应的格式
 	switch r.IdentifierType {
-	case IdentifierTypePhone:
+	case authConstant.IdentifierTypePhone:
 		if !regexp.MustCompile(constant.RegexPhone).MatchString(strings.TrimSpace(r.IdentifierValue)) {
 			return &ValidationError{
 				Field:   "identifier_value",
 				Message: "invalid phone number format, must be 11-digit Chinese mobile number",
 			}
 		}
-	case IdentifierTypeEmail:
+	case authConstant.IdentifierTypeEmail:
 		if !regexp.MustCompile(constant.RegexEmail).MatchString(strings.TrimSpace(r.IdentifierValue)) {
 			return &ValidationError{
 				Field:   "identifier_value",
@@ -124,14 +117,14 @@ func (r *UpdateUserIdentifierRequest) Validate() error {
 
 	// 根据identifier_type验证对应的格式
 	switch r.IdentifierType {
-	case IdentifierTypePhone:
+	case authConstant.IdentifierTypePhone:
 		if !regexp.MustCompile(constant.RegexPhone).MatchString(strings.TrimSpace(r.IdentifierValue)) {
 			return &ValidationError{
 				Field:   "identifier_value",
 				Message: "invalid phone number format, must be 11-digit Chinese mobile number",
 			}
 		}
-	case IdentifierTypeEmail:
+	case authConstant.IdentifierTypeEmail:
 		if !regexp.MustCompile(constant.RegexEmail).MatchString(strings.TrimSpace(r.IdentifierValue)) {
 			return &ValidationError{
 				Field:   "identifier_value",
@@ -152,14 +145,14 @@ func (r *RegisterUserRequest) Validate() error {
 
 	// 根据identifier_type验证对应的格式
 	switch r.IdentifierType {
-	case IdentifierTypePhone:
+	case authConstant.IdentifierTypePhone:
 		if !regexp.MustCompile(constant.RegexPhone).MatchString(strings.TrimSpace(r.IdentifierValue)) {
 			return &ValidationError{
 				Field:   "identifier_value",
 				Message: "invalid phone number format, must be 11-digit Chinese mobile number",
 			}
 		}
-	case IdentifierTypeEmail:
+	case authConstant.IdentifierTypeEmail:
 		if !regexp.MustCompile(constant.RegexEmail).MatchString(strings.TrimSpace(r.IdentifierValue)) {
 			return &ValidationError{
 				Field:   "identifier_value",
@@ -188,15 +181,15 @@ func (r *LoginRequest) Validate() error {
 
 	// 如果提供了identifier_type，验证格式
 	if r.IdentifierType != "" {
-		switch IdentifierType(r.IdentifierType) {
-		case IdentifierTypePhone:
+		switch authConstant.IdentifierType(r.IdentifierType) {
+		case authConstant.IdentifierTypePhone:
 			if !regexp.MustCompile(constant.RegexPhone).MatchString(strings.TrimSpace(r.IdentifierValue)) {
 				return &ValidationError{
 					Field:   "identifier_value",
 					Message: "invalid phone number format, must be 11-digit Chinese mobile number",
 				}
 			}
-		case IdentifierTypeEmail:
+		case authConstant.IdentifierTypeEmail:
 			if !regexp.MustCompile(constant.RegexEmail).MatchString(strings.TrimSpace(r.IdentifierValue)) {
 				return &ValidationError{
 					Field:   "identifier_value",
@@ -242,7 +235,7 @@ func isStrongPassword(password string) bool {
 }
 
 // AutoDetectIdentifierType FUTURE: 标识符类型自动检测 - 在实现标识符检测时使用
-func AutoDetectIdentifierType(value string) (IdentifierType, error) {
+func AutoDetectIdentifierType(value string) (authConstant.IdentifierType, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return "", &ValidationError{
@@ -253,12 +246,12 @@ func AutoDetectIdentifierType(value string) (IdentifierType, error) {
 
 	// 检查是否为手机号
 	if regexp.MustCompile(constant.RegexPhone).MatchString(value) {
-		return IdentifierTypePhone, nil
+		return authConstant.IdentifierTypePhone, nil
 	}
 
 	// 检查是否为邮箱
 	if regexp.MustCompile(constant.RegexEmail).MatchString(value) {
-		return IdentifierTypeEmail, nil
+		return authConstant.IdentifierTypeEmail, nil
 	}
 
 	// 无法识别

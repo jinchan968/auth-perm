@@ -34,9 +34,8 @@ func NewAuthService(
 	oauthRepo *repo.OAuthRepo,
 	auditRepo *repo.AuditLogRepo,
 	cacheService *CacheService,
+	bruteForceService *BruteForceService,
 ) *AuthService {
-	bruteForceService := NewBruteForceService(cacheService.cache)
-
 	return &AuthService{
 		userRepo:          userRepo,
 		accountRepo:       accountRepo,

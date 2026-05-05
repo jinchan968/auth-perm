@@ -18,7 +18,7 @@ type RedisCache struct {
 // NewRedisCache 创建Redis缓存
 func NewRedisCache(client *redis.Client, prefix string) *RedisCache {
 	if prefix == "" {
-		prefix = "auth_perm:"
+		prefix = ""
 	}
 	return &RedisCache{
 		client: client,

@@ -3,31 +3,9 @@ package dto
 import (
 	"fmt"
 	"time"
+
+	authConstant "auth-perm/internal/domain/auth/constant"
 )
-
-// TOTPSecretStatus TOTP密钥状态
-type TOTPSecretStatus string
-
-const (
-	TOTPStatusDisabled TOTPSecretStatus = "disabled"
-	TOTPStatusEnabled  TOTPSecretStatus = "enabled"
-	TOTPStatusPending  TOTPSecretStatus = "pending"
-)
-
-// String 转换为字符串
-func (s TOTPSecretStatus) String() string {
-	return string(s)
-}
-
-// IsValid 检查状态是否有效
-func (s TOTPSecretStatus) IsValid() bool {
-	switch s {
-	case TOTPStatusDisabled, TOTPStatusEnabled, TOTPStatusPending:
-		return true
-	default:
-		return false
-	}
-}
 
 // TOTPSecretDTO TOTP密钥数据传输对象
 type TOTPSecretDTO struct {
@@ -120,11 +98,11 @@ func (t *TOTPSecretDTO) IsTOTPEnabled() bool {
 }
 
 // GetStatus 获取状态
-func (t *TOTPSecretDTO) GetStatus() TOTPSecretStatus {
+func (t *TOTPSecretDTO) GetStatus() authConstant.TOTPSecretStatus {
 	if !t.IsEnabled {
-		return TOTPStatusDisabled
+		return authConstant.TOTPStatusDisabled
 	}
-	return TOTPStatusEnabled
+	return authConstant.TOTPStatusEnabled
 }
 
 // TOTPValidationResult TOTP验证结果

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"auth-perm/internal/common/constant"
+	authConstant "auth-perm/internal/domain/auth/constant"
 )
 
 // EmailVerificationRequest 邮箱验证请求
@@ -72,38 +73,14 @@ func (v *EmailVerificationDTO) MarkAsVerified() {
 }
 
 // ToVerificationStatus 转换为验证状态
-func (v *EmailVerificationDTO) ToVerificationStatus() VerificationStatus {
+func (v *EmailVerificationDTO) ToVerificationStatus() authConstant.VerificationStatus {
 	if v.IsVerified() {
-		return VerificationStatusVerified
+		return authConstant.VerificationStatusVerified
 	}
 	if v.IsExpired() {
-		return VerificationStatusExpired
+		return authConstant.VerificationStatusExpired
 	}
-	return VerificationStatusPending
-}
-
-// VerificationStatus 验证状态
-type VerificationStatus string
-
-const (
-	VerificationStatusPending  VerificationStatus = "pending"
-	VerificationStatusVerified VerificationStatus = "verified"
-	VerificationStatusExpired  VerificationStatus = "expired"
-)
-
-// IsValid 验证状态是否有效
-func (s VerificationStatus) IsValid() bool {
-	switch s {
-	case VerificationStatusPending, VerificationStatusVerified, VerificationStatusExpired:
-		return true
-	default:
-		return false
-	}
-}
-
-// String 转换为字符串
-func (s VerificationStatus) String() string {
-	return string(s)
+	return authConstant.VerificationStatusPending
 }
 
 // PasswordResetRequest 密码重置请求

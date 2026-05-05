@@ -52,7 +52,7 @@ func (s *SecurityService) CheckLoginAttempt(ctx context.Context, accountID, emai
 	count, err := s.cache.IncrementFailedLogin(ctx, accountID, ip)
 	if err == nil && count >= int64(s.maxFailedAttempts) {
 		// 记录锁定事件
-		s.recordSecurityEvent(ctx, "account_locked", accountID, email, ip, "too many failed login attempts")
+		s.recordSecurityEvent(ctx, authConstant.SecurityEventAccountLocked, accountID, email, ip, "too many failed login attempts")
 		return errors.NewBusinessError("登录尝试次数过多，账户已锁定")
 	}
 
@@ -69,12 +69,12 @@ func (s *SecurityService) RecordFailedLogin(ctx context.Context, accountID, emai
 	s.failedAttempts++
 
 	// 记录审计日志
-	s.recordSecurityEvent(ctx, "login_failed", accountID, email, ip, reason)
+	s.recordSecurityEvent(ctx, authConstant.SecurityEventLoginFailed, accountID, email, ip, reason)
 
 	// 检查是否需要锁定
 	if s.failedAttempts >= s.maxFailedAttempts {
 		// 记录锁定事件
-		s.recordSecurityEvent(ctx, "account_locked", accountID, email, ip, "too many failed attempts")
+		s.recordSecurityEvent(ctx, authConstant.SecurityEventAccountLocked, accountID, email, ip, "too many failed attempts")
 	}
 
 	return nil
@@ -95,7 +95,7 @@ func (s *SecurityService) DetectAnomalousLogin(ctx context.Context, accountID, e
 	// 检查IP是否异常
 	if lastLoginIP != "" && lastLoginIP != ip {
 		// IP地址变更，标记为异常
-		s.recordSecurityEvent(ctx, "suspicious_login", accountID, email, ip, "IP address changed")
+		s.recordSecurityEvent(ctx, authConstant.SecurityEventSuspiciousLogin, accountID, email, ip, "IP address changed")
 		return true, nil
 	}
 
@@ -114,14 +114,14 @@ func (s *SecurityService) IsHighRiskLogin(ctx context.Context, accountID, email,
 	blacklistedIPs := []string{"192.168.1.100"} // 示例黑名单IP
 	for _, blacklistedIP := range blacklistedIPs {
 		if ip == blacklistedIP {
-			s.recordSecurityEvent(ctx, "high_risk_login", accountID, email, ip, "blacklisted IP")
+			s.recordSecurityEvent(ctx, authConstant.SecurityEventHighRiskLogin, accountID, email, ip, "blacklisted IP")
 			return true, nil
 		}
 	}
 
 	// 检查是否为代理/VPN
 	if validator.IsProxyIP(ip) {
-		s.recordSecurityEvent(ctx, "high_risk_login", accountID, email, ip, "proxy/VPN detected")
+		s.recordSecurityEvent(ctx, authConstant.SecurityEventHighRiskLogin, accountID, email, ip, "proxy/VPN detected")
 		return true, nil
 	}
 
@@ -146,7 +146,7 @@ func (s *SecurityService) recordSecurityEvent(ctx context.Context, eventType, ac
 	// 创建审计日志条目
 	entry := &dto.AuditLogEntryDTO{
 		Action:       eventType,
-		ResourceType: "account",
+		ResourceType: authConstant.AuditResourceAccount,
 		ResourceID:   accountID,
 		Success:      false,
 		IPAddress:    ip,

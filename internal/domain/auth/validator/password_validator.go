@@ -15,8 +15,8 @@ func NewPasswordValidator() *PasswordValidator {
 
 // ValidatePasswordStrength 验证密码强度
 func (v *PasswordValidator) ValidatePasswordStrength(password string) error {
-	if len(password) < authConstant.MinPasswordLength {
-		return errors.NewValidationErrorF("密码长度不能少于%d个字符", authConstant.MinPasswordLength)
+	if len(password) < authConstant.PasswordMinLength {
+		return errors.NewValidationErrorF("密码长度不能少于%d个字符", authConstant.PasswordMinLength)
 	}
 	// TODO: 添加更复杂的密码强度检查
 	return nil

@@ -12,10 +12,4 @@ const (
 
 	// ResetAttemptWindow 重置失败尝试的时间窗口
 	ResetAttemptWindow = 30 * time.Minute
-
-	// MinPasswordLength 密码最小长度
-	MinPasswordLength = 6
-
-	// MaxPasswordLength 密码最大长度
-	MaxPasswordLength = 128
 )

@@ -53,7 +53,9 @@ func (s *PermissionService) GetAccountResources(ctx context.Context, params *par
 
 	// 优先从缓存获取资源列表
 	if params.ResourceType != "" {
-		if cachedResources, err := s.cache.GetAccountResources(ctx, params.AccountID, params.ResourceType); err == nil {
+		resKey := permissionConstant.ResourceCacheKey(params.AccountID, params.ResourceType)
+		var cachedResources []string
+		if err := s.cacheSvc.GetJSON(ctx, resKey, &cachedResources); err == nil {
 			return cachedResources, nil
 		}
 	}
@@ -67,7 +69,7 @@ func (s *PermissionService) GetAccountResources(ctx context.Context, params *par
 	if len(permissionCodes) == 0 {
 		// 缓存空结果
 		if params.ResourceType != "" {
-			if err := s.cache.SetAccountResources(ctx, params.AccountID, params.ResourceType, []string{}, constant.CacheTTLPermission); err != nil {
+			if err := s.cacheSvc.SetJSON(ctx, permissionConstant.ResourceCacheKey(params.AccountID, params.ResourceType), []string{}, constant.CacheTTLPermission); err != nil {
 				log.Printf("WARN: Failed to set resources cache for account %s: %v", params.AccountID, err)
 			}
 		}
@@ -82,7 +84,7 @@ func (s *PermissionService) GetAccountResources(ctx context.Context, params *par
 
 	if len(permissions) == 0 {
 		if params.ResourceType != "" {
-			if err := s.cache.SetAccountResources(ctx, params.AccountID, params.ResourceType, []string{}, constant.CacheTTLPermission); err != nil {
+			if err := s.cacheSvc.SetJSON(ctx, permissionConstant.ResourceCacheKey(params.AccountID, params.ResourceType), []string{}, constant.CacheTTLPermission); err != nil {
 				log.Printf("WARN: Failed to set resources cache for account %s: %v", params.AccountID, err)
 			}
 		}
@@ -122,7 +124,7 @@ func (s *PermissionService) GetAccountResources(ctx context.Context, params *par
 
 	// 写入缓存
 	if params.ResourceType != "" {
-		if err := s.cache.SetAccountResources(ctx, params.AccountID, params.ResourceType, result, constant.CacheTTLPermission); err != nil {
+		if err := s.cacheSvc.SetJSON(ctx, permissionConstant.ResourceCacheKey(params.AccountID, params.ResourceType), result, constant.CacheTTLPermission); err != nil {
 			log.Printf("WARN: Failed to set resources cache for account %s: %v", params.AccountID, err)
 		}
 	}

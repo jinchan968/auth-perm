@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -17,7 +17,7 @@ func AuthMiddleware(loginService *service.LoginService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := extractToken(c)
 		if token == "" {
-			fmt.Println("AuthMiddleware: Token is empty")
+			log.Println("AuthMiddleware: Token is empty")
 			response.Error(c, http.StatusUnauthorized, "未认证", "token不能为空")
 			c.Abort()
 			return
@@ -26,7 +26,7 @@ func AuthMiddleware(loginService *service.LoginService) gin.HandlerFunc {
 		// 解析token
 		parts := strings.Split(token, ":")
 		if len(parts) != 2 {
-			fmt.Printf("AuthMiddleware: Invalid token format, expected 2 parts but got %d\n", len(parts))
+			log.Printf("AuthMiddleware: Invalid token format, expected 2 parts but got %d", len(parts))
 			response.Error(c, http.StatusUnauthorized, "认证失败", "token格式错误")
 			c.Abort()
 			return
@@ -35,7 +35,7 @@ func AuthMiddleware(loginService *service.LoginService) gin.HandlerFunc {
 		tokenHash := parts[0]
 		session, err := loginService.ValidateSession(c.Request.Context(), tokenHash)
 		if err != nil {
-			fmt.Printf("AuthMiddleware: Session validation failed: %v\n", err)
+			log.Printf("AuthMiddleware: Session validation failed: %v", err)
 			response.Error(c, http.StatusUnauthorized, "认证失败", err.Error())
 			c.Abort()
 			return
@@ -87,7 +87,7 @@ func extractToken(c *gin.Context) string {
 	// 优先从x-auth-token header获取 (用于跨端口开发环境)
 	authToken := c.GetHeader("x-auth-token")
 	if authToken != "" {
-		fmt.Printf("ExtractToken: Found x-auth-token: %s\n", authToken)
+		log.Printf("ExtractToken: Found x-auth-token (len=%d)", len(authToken))
 		return authToken
 	}
 
@@ -95,21 +95,21 @@ func extractToken(c *gin.Context) string {
 	authHeader := c.GetHeader("Authorization")
 	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
 		token := strings.TrimPrefix(authHeader, "Bearer ")
-		fmt.Printf("ExtractToken: Found Authorization Bearer token: %s\n", token)
+		log.Printf("ExtractToken: Found Authorization Bearer token (len=%d)", len(token))
 		return token
 	}
 
 	// 从Cookie获取
 	token, err := c.Cookie(constant.CookieAuthToken)
 	if err == nil && token != "" {
-		fmt.Printf("ExtractToken: Found cookie token: %s\n", token)
+		log.Printf("ExtractToken: Found cookie token (len=%d)", len(token))
 		return token
 	}
 
 	// 从查询参数获取（仅用于特殊情况）
 	queryToken := c.Query("token")
 	if queryToken != "" {
-		fmt.Printf("ExtractToken: Found query token: %s\n", queryToken)
+		log.Printf("ExtractToken: Found query token (len=%d)", len(queryToken))
 		return queryToken
 	}
 

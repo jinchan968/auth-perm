@@ -49,16 +49,19 @@ type DeviceDTO struct {
 type deviceService struct {
 	sessionRepo     *repo.SessionRepo
 	deviceTrustRepo repo.DeviceTrustRepo
+	sessionSvc      *SessionService
 }
 
 // NewDeviceService 创建设备服务
 func NewDeviceService(
 	sessionRepo *repo.SessionRepo,
 	deviceTrustRepo repo.DeviceTrustRepo,
+	sessionSvc *SessionService,
 ) DeviceService {
 	return &deviceService{
 		sessionRepo:     sessionRepo,
 		deviceTrustRepo: deviceTrustRepo,
+		sessionSvc:      sessionSvc,
 	}
 }
 
@@ -171,9 +174,8 @@ func (s *deviceService) RevokeDevice(ctx context.Context, userID, deviceID strin
 	for _, session := range sessions {
 		deviceInfo := session.GetDeviceInfo()
 		if deviceInfo != nil && deviceInfo.Fingerprint == deviceID {
-			// 撤销这个会话
-			err := s.sessionRepo.Delete(ctx, session.ID)
-			if err == nil {
+			// 通过 SessionService 登出（包含缓存清理和审计日志）
+			if err := s.sessionSvc.Logout(ctx, session.ID, false, "用户撤销设备"); err == nil {
 				revokedCount++
 			}
 		}

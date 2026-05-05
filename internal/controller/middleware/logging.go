@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -306,7 +307,7 @@ func RouteLoggingMiddleware() gin.HandlerFunc {
 		clientIP := c.ClientIP()
 		userAgent := c.Request.UserAgent()
 
-		fmt.Printf("[ROUTE] %s %s - Client: %s - Agent: %s\n", method, path, clientIP, userAgent)
+		log.Printf("[ROUTE] %s %s - Client: %s - Agent: %s", method, path, clientIP, userAgent)
 
 		// 处理请求
 		c.Next()
@@ -317,11 +318,11 @@ func RouteLoggingMiddleware() gin.HandlerFunc {
 
 		// 根据状态码打印不同颜色的状态（可选）
 		if statusCode >= 500 {
-			fmt.Printf("[ROUTE] %s %s - Status: %d - Latency: %v - ❌ ERROR\n", method, path, statusCode, latency)
+			log.Printf("[ROUTE] %s %s - Status: %d - Latency: %v - ERROR", method, path, statusCode, latency)
 		} else if statusCode >= 400 {
-			fmt.Printf("[ROUTE] %s %s - Status: %d - Latency: %v - ⚠️  CLIENT ERROR\n", method, path, statusCode, latency)
+			log.Printf("[ROUTE] %s %s - Status: %d - Latency: %v - CLIENT ERROR", method, path, statusCode, latency)
 		} else {
-			fmt.Printf("[ROUTE] %s %s - Status: %d - Latency: %v - ✅ OK\n", method, path, statusCode, latency)
+			log.Printf("[ROUTE] %s %s - Status: %d - Latency: %v - OK", method, path, statusCode, latency)
 		}
 	}
 }

@@ -142,12 +142,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		response.Error(c, http.StatusUnauthorized, "未登录", "not logged in")
 		return
 	}
-	parts := strings.Split(token, ":")
-	if len(parts) != 2 {
-		response.Error(c, http.StatusBadRequest, "无效的token", "invalid token")
-		return
-	}
-	if err := h.sessionService.Logout(c.Request.Context(), parts[1], false, authConstant.ReasonUserLogout); err != nil {
+	if err := h.sessionService.LogoutByToken(c.Request.Context(), token, false, authConstant.ReasonUserLogout); err != nil {
 		response.Error(c, http.StatusInternalServerError, "登出失败", err.Error())
 		return
 	}
@@ -287,7 +282,7 @@ func (h *AuthHandler) ValidateToken(c *gin.Context) {
 		response.Error(c, http.StatusUnauthorized, "会话无效", err.Error())
 		return
 	}
-	response.Success(c, gin.H{"valid": true, "session_id": parts[1], "user_id": session.GetUserID(), "tenant_id": session.GetTenantID(), "expires_at": session.GetExpiresAt()})
+	response.Success(c, gin.H{"valid": true, "session_id": session.ID, "user_id": session.GetUserID(), "tenant_id": session.GetTenantID(), "expires_at": session.GetExpiresAt()})
 }
 
 func (h *AuthHandler) NotImplemented(c *gin.Context) {
@@ -388,18 +383,10 @@ func (h *AuthHandler) RevokeDevice(c *gin.Context) {
 		response.Error(c, http.StatusUnauthorized, "未认证", "用户未登录")
 		return
 	}
-	sessions, _, err := h.sessionService.GetUserSessions(c.Request.Context(), param.NewGetSessionsParams(userID, 1, 1000))
+	revokedCount, err := h.deviceService.RevokeDevice(c.Request.Context(), userID, deviceID)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "获取会话列表失败", err.Error())
+		response.Error(c, http.StatusInternalServerError, "撤销设备失败", err.Error())
 		return
-	}
-	revokedCount := 0
-	for _, session := range sessions {
-		if deviceInfo := session.GetDeviceInfo(); deviceInfo != nil && deviceInfo.Fingerprint == deviceID {
-			if err := h.sessionService.Logout(c.Request.Context(), session.ID, false, authConstant.ReasonUserRevokeDevice); err == nil {
-				revokedCount++
-			}
-		}
 	}
 	response.Success(c, controllerVo.RevokeDeviceResponse{Message: "设备已撤销", DeviceID: deviceID, RevokedCount: revokedCount})
 }

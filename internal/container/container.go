@@ -11,6 +11,7 @@ import (
 	"auth-perm/internal/domain/auth"
 	authHandler "auth-perm/internal/domain/auth/handler"
 	"auth-perm/internal/domain/auth/service"
+	"auth-perm/internal/domain/cache"
 	"auth-perm/internal/domain/permission"
 	permHandler "auth-perm/internal/domain/permission/handler"
 	permissionService "auth-perm/internal/domain/permission/service"
@@ -20,7 +21,7 @@ import (
 	"auth-perm/internal/domain/todo"
 	todoHandler "auth-perm/internal/domain/todo/handler"
 	todoService "auth-perm/internal/domain/todo/service"
-	"auth-perm/internal/infra/cache"
+	infraCache "auth-perm/internal/infra/cache"
 	"auth-perm/internal/infra/code_gen"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
@@ -130,14 +131,14 @@ func registerRedis(container *dig.Container) error {
 // registerCache 注册缓存相关依赖
 func registerCache(container *dig.Container) error {
 	// 注册缓存接口
-	if err := container.Provide(func(cfg *config.Config, client *redis.Client) (cache.Cache, error) {
+	if err := container.Provide(func(cfg *config.Config, client *redis.Client) (infraCache.Cache, error) {
 		switch cfg.Cache.Type {
 		case "redis":
 			log.Println("Using Redis Cache")
-			return cache.NewRedisCache(client, "cache:"), nil
+			return infraCache.NewRedisCache(client, ""), nil
 		case "memory":
 			log.Println("Using Memory (LRU) Cache")
-			return cache.NewLRUCache(1000), nil
+			return infraCache.NewLRUCache(1000), nil
 		default:
 			return nil, errors.NewInternalErrorF("无效的缓存类型: %s", cfg.Cache.Type)
 		}
@@ -146,10 +147,10 @@ func registerCache(container *dig.Container) error {
 	}
 
 	// 注册RedisClient包装器（用于特殊Redis操作）
-	return container.Provide(func(cfg *config.Config, client *redis.Client) (*cache.RedisCache, error) {
+	return container.Provide(func(cfg *config.Config, client *redis.Client) (*infraCache.RedisCache, error) {
 		switch cfg.Cache.Type {
 		case "redis":
-			return cache.NewRedisCache(client, "auth:"), nil
+			return infraCache.NewRedisCache(client, ""), nil
 		default:
 			return nil, errors.NewInternalErrorF("Redis客户端包装器仅支持Redis缓存类型，当前类型: %s", cfg.Cache.Type)
 		}
@@ -168,6 +169,9 @@ func registerCodeGenerator(container *dig.Container) error {
 func registerApplicationServices(container *dig.Container) error {
 	// 应用服务可以在这里注册
 	// 注册领域模块
+	if err := cache.RegisterCacheDomain(container); err != nil {
+		return err
+	}
 	if err := auth.RegisterAuthDomain(container); err != nil {
 		return err
 	}
@@ -281,10 +285,9 @@ func registerHandlers(container *dig.Container) error {
 	// 注册资源权限处理器
 	if err := container.Provide(func(
 		cfg *config.Config,
-		authService *service.AuthService,
 		permService *permissionService.PermissionService,
 	) *authHandler.ResourceHandler {
-		return authHandler.NewResourceHandler(cfg, authService, permService)
+		return authHandler.NewResourceHandler(cfg, permService)
 	}); err != nil {
 		return err
 	}

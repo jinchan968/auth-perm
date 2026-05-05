@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 
 	"auth-perm/internal/common/errors"
 	"auth-perm/internal/common/model"
@@ -81,6 +82,15 @@ func (s *SessionService) Logout(ctx context.Context, sessionID string, logoutAll
 	})
 
 	return nil
+}
+
+// LogoutByToken 通过原始 token（hash:id 格式）执行登出
+func (s *SessionService) LogoutByToken(ctx context.Context, rawToken string, logoutAllTenants bool, reason string) error {
+	parts := strings.Split(rawToken, ":")
+	if len(parts) != 2 {
+		return errors.NewBusinessError("无效的token格式")
+	}
+	return s.Logout(ctx, parts[1], logoutAllTenants, reason)
 }
 
 // LogoutAllByTenant 按租户登出所有会话（管理员接口）

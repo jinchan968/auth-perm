@@ -110,8 +110,6 @@ const (
 
 // ValidationLength 验证长度
 const (
-	MinPasswordLength = 6   // 最小密码长度
-	MaxPasswordLength = 128 // 最大密码长度
 	MinUsernameLength = 3   // 最小用户名长度
 	MaxUsernameLength = 50  // 最大用户名长度
 	MaxNicknameLength = 100 // 最大昵称长度

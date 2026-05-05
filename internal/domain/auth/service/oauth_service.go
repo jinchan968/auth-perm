@@ -128,7 +128,7 @@ func (s *OAuthService) GitHubOAuthCallback(ctx context.Context, params *param.Gi
 	}
 
 	// 1. 获取GitHub用户信息
-	userInfo, err := s.oauthRepo.GetUserInfo(ctx, "github", params.Code, "")
+	userInfo, err := s.oauthRepo.GetUserInfo(ctx, authConstant.OAuthProviderGitHub, params.Code, "")
 	if err != nil {
 		return nil, nil, nil, errors.WrapBizError(err, "GitHub OAuth认证失败")
 	}
@@ -192,7 +192,7 @@ func (s *OAuthService) GoogleOAuthCallback(ctx context.Context, params *param.Go
 	}
 
 	// 1. 获取Google用户信息
-	userInfo, err := s.oauthRepo.GetUserInfo(ctx, "google", params.Code, "")
+	userInfo, err := s.oauthRepo.GetUserInfo(ctx, authConstant.OAuthProviderGoogle, params.Code, "")
 	if err != nil {
 		return nil, nil, nil, errors.WrapBizError(err, "Google OAuth认证失败")
 	}
@@ -256,7 +256,7 @@ func (s *OAuthService) WeChatOAuthCallback(ctx context.Context, params *param.We
 	}
 
 	// 1. 获取微信用户信息
-	userInfo, err := s.oauthRepo.GetUserInfo(ctx, "wechat", params.Code, "")
+	userInfo, err := s.oauthRepo.GetUserInfo(ctx, authConstant.OAuthProviderWeChat, params.Code, "")
 	if err != nil {
 		return nil, nil, nil, errors.WrapBizError(err, "微信OAuth认证失败")
 	}
@@ -337,7 +337,7 @@ func (s *OAuthService) CreateSession(ctx context.Context, params *param.CreateSe
 		for _, oldSession := range oldSessions {
 			// 删除会话相关缓存
 			_ = s.cache.DeleteSession(ctx, oldSession.ID, oldSession.TenantID)
-			_ = s.cache.Delete(ctx, s.cache.keyGenerator.TokenHashCacheKey(oldSession.TokenHash))
+			_ = s.cache.Delete(ctx, s.cache.TokenHashCacheKey(oldSession.TokenHash))
 		}
 	}
 

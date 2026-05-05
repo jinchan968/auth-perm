@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"auth-perm/internal/common/errors"
-	"auth-perm/internal/domain/auth/constant"
+	authConstant "auth-perm/internal/domain/auth/constant"
 	"auth-perm/internal/domain/auth/dm"
 	"auth-perm/internal/domain/auth/dto"
 	"auth-perm/internal/domain/auth/param"
@@ -110,7 +110,7 @@ func (s *RegisterService) isIdentifierMatch(user *dm.UserDO, identifier string) 
 }
 
 // createAccountForExistingUser 为现有用户创建账户
-func (s *RegisterService) createAccountForExistingUser(ctx context.Context, userID, tenantID string, accountType constant.AccountType, password string) (*dto.AccountDTO, error) {
+func (s *RegisterService) createAccountForExistingUser(ctx context.Context, userID, tenantID string, accountType authConstant.AccountType, password string) (*dto.AccountDTO, error) {
 	// 创建账户
 	accountDTO := dto.NewAccountDTO(userID, tenantID, accountType)
 
@@ -121,8 +121,8 @@ func (s *RegisterService) createAccountForExistingUser(ctx context.Context, user
 
 	// 异步记录审计日志
 	s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
-		Action:       "register",
-		ResourceType: "account",
+		Action:       authConstant.ActionRegister,
+		ResourceType: authConstant.AuditResourceAccount,
 		ResourceID:   accountDTO.ID,
 		NewValues: dto.AuditLogValuesDTO{
 			ChangedFields: map[string]interface{}{
@@ -194,8 +194,8 @@ func (s *RegisterService) createNewUserAndAccount(
 
 	// 异步记录审计日志（事务外，不影响主流程）
 	s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
-		Action:       "register",
-		ResourceType: "user",
+		Action:       authConstant.ActionRegister,
+		ResourceType: authConstant.AuditResourceUser,
 		ResourceID:   userID,
 		NewValues: dto.AuditLogValuesDTO{
 			ChangedFields: map[string]interface{}{

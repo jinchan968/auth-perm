@@ -12,6 +12,7 @@ import (
 	"auth-perm/internal/domain/auth/repo"
 	"auth-perm/internal/domain/auth/service"
 	"auth-perm/internal/domain/auth/validator"
+	cacheService "auth-perm/internal/domain/cache/service"
 	"auth-perm/internal/infra/cache"
 )
 
@@ -80,12 +81,11 @@ func RegisterAuthDomain(container *dig.Container) error {
 		return err
 	}
 
-	// 注册缓存服务
+	// 注册缓存服务（委托给泛型缓存服务）
 	if err := container.Provide(func(
-		cacheSvc cache.Cache,
-		redisClient *cache.RedisCache,
+		cacheSvc *cacheService.Service,
 	) *service.CacheService {
-		return service.NewCacheService(cacheSvc, redisClient)
+		return service.NewCacheService(cacheSvc)
 	}); err != nil {
 		return err
 	}
@@ -181,8 +181,9 @@ func RegisterAuthDomain(container *dig.Container) error {
 		oauthRepo *repo.OAuthRepo,
 		auditRepo *repo.AuditLogRepo,
 		cache *service.CacheService,
+		bruteForce *service.BruteForceService,
 	) *service.AuthService {
-		authSvc := service.NewAuthService(userRepo, accountRepo, sessionRepo, oauthRepo, auditRepo, cache)
+		authSvc := service.NewAuthService(userRepo, accountRepo, sessionRepo, oauthRepo, auditRepo, cache, bruteForce)
 		log.Println("AuthService registered successfully")
 		return authSvc
 	}); err != nil {
@@ -244,8 +245,9 @@ func RegisterAuthDomain(container *dig.Container) error {
 	if err := container.Provide(func(
 		sessionRepo *repo.SessionRepo,
 		deviceTrustRepo repo.DeviceTrustRepo,
+		sessionSvc *service.SessionService,
 	) service.DeviceService {
-		deviceSvc := service.NewDeviceService(sessionRepo, deviceTrustRepo)
+		deviceSvc := service.NewDeviceService(sessionRepo, deviceTrustRepo, sessionSvc)
 		log.Println("DeviceService registered successfully")
 		return deviceSvc
 	}); err != nil {

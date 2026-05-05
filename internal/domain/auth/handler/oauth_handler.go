@@ -51,7 +51,7 @@ func (h *OAuthHandler) GitHubCallback(c *gin.Context) {
 	}
 
 	// 生成token
-	token := session.TokenHash + ":" + session.ID
+	token := session.BuildToken()
 
 	// 设置Cookie
 	c.SetCookie(
@@ -93,7 +93,7 @@ func (h *OAuthHandler) GoogleCallback(c *gin.Context) {
 	}
 
 	// 生成token
-	token := session.TokenHash + ":" + session.ID
+	token := session.BuildToken()
 
 	// 设置Cookie
 	c.SetCookie(
@@ -135,7 +135,7 @@ func (h *OAuthHandler) WeChatCallback(c *gin.Context) {
 	}
 
 	// 生成token
-	token := session.TokenHash + ":" + session.ID
+	token := session.BuildToken()
 
 	// 设置Cookie
 	c.SetCookie(

@@ -58,12 +58,12 @@ func (s *LoginService) Login(ctx context.Context, params *param.LoginParams) (*d
 	allowed, remaining, err := s.bruteForceService.CheckLoginAttempt(ctx, params.Identifier)
 	if err != nil {
 		// 记录登录失败
-		_ = s.bruteForceService.RecordFailedLogin(ctx, params.Identifier, params.IPAddress, "check_attempt_failed")
+		_ = s.bruteForceService.RecordFailedLogin(ctx, params.Identifier, params.IPAddress, constant.LoginFailureReasonCheckAttemptFailed)
 		return nil, nil, err
 	}
 	if !allowed {
 		// 记录登录失败
-		_ = s.bruteForceService.RecordFailedLogin(ctx, params.Identifier, params.IPAddress, "too_many_attempts")
+		_ = s.bruteForceService.RecordFailedLogin(ctx, params.Identifier, params.IPAddress, constant.LoginFailureReasonTooManyAttempts)
 		return nil, nil, errors.NewAuthErrorF("登录尝试次数过多，剩余尝试次数: %d", remaining)
 	}
 
@@ -78,7 +78,7 @@ func (s *LoginService) Login(ctx context.Context, params *param.LoginParams) (*d
 	account, err := s.accountRepo.FindByIdentifier(ctx, params.Identifier)
 	if err != nil {
 		// 记录登录失败
-		_ = s.bruteForceService.RecordFailedLogin(ctx, params.Identifier, params.IPAddress, "account_lookup_failed")
+		_ = s.bruteForceService.RecordFailedLogin(ctx, params.Identifier, params.IPAddress, constant.LoginFailureReasonAccountLookupFailed)
 		return nil, nil, errors.WrapBizError(err, "查找账户失败")
 	}
 
@@ -86,7 +86,7 @@ func (s *LoginService) Login(ctx context.Context, params *param.LoginParams) (*d
 	user, err := s.userRepo.FindByID(ctx, account.UserID)
 	if err != nil {
 		// 记录登录失败
-		_ = s.bruteForceService.RecordFailedLogin(ctx, params.Identifier, params.IPAddress, "user_lookup_failed")
+		_ = s.bruteForceService.RecordFailedLogin(ctx, params.Identifier, params.IPAddress, constant.LoginFailureReasonUserLookupFailed)
 		return nil, nil, errors.WrapBizError(err, "查找用户失败")
 	}
 
@@ -94,14 +94,14 @@ func (s *LoginService) Login(ctx context.Context, params *param.LoginParams) (*d
 	userDTO := user.ToDTO()
 	if !userDTO.IsActive() {
 		// 记录登录失败
-		_ = s.bruteForceService.RecordFailedLogin(ctx, params.Identifier, params.IPAddress, "user_inactive")
+		_ = s.bruteForceService.RecordFailedLogin(ctx, params.Identifier, params.IPAddress, constant.LoginFailureReasonUserInactive)
 		return nil, nil, errors.NewAuthError("用户已被禁用")
 	}
 
 	// 验证用户密码（在User层面）
 	if userDTO.PasswordHash == "" {
 		// 记录登录失败
-		_ = s.bruteForceService.RecordFailedLogin(ctx, params.Identifier, params.IPAddress, "password_not_set")
+		_ = s.bruteForceService.RecordFailedLogin(ctx, params.Identifier, params.IPAddress, constant.LoginFailureReasonPasswordNotSet)
 		return nil, nil, errors.NewAuthError("用户名或密码错误")
 	}
 
@@ -111,7 +111,7 @@ func (s *LoginService) Login(ctx context.Context, params *param.LoginParams) (*d
 	// 使用bcrypt验证密码
 	if err := bcrypt.CompareHashAndPassword([]byte(userDTO.PasswordHash), []byte(cleanPassword)); err != nil {
 		// 记录登录失败
-		_ = s.bruteForceService.RecordFailedLogin(ctx, params.Identifier, params.IPAddress, "password_incorrect")
+		_ = s.bruteForceService.RecordFailedLogin(ctx, params.Identifier, params.IPAddress, constant.LoginFailureReasonPasswordIncorrect)
 		// 返回统一的错误消息，避免泄露具体错误信息
 		return nil, nil, errors.NewAuthError("用户名或密码错误")
 	}
@@ -120,7 +120,7 @@ func (s *LoginService) Login(ctx context.Context, params *param.LoginParams) (*d
 	accountDTO := account.ToDTO()
 	if !accountDTO.IsActive() {
 		// 记录登录失败
-		_ = s.bruteForceService.RecordFailedLogin(ctx, params.Identifier, params.IPAddress, "account_inactive")
+		_ = s.bruteForceService.RecordFailedLogin(ctx, params.Identifier, params.IPAddress, constant.LoginFailureReasonAccountInactive)
 		return nil, nil, errors.NewAuthError("账户已被禁用")
 	}
 
@@ -206,7 +206,7 @@ func (s *LoginService) CreateSession(ctx context.Context, params *param.CreateSe
 	if err == nil && len(oldSessions) > 0 {
 		for _, oldSession := range oldSessions {
 			_ = s.cache.DeleteSession(ctx, oldSession.ID, oldSession.TenantID)
-			_ = s.cache.Delete(ctx, s.cache.keyGenerator.TokenHashCacheKey(oldSession.TokenHash))
+			_ = s.cache.Delete(ctx, s.cache.TokenHashCacheKey(oldSession.TokenHash))
 		}
 	}
 
@@ -261,7 +261,7 @@ func (s *LoginService) CreateSession(ctx context.Context, params *param.CreateSe
 // ValidateSession 验证会话（优化版：优先使用缓存，减少数据库查询）
 func (s *LoginService) ValidateSession(ctx context.Context, tokenHash string) (*dto.SessionDTO, error) {
 	// 优先从缓存查找完整session信息
-	tokenKey := s.cache.keyGenerator.TokenHashCacheKey(tokenHash)
+	tokenKey := s.cache.TokenHashCacheKey(tokenHash)
 	dataStr, err := s.cache.Get(ctx, tokenKey)
 	if err == nil {
 		var cache dto.SessionCache
@@ -338,7 +338,7 @@ func (s *LoginService) RefreshToken(ctx context.Context, refreshToken string) (s
 
 	// 删除旧token的缓存
 	_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())
-	_ = s.cache.Delete(ctx, s.cache.keyGenerator.TokenHashCacheKey(session.TokenHash))
+	_ = s.cache.Delete(ctx, s.cache.TokenHashCacheKey(session.TokenHash))
 
 	// 保存会话到数据库
 	if err := s.sessionRepo.Save(ctx, dm.SessionFromDTO(sessionDTO)); err != nil {

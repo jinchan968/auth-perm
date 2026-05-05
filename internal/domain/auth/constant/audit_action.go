@@ -4,6 +4,7 @@ package constant
 const (
 	ActionLogin                   = "login"
 	ActionLogout                  = "logout"
+	ActionRegister                = "register"
 	ActionCreateSession           = "create_session"
 	ActionRefreshToken            = "refresh_token"
 	ActionChangePassword          = "change_password"
