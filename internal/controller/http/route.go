@@ -5,6 +5,7 @@ import (
 	"auth-perm/internal/controller/middleware"
 	authHandler "auth-perm/internal/domain/auth/handler"
 	"auth-perm/internal/domain/auth/service"
+	journalHandler "auth-perm/internal/domain/journal/handler"
 	permHandler "auth-perm/internal/domain/permission/handler"
 	permissionService "auth-perm/internal/domain/permission/service"
 	tenantHandler "auth-perm/internal/domain/tenant/handler"
@@ -29,6 +30,7 @@ func RegisterRoutes(
 	userH *authHandler.UserHandler,
 	resourceH *authHandler.ResourceHandler,
 	thTodoHandler *todoHandler.TodoHandler,
+	jhJournalHandler *journalHandler.JournalHandler,
 	authService *service.AuthService,
 	loginService *service.LoginService,
 	permService *permissionService.PermissionService,
@@ -57,6 +59,9 @@ func RegisterRoutes(
 
 		// 注册待办路由
 		RegisterTodoRoutes(v1, thTodoHandler, loginService)
+
+		// 注册札记路由
+		RegisterJournalRoutes(v1, jhJournalHandler, loginService)
 	}
 }
 
@@ -259,6 +264,31 @@ func RegisterUserRoutes(
 		users.GET("/:id", userH.GetUser)
 		users.PATCH("/:id/status", userH.UpdateUserStatus)
 		users.GET("/:id/accounts", userH.GetUserAccounts)
+	}
+}
+
+// RegisterJournalRoutes 注册札记路由
+func RegisterJournalRoutes(
+	router *gin.RouterGroup,
+	h *journalHandler.JournalHandler,
+	loginService *service.LoginService,
+) {
+	journal := router.Group("/journal")
+	journal.Use(middleware.AuthMiddleware(loginService))
+	{
+		// 标签
+		journal.GET("/tags", h.ListTags)
+		journal.POST("/tags", h.CreateTag)
+		journal.PUT("/tags/:id", h.UpdateTag)
+		journal.DELETE("/tags/:id", h.DeleteTag)
+
+		// 札记条目
+		journal.GET("", h.ListEntries)
+		journal.POST("", h.CreateEntry)
+		journal.GET("/:id", h.GetEntry)
+		journal.POST("/:id/corrections", h.AddCorrection)
+		journal.PUT("/:id/tags", h.UpdateTags)
+		journal.DELETE("/:id", h.DeleteEntry)
 	}
 }
 

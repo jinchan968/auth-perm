@@ -353,25 +353,12 @@ func (h *TodoHandler) DeleteTodo(c *gin.Context) {
 
 // requireTenantID 获取 tenant_id 并校验必填
 func requireTenantID(c *gin.Context) (string, bool) {
-	tenantID := getTenantID(c)
-	if tenantID == "" {
+	tenantID, err := util.GetTenantID(c)
+	if err != nil || tenantID == "" {
 		response.Error(c, http.StatusBadRequest, "租户ID不能为空", "")
 		return "", false
 	}
 	return tenantID, true
-}
-
-// getTenantID 从 context 中提取 tenant_id（优先 query，其次 middleware 注入）
-func getTenantID(c *gin.Context) string {
-	if tid := c.Query("tenant_id"); tid != "" {
-		return tid
-	}
-	if v, exists := c.Get("tenant_id"); exists {
-		if tid, ok := v.(string); ok {
-			return tid
-		}
-	}
-	return ""
 }
 
 // respondValidationError 统一验证错误响应（422）

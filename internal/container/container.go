@@ -12,6 +12,8 @@ import (
 	authHandler "auth-perm/internal/domain/auth/handler"
 	"auth-perm/internal/domain/auth/service"
 	"auth-perm/internal/domain/cache"
+	"auth-perm/internal/domain/journal"
+	journalHandler "auth-perm/internal/domain/journal/handler"
 	"auth-perm/internal/domain/permission"
 	permHandler "auth-perm/internal/domain/permission/handler"
 	permissionService "auth-perm/internal/domain/permission/service"
@@ -193,6 +195,9 @@ func registerApplicationServices(container *dig.Container) error {
 	if err := todo.RegisterTodoDomain(container); err != nil {
 		return err
 	}
+	if err := journal.RegisterJournalDomain(container); err != nil {
+		return err
+	}
 	// 将 TodoScheduler 绑定到 Scheduler 接口，供 main.go 通过接口注入
 	if err := container.Provide(func(s *todoService.TodoScheduler) Scheduler {
 		return s
@@ -313,6 +318,7 @@ func registerGinEngine(container *dig.Container) error {
 		userH *authHandler.UserHandler,
 		resourceH *authHandler.ResourceHandler,
 		thTodoHandler *todoHandler.TodoHandler,
+		jhJournalHandler *journalHandler.JournalHandler,
 		authService *service.AuthService,
 		loginService *service.LoginService,
 		permSvc *permissionService.PermissionService,
@@ -331,7 +337,7 @@ func registerGinEngine(container *dig.Container) error {
 			c.JSON(200, gin.H{"status": "healthy"})
 		})
 
-		controllerHttp.RegisterRoutes(engine, cfg, authH, emailH, passwordH, totpH, oauthH, permissionH, permissionResourceH, organizationH, tenantH, userH, resourceH, thTodoHandler, authService, loginService, permSvc)
+		controllerHttp.RegisterRoutes(engine, cfg, authH, emailH, passwordH, totpH, oauthH, permissionH, permissionResourceH, organizationH, tenantH, userH, resourceH, thTodoHandler, jhJournalHandler, authService, loginService, permSvc)
 
 		log.Println("Gin engine registered successfully")
 		return engine

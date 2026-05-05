@@ -280,6 +280,14 @@ func (s *LoginService) ValidateSession(ctx context.Context, tokenHash string) (*
 	}
 	sessionDTO := session.ToDTO()
 
+	// DB 中 sessions 表无 username 列，需从 user 表补充
+	if sessionDTO.Username == "" {
+		user, err := s.userRepo.FindByID(ctx, sessionDTO.UserID)
+		if err == nil && user != nil {
+			sessionDTO.Username = dm.StrVal(user.Username)
+		}
+	}
+
 	// 验证会话是否有效
 	if !sessionDTO.IsValid() {
 		_ = s.cache.DeleteSession(ctx, sessionDTO.ID, sessionDTO.GetTenantID())

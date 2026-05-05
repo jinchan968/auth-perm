@@ -175,6 +175,11 @@ func LoadConfig(configPath string) (*Config, error) {
 		return nil, errors.NewInternalErrorWithDetails("解析配置失败", err.Error(), err)
 	}
 
+	// 兜底默认值（viper 不认 struct tag 的 default）
+	if config.Server.SuperAdmin == "" {
+		config.Server.SuperAdmin = "admin"
+	}
+
 	// 验证必需的配置项
 	if err := validateConfig(config); err != nil {
 		return nil, errors.WrapBizError(err, "验证配置失败")

@@ -77,8 +77,11 @@ func GetSessionID(c *gin.Context) (string, error) {
 	return authInfo.SessionID, nil
 }
 
-// GetTenantID 获取租户ID
+// GetTenantID 获取租户ID（优先从 query 参数取，其次从 context 取）
 func GetTenantID(c *gin.Context) (string, error) {
+	if tid := c.Query("tenant_id"); tid != "" {
+		return tid, nil
+	}
 	tenantID, exists := c.Get("tenant_id")
 	if !exists || tenantID == "" {
 		return "", errors.NewBusinessError("租户ID不存在")

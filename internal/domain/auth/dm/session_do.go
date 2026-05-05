@@ -66,6 +66,7 @@ func (s *SessionDO) ToDTO() *dto.SessionDTO {
 		ID:           s.ID,
 		UserID:       s.UserID,
 		AccountID:    s.AccountID,
+		TenantID:     s.TenantID,
 		TokenHash:    s.TokenHash,
 		DeviceInfo:   *s.GetDeviceInfo(),
 		IPAddress:    s.IPAddress,

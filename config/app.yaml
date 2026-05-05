@@ -4,6 +4,7 @@ server:
   host: localhost
   port: 8080
   mode: debug  # debug, release, test
+  super_admin: "admin"  # 超管用户名，匹配登录用户名即可获得全量权限
 
 database:
   host: localhost
