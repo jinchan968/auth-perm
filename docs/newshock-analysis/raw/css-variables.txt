@@ -1,0 +1,54 @@
+# Newshock CSS Custom Properties
+
+Total CSS custom properties found: 17
+
+## Newshock-specific (--nshock-*) variables:
+
+--nshock-bg-card: #14141f
+--nshock-bg-card: #ffffff
+--nshock-bg-hover: #1a1a2e
+--nshock-bg-hover: #f0f2f5
+--nshock-bg: #0a0a0f
+--nshock-bg: #f8f9fb
+--nshock-border: rgba(0,0,0,0.08)
+--nshock-border: rgba(255,255,255,0.06)
+--nshock-danger-bg: rgba(220,38,38,0.1)
+--nshock-danger-bg: rgba(239,68,68,0.12)
+--nshock-danger: #dc2626
+--nshock-danger: #ef4444
+--nshock-primary-light: rgba(79,70,229,0.1)
+--nshock-primary-light: rgba(99,102,241,0.12)
+--nshock-primary: #4f46e5
+--nshock-primary: #6366f1
+--nshock-success-bg: rgba(22,163,74,0.1)
+--nshock-success-bg: rgba(34,197,94,0.12)
+--nshock-success: #16a34a
+--nshock-success: #22c55e
+--nshock-text-muted: #6b7280
+--nshock-text-muted: #8888a0
+--nshock-text: #1a1a2e
+--nshock-text: #e4e4ed
+--nshock-warning-bg: rgba(217,119,6,0.1)
+--nshock-warning-bg: rgba(245,158,11,0.12)
+--nshock-warning: #d97706
+--nshock-warning: #f59e0b
+
+## All custom properties (17):
+
+--nshock-bg
+--nshock-bg-card
+--nshock-bg-hover
+--nshock-border
+--nshock-danger
+--nshock-danger-bg
+--nshock-primary
+--nshock-primary-light
+--nshock-success
+--nshock-success-bg
+--nshock-text
+--nshock-text-muted
+--nshock-warning
+--nshock-warning-bg
+--sidebar-glass-bg
+--sidebar-glass-border
+--sidebar-glass-shadow

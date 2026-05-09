@@ -181,12 +181,12 @@ VALUES (
     NOW()
 ) ON CONFLICT ON CONSTRAINT unique_permission_resource DO NOTHING;
 
--- 10. 札记读取 - API 资源
+-- 10. 札记读取 - API 资源（仅 GET）
 INSERT INTO permission_resources (id, permission_id, resource_id, resource_type, resource_name, tenant_id, created_at, updated_at)
 VALUES (
     'b0000001-0000-0000-0000-000000000013',
     'a0000001-0000-0000-0000-000000000009',
-    '/api/v1/journal',
+    'GET /api/v1/journal',
     'api_path',
     '札记读取API（GET）',
     'default',
@@ -194,12 +194,12 @@ VALUES (
     NOW()
 ) ON CONFLICT ON CONSTRAINT unique_permission_resource DO NOTHING;
 
--- 11. 札记写入 - API 资源
+-- 11. 札记写入 - API 资源（POST/PUT）
 INSERT INTO permission_resources (id, permission_id, resource_id, resource_type, resource_name, tenant_id, created_at, updated_at)
 VALUES (
     'b0000001-0000-0000-0000-000000000014',
     'a0000001-0000-0000-0000-000000000010',
-    '/api/v1/journal',
+    'POST /api/v1/journal',
     'api_path',
     '札记写入API（POST/PUT）',
     'default',
@@ -207,12 +207,25 @@ VALUES (
     NOW()
 ) ON CONFLICT ON CONSTRAINT unique_permission_resource DO NOTHING;
 
--- 12. 札记删除 - API 资源
+-- 札记写入 - PUT 子路径
+INSERT INTO permission_resources (id, permission_id, resource_id, resource_type, resource_name, tenant_id, created_at, updated_at)
+VALUES (
+    'b0000001-0000-0000-0000-000000000016',
+    'a0000001-0000-0000-0000-000000000010',
+    'PUT /api/v1/journal',
+    'api_path',
+    '札记写入API-PUT',
+    'default',
+    NOW(),
+    NOW()
+) ON CONFLICT ON CONSTRAINT unique_permission_resource DO NOTHING;
+
+-- 12. 札记删除 - API 资源（仅 DELETE）
 INSERT INTO permission_resources (id, permission_id, resource_id, resource_type, resource_name, tenant_id, created_at, updated_at)
 VALUES (
     'b0000001-0000-0000-0000-000000000015',
     'a0000001-0000-0000-0000-000000000011',
-    '/api/v1/journal',
+    'DELETE /api/v1/journal',
     'api_path',
     '札记删除API（DELETE）',
     'default',

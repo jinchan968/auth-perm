@@ -6,7 +6,6 @@ import (
 	"auth-perm/internal/domain/permission/param"
 	permissionService "auth-perm/internal/domain/permission/service"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -106,8 +105,7 @@ func (h *PermissionResourceHandler) List(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "权限ID不能为空", "")
 		return
 	}
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page, pageSize, _ := controllerUtil.GetPaginationParams(c)
 	params := param.NewListPermissionResourceParams(permissionID, c.Query("resource_type"), page, pageSize)
 	resources, total, err := h.permissionService.GetPermissionResources(c.Request.Context(), params)
 	if err != nil {

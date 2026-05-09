@@ -39,22 +39,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: data.message || 'Authentication failed' }, { status: apiRes.status })
     }
 
-    console.log('Login route: Backend response data:', data)
-    console.log('Login route: Backend response structure:', JSON.stringify(data, null, 2))
-
-    // 后端返回格式：{ code, msg, data }
-    // 需要从 data 字段中提取实际的用户数据
     if (!data.data) {
-      console.error('Login route: No data field in backend response!')
       return NextResponse.json({ message: '服务器返回格式错误' }, { status: 500 })
     }
 
     const backendData = data.data
     const { token, expires_at, ...userData } = backendData
-
-    console.log('Login route: Extracted token:', token)
-    console.log('Login route: Expires at:', expires_at)
-    console.log('Login route: Response payload:', { ...userData, expires_at, token })
 
     // 3. Clear any existing auth cookies (leftover from previous tests)
     const clearCookie = serialize(process.env.AUTH_COOKIE_NAME || 'auth_token', '', {

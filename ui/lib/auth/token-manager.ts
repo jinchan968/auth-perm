@@ -73,8 +73,6 @@ export class TokenManager {
       // 不需要传递refreshToken参数，接口会自动从Cookie读取
       const response = await authApi.refreshToken()
       if (response && response.token) {
-        // 刷新成功，Cookie已经由后端更新
-        console.log('Token refreshed successfully')
         return true
       }
       return false
@@ -97,7 +95,6 @@ export class TokenManager {
 
     // 检查是否即将过期
     if (this.isTokenExpiringSoon(expiresAt)) {
-      console.log('Token is expiring soon, attempting to refresh...')
       const refreshed = await this.refreshToken()
       if (refreshed) {
         return true

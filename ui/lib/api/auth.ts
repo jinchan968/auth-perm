@@ -300,14 +300,8 @@ export const callAuthApi = async <T>(
   } catch (error) {
     // 如果是401错误且允许重试
     if (retryOnAuthError && isAuthError(error)) {
-      console.log('Received 401 error, attempting to refresh token...')
-
       try {
-        // 尝试刷新token
         await authApi.refreshToken()
-
-        // 刷新成功，重试原请求
-        console.log('Token refreshed, retrying original request...')
         return await apiCall()
       } catch (refreshError) {
         console.error('Token refresh failed:', refreshError)

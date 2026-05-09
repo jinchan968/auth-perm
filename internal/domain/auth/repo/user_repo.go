@@ -9,6 +9,7 @@ import (
 
 	"auth-perm/internal/common/errors"
 	"auth-perm/internal/common/model"
+	"auth-perm/internal/common/utils"
 	"auth-perm/internal/domain/auth/constant"
 	"auth-perm/internal/domain/auth/dm"
 	"auth-perm/internal/domain/auth/dto"
@@ -206,8 +207,8 @@ func (r *UserRepo) SearchUsers(ctx context.Context, query *dto.UserSearchQueryDT
 	}
 
 	if query.Keyword != "" {
-		keyword := "%" + query.Keyword + "%"
-		db = db.Where("username LIKE ? OR nickname LIKE ?", keyword, keyword)
+		pat := utils.ILIKEPattern(query.Keyword)
+		db = db.Where("username LIKE ? OR nickname LIKE ?", pat, pat)
 	}
 
 	if query.Status != nil {

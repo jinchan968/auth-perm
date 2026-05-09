@@ -1,0 +1,270 @@
+{
+  "radar": {
+    "zh": "雷达",
+    "en": "Radar"
+  },
+  "themes": {
+    "zh": "主题",
+    "en": "Themes"
+  },
+  "tickers": {
+    "zh": "股票",
+    "en": "Tickers"
+  },
+  "events": {
+    "zh": "事件",
+    "en": "Events"
+  },
+  "edge": {
+    "zh": "边缘信号",
+    "en": "Edge"
+  },
+  "markets": {
+    "zh": "盘口",
+    "en": "Markets"
+  },
+  "viewAll": {
+    "zh": "查看全部 →",
+    "en": "View all →"
+  },
+  "themeCount": {
+    "zh": "主题数",
+    "en": "Themes"
+  },
+  "tickerCount": {
+    "zh": "股票数",
+    "en": "Tickers"
+  },
+  "eventCount": {
+    "zh": "事件数",
+    "en": "Events"
+  },
+  "marketRegime": {
+    "zh": "市场环境",
+    "en": "Market Regime"
+  },
+  "risk_on": {
+    "zh": "风险偏好",
+    "en": "Risk On"
+  },
+  "risk_off": {
+    "zh": "风险规避",
+    "en": "Risk Off"
+  },
+  "neutral": {
+    "zh": "中性",
+    "en": "Neutral"
+  },
+  "strength": {
+    "zh": "强度",
+    "en": "Strength"
+  },
+  "tickers_label": {
+    "zh": "支股票",
+    "en": " tickers"
+  },
+  "events_label": {
+    "zh": "个事件",
+    "en": " events"
+  },
+  "eventStream": {
+    "zh": "事件流",
+    "en": "Event Stream"
+  },
+  "w": {
+    "zh": "近一周事件",
+    "en": "Events / 1w"
+  },
+  "topTickers": {
+    "zh": "热门股票 \\xb7 题材契合度",
+    "en": "Top Tickers by Narrative Fit"
+  },
+  "hotScore": {
+    "zh": "热度",
+    "en": "Hot Score"
+  },
+  "mentions": {
+    "zh": "提及",
+    "en": "mentions"
+  },
+  "tickerName": {
+    "zh": "名称",
+    "en": "Name"
+  },
+  "thematicLeaders": {
+    "zh": "主题领涨榜",
+    "en": "Thematic Leaders"
+  },
+  "leaderThemes": {
+    "zh": "主题榜",
+    "en": "Themes"
+  },
+  "leaderTickers": {
+    "zh": "股票榜",
+    "en": "Tickers"
+  },
+  "noThemes": {
+    "zh": "暂无主题",
+    "en": "No themes yet"
+  },
+  "noThemesDesc": {
+    "zh": "数据管线正在处理新闻，主题将自动生成。",
+    "en": "Pipeline is collecting data. Themes will appear once enough news is processed."
+  },
+  "noTickers": {
+    "zh": "暂无股票",
+    "en": "No tickers yet"
+  },
+  "noTickersDesc": {
+    "zh": "股票将随新闻分析自动发现。",
+    "en": "Tickers will appear when extracted from news flow."
+  },
+  "noEvents": {
+    "zh": "暂无事件",
+    "en": "No events yet"
+  },
+  "noEventsDesc": {
+    "zh": "新闻分析完成后事件会出现在这里。",
+    "en": "Events will appear as news is analyzed."
+  },
+  "noData": {
+    "zh": "暂无数据",
+    "en": "No data yet"
+  },
+  "eventSub": {
+    "zh": "从新闻流中提取的实时信号",
+    "en": "Live signals extracted from news flow"
+  },
+  "themesSub": {
+    "zh": "按强度排序，点击展开关联股票",
+    "en": "Sorted by strength, click to expand associated tickers"
+  },
+  "tickersSub": {
+    "zh": "搜索和筛选",
+    "en": "Search and filter"
+  },
+  "liveSignals": {
+    "zh": "实时信号 \\xb7 你的主题",
+    "en": "Live signals \\xb7 your themes"
+  },
+  "associatedTickers": {
+    "zh": "关联股票",
+    "en": "Associated Tickers"
+  },
+  "recentEvents": {
+    "zh": "近期事件",
+    "en": "Recent Events"
+  },
+  "rising": {
+    "zh": "▲ 上升",
+    "en": "▲ rising"
+  },
+  "stable": {
+    "zh": "— 稳定",
+    "en": "— stable"
+  },
+  "declining": {
+    "zh": "▼ 下降",
+    "en": "▼ declining"
+  },
+  "bullish": {
+    "zh": "看多",
+    "en": "bullish"
+  },
+  "bearish": {
+    "zh": "看空",
+    "en": "bearish"
+  },
+  "allStocks": {
+    "zh": "全部",
+    "en": "All"
+  },
+  "longTerm": {
+    "zh": "长线",
+    "en": "Long"
+  },
+  "shortTerm": {
+    "zh": "短线",
+    "en": "Short"
+  },
+  "potential": {
+    "zh": "潜力",
+    "en": "Potential"
+  },
+  "search": {
+    "zh": "搜索",
+    "en": "Search"
+  },
+  "searchPlaceholder": {
+    "zh": "搜索代码或名称...",
+    "en": "Search symbol or name..."
+  },
+  "searchGlobal": {
+    "zh": "搜索主题、股票、事件…",
+    "en": "Search themes, tickers, events…"
+  },
+  "searchThemes": {
+    "zh": "搜索主题名称或描述…",
+    "en": "Search theme name or description…"
+  },
+  "typeToSearch": {
+    "zh": "输入关键词搜索…",
+    "en": "Type to search…"
+  },
+  "searching": {
+    "zh": "搜索中…",
+    "en": "Searching…"
+  },
+  "searchError": {
+    "zh": "搜索出错，请重试",
+    "en": "Search error, please retry"
+  },
+  "filterMarket": {
+    "zh": "市场",
+    "en": "Market"
+  },
+  "allMarkets": {
+    "zh": "全部市场",
+    "en": "All"
+  },
+  "allTickers": {
+    "zh": "全部股票",
+    "en": "All Tickers"
+  },
+  "hotTickers": {
+    "zh": "热门",
+    "en": "Hot"
+  },
+  "noResults": {
+    "zh": "无匹配结果",
+    "en": "No matching results"
+  },
+  "source": {
+    "zh": "来源",
+    "en": "Source"
+  },
+  "loading": {
+    "zh": "加载中...",
+    "en": "Loading..."
+  },
+  "general": {
+    "zh": "综合",
+    "en": "general"
+  },
+  "switchToDark": {
+    "zh": "切换暗色模式",
+    "en": "Switch to dark mode"
+  },
+  "switchToLight": {
+    "zh": "切换亮色模式",
+    "en": "Switch to light mode"
+  },
+  "exposure": {
+    "zh": "曝光度",
+    "en": "Exposure"
+  },
+  "narrative": {
+    "zh": "叙事契合度",
+    "en": "Narrative Fit"
+  }
+}

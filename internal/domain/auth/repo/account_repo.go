@@ -10,6 +10,7 @@ import (
 
 	"auth-perm/internal/common/errors"
 	"auth-perm/internal/common/model"
+	"auth-perm/internal/common/utils"
 	"auth-perm/internal/domain/auth/constant"
 	"auth-perm/internal/domain/auth/dm"
 	"auth-perm/internal/domain/auth/dto"
@@ -282,8 +283,8 @@ func (r *AccountRepo) SearchAccounts(ctx context.Context, query *dto.AccountSear
 
 	// 应用关键词搜索（搜索users表的email和phone）
 	if query.Keyword != "" {
-		keyword := "%" + query.Keyword + "%"
-		db = db.Where("users.email LIKE ? OR users.phone LIKE ?", keyword, keyword)
+		pat := utils.ILIKEPattern(query.Keyword)
+		db = db.Where("users.email LIKE ? OR users.phone LIKE ?", pat, pat)
 	}
 
 	// 应用状态过滤
@@ -343,8 +344,8 @@ func (r *AccountRepo) SearchAccountsWithCount(ctx context.Context, query *dto.Ac
 
 	// 应用关键词搜索（搜索users表的email、phone和username）
 	if query.Keyword != "" {
-		keyword := "%" + query.Keyword + "%"
-		baseQuery = baseQuery.Where("users.email LIKE ? OR users.phone LIKE ? OR users.username LIKE ?", keyword, keyword, keyword)
+		pat := utils.ILIKEPattern(query.Keyword)
+		baseQuery = baseQuery.Where("users.email LIKE ? OR users.phone LIKE ? OR users.username LIKE ?", pat, pat, pat)
 	}
 
 	// 应用状态过滤

@@ -14,6 +14,9 @@ import (
 	"auth-perm/internal/domain/cache"
 	"auth-perm/internal/domain/journal"
 	journalHandler "auth-perm/internal/domain/journal/handler"
+	"auth-perm/internal/domain/newshock"
+	newshockHandler "auth-perm/internal/domain/newshock/handler"
+	newshockService "auth-perm/internal/domain/newshock/service"
 	"auth-perm/internal/domain/permission"
 	permHandler "auth-perm/internal/domain/permission/handler"
 	permissionService "auth-perm/internal/domain/permission/service"
@@ -25,6 +28,7 @@ import (
 	todoService "auth-perm/internal/domain/todo/service"
 	infraCache "auth-perm/internal/infra/cache"
 	"auth-perm/internal/infra/code_gen"
+	"auth-perm/internal/infra/llm"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"go.uber.org/dig"
@@ -41,6 +45,24 @@ type Scheduler interface {
 	Start(ctx context.Context)
 }
 
+// CompositeScheduler 组合多个调度器，统一启动
+type CompositeScheduler struct {
+	schedulers []Scheduler
+}
+
+// NewCompositeScheduler 创建组合调度器
+func NewCompositeScheduler(schedulers ...Scheduler) *CompositeScheduler {
+	return &CompositeScheduler{schedulers: schedulers}
+}
+
+// Start 并发启动所有调度器，任一退出则全部停止
+func (cs *CompositeScheduler) Start(ctx context.Context) {
+	for _, s := range cs.schedulers {
+		go s.Start(ctx)
+	}
+	<-ctx.Done()
+}
+
 // NewContainer 创建新的容器
 func NewContainer() *Container {
 	return &Container{
@@ -55,6 +77,13 @@ func BuildContainer(cfg *config.Config) (*dig.Container, error) {
 	// 注册配置
 	if err := container.Provide(func() *config.Config {
 		return cfg
+	}); err != nil {
+		return nil, err
+	}
+
+	// 注册 LLM 客户端
+	if err := container.Provide(func(cfg *config.Config) *llm.Client {
+		return llm.NewClient(&cfg.LLM)
 	}); err != nil {
 		return nil, err
 	}
@@ -198,9 +227,17 @@ func registerApplicationServices(container *dig.Container) error {
 	if err := journal.RegisterJournalDomain(container); err != nil {
 		return err
 	}
-	// 将 TodoScheduler 绑定到 Scheduler 接口，供 main.go 通过接口注入
-	if err := container.Provide(func(s *todoService.TodoScheduler) Scheduler {
-		return s
+	if err := newshock.RegisterNewshockDomain(container); err != nil {
+		return err
+	}
+	// 将多个调度器组合为一个 Scheduler，供 main.go 统一启动
+	if err := container.Provide(func(
+		todoScheduler *todoService.TodoScheduler,
+		rssScheduler *newshockService.RSSScheduler,
+		scoringScheduler *newshockService.ScoringScheduler,
+		pmScheduler *newshockService.PolymarketScheduler,
+	) Scheduler {
+		return NewCompositeScheduler(todoScheduler, rssScheduler, scoringScheduler, pmScheduler)
 	}); err != nil {
 		return err
 	}
@@ -319,6 +356,7 @@ func registerGinEngine(container *dig.Container) error {
 		resourceH *authHandler.ResourceHandler,
 		thTodoHandler *todoHandler.TodoHandler,
 		jhJournalHandler *journalHandler.JournalHandler,
+		nsNewshockHandler *newshockHandler.NewshockHandler,
 		authService *service.AuthService,
 		loginService *service.LoginService,
 		permSvc *permissionService.PermissionService,
@@ -337,7 +375,7 @@ func registerGinEngine(container *dig.Container) error {
 			c.JSON(200, gin.H{"status": "healthy"})
 		})
 
-		controllerHttp.RegisterRoutes(engine, cfg, authH, emailH, passwordH, totpH, oauthH, permissionH, permissionResourceH, organizationH, tenantH, userH, resourceH, thTodoHandler, jhJournalHandler, authService, loginService, permSvc)
+		controllerHttp.RegisterRoutes(engine, cfg, authH, emailH, passwordH, totpH, oauthH, permissionH, permissionResourceH, organizationH, tenantH, userH, resourceH, thTodoHandler, jhJournalHandler, nsNewshockHandler, authService, loginService, permSvc)
 
 		log.Println("Gin engine registered successfully")
 		return engine

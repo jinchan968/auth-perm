@@ -22,6 +22,8 @@ type Config struct {
 	OAuth      OAuthConfig      `yaml:"oauth" mapstructure:"oauth"`
 	SMTP       SMTPConfig       `yaml:"smtp" mapstructure:"smtp"`
 	Monitoring MonitoringConfig `yaml:"monitoring" mapstructure:"monitoring"`
+	RSS        RSSConfig        `yaml:"rss" mapstructure:"rss"`
+	LLM        LLMConfig        `yaml:"llm" mapstructure:"llm"`
 }
 
 // ServerConfig 服务器配置
@@ -123,6 +125,29 @@ type SMTPConfig struct {
 	UseTLS   bool   `yaml:"use_tls" mapstructure:"use_tls" env:"SMTP_USE_TLS" default:"true"`
 }
 
+// RSSConfig RSS 采集配置
+type RSSConfig struct {
+	Feeds         []FeedConfig `yaml:"feeds" mapstructure:"feeds"`
+	FetchInterval int          `yaml:"fetch_interval" mapstructure:"fetch_interval" default:"30"`
+	ScoreInterval int          `yaml:"score_interval" mapstructure:"score_interval" default:"60"`
+	TenantID      string       `yaml:"tenant_id" mapstructure:"tenant_id"`
+	UserAgent     string       `yaml:"user_agent" mapstructure:"user_agent" default:"NewshockBot/1.0"`
+}
+
+// LLMConfig 大模型配置（OpenAI 兼容接口）
+type LLMConfig struct {
+	BaseURL string `yaml:"base_url" mapstructure:"base_url" env:"LLM_BASE_URL"`
+	APIKey  string `yaml:"api_key" mapstructure:"api_key" env:"LLM_API_KEY"`
+	Model   string `yaml:"model" mapstructure:"model" default:"gpt-4o-mini"`
+}
+
+// FeedConfig 单个 RSS 源配置
+type FeedConfig struct {
+	URL     string `yaml:"url" mapstructure:"url"`
+	Source  string `yaml:"source" mapstructure:"source"`
+	Channel string `yaml:"channel" mapstructure:"channel"`
+}
+
 // MonitoringConfig 监控配置
 type MonitoringConfig struct {
 	EnableHealthCheck bool `mapstructure:"enable_health_check" yaml:"enable_health_check" env:"ENABLE_HEALTH_CHECK" default:"true"`
@@ -178,6 +203,18 @@ func LoadConfig(configPath string) (*Config, error) {
 	// 兜底默认值（viper 不认 struct tag 的 default）
 	if config.Server.SuperAdmin == "" {
 		config.Server.SuperAdmin = "admin"
+	}
+	if config.RSS.FetchInterval <= 0 {
+		config.RSS.FetchInterval = 30
+	}
+	if config.RSS.ScoreInterval <= 0 {
+		config.RSS.ScoreInterval = 60
+	}
+	if config.RSS.UserAgent == "" {
+		config.RSS.UserAgent = "NewshockBot/1.0"
+	}
+	if config.LLM.Model == "" {
+		config.LLM.Model = "gpt-4o-mini"
 	}
 
 	// 验证必需的配置项

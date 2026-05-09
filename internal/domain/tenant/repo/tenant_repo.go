@@ -6,6 +6,7 @@ import (
 	errStd "errors"
 
 	"auth-perm/internal/common/model"
+	"auth-perm/internal/common/utils"
 	authDm "auth-perm/internal/domain/auth/dm"
 	"auth-perm/internal/domain/tenant/constant"
 	"auth-perm/internal/domain/tenant/dm"
@@ -115,8 +116,8 @@ func (r *TenantRepo) List(ctx context.Context, params *ListParams) ([]*dm.Tenant
 
 	// 关键词搜索
 	if params.Keyword != "" {
-		keyword := "%" + params.Keyword + "%"
-		query = query.Where("name ILIKE ? OR code ILIKE ?", keyword, keyword)
+		pat := utils.ILIKEPattern(params.Keyword)
+		query = query.Where("name ILIKE ? OR code ILIKE ?", pat, pat)
 	}
 
 	// 状态过滤

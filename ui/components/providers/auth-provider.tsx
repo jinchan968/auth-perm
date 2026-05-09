@@ -14,24 +14,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isChecking.current = true
 
     try {
-      // 检查localStorage中是否有token（仅用于日志记录）
-      if (typeof window !== 'undefined') {
-        const storedToken = localStorage.getItem('auth_token')
-        console.log('AuthProvider: Checking localStorage token:', storedToken ? 'found' : 'not found')
-      }
+      if (!user) return
 
-      // 如果没有用户信息，无法验证，直接返回
-      if (!user) {
-        console.log('AuthProvider: No user found, skipping auth check')
-        return
-      }
-
-      // 使用新的智能认证检查
       const isValid = await validateAuthStatus()
 
       if (!isValid && user) {
-        // 认证失败，清除本地状态
-        console.log('AuthProvider: Auth validation failed, clearing auth state')
         useAuthStore.persist.clearStorage()
       }
     } catch (error) {

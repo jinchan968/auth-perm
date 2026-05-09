@@ -1,11 +1,13 @@
 package performance
 
+import "strconv"
+
 // simulateGetDevices 模拟获取设备列表
 func simulateGetDevices(count int) []map[string]interface{} {
 	devices := make([]map[string]interface{}, 0, count)
 	for i := 0; i < count; i++ {
 		device := map[string]interface{}{
-			"device_id":   "device-fingerprint-" + string(rune(i)),
+			"device_id":   "device-fingerprint-" + strconv.Itoa(i),
 			"platform":    "Mac OS",
 			"browser":     "Chrome",
 			"trusted":     i%2 == 0,
@@ -27,7 +29,7 @@ func simulateGetSecurityLogs(count int) []map[string]interface{} {
 	logs := make([]map[string]interface{}, 0, count)
 	for i := 0; i < count; i++ {
 		log := map[string]interface{}{
-			"id":         "log-" + string(rune(i)),
+			"id":         "log-" + strconv.Itoa(i),
 			"action":     "login",
 			"success":    true,
 			"created_at": "2026-01-06T15:30:00Z",

@@ -17,7 +17,7 @@ import * as journalApi from '@/lib/api/journal'
 import type {
   Tag, Period, Weather, CreateEntryRequest,
 } from '@/types/journal'
-import { PERIODS, WEATHERS, charLen, inferPeriod, formatDate, formatErrMsg } from '@/components/journal/constants'
+import { PERIODS, WEATHERS, WEEKDAYS, charLen, inferPeriod, formatDate, formatErrMsg } from '@/components/journal/constants'
 import { FormTagPill } from '@/components/journal/journal-entry-card'
 
 export default function JournalNewPage() {

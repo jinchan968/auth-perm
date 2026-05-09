@@ -8,7 +8,6 @@ import (
 	"auth-perm/internal/domain/permission/param"
 	permissionService "auth-perm/internal/domain/permission/service"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -347,8 +346,7 @@ func (h *PermissionHandler) GetPermission(c *gin.Context) {
 }
 
 func (h *PermissionHandler) ListPermissions(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page, pageSize, _ := controllerUtil.GetPaginationParams(c)
 	params := param.NewListPermissionParams(c.Query("tenant_id"), page, pageSize)
 	params.Code = c.Query("code")
 	params.Name = c.Query("name")
@@ -424,8 +422,7 @@ func (h *PermissionHandler) GetRole(c *gin.Context) {
 }
 
 func (h *PermissionHandler) ListRolesHandler(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page, pageSize, _ := controllerUtil.GetPaginationParams(c)
 	params := param.NewListRoleParams(c.Query("tenant_id"), page, pageSize)
 	params.OrgID = c.Query("org_id")
 	params.Code = c.Query("code")

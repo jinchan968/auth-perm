@@ -7,7 +7,6 @@ import (
 	"auth-perm/internal/domain/permission/param"
 	permissionService "auth-perm/internal/domain/permission/service"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -99,11 +98,10 @@ func (h *OrganizationHandler) List(c *gin.Context) {
 		response.Error(c, http.StatusUnauthorized, "获取租户ID失败", err.Error())
 		return
 	}
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	size, _ := strconv.Atoi(c.DefaultQuery("size", "10"))
+	page, pageSize, _ := controllerUtil.GetPaginationParams(c)
 	params := &param.ListOrganizationsParams{
 		TenantID: tenantID, ParentID: c.Query("parent_id"),
-		Keyword: c.Query("keyword"), Page: page, Size: size,
+		Keyword: c.Query("keyword"), Page: page, Size: pageSize,
 	}
 	result, total, err := h.orgService.List(c.Request.Context(), params)
 	if err != nil {

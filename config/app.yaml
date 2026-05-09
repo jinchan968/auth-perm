@@ -77,3 +77,26 @@ monitoring:
   max_redis_memory_mb: 512
   max_response_time_ms: 1000
   alert_webhook_url: ""  # 报警Webhook地址
+
+# Newshock RSS 数据采集配置
+rss:
+  fetch_interval: 30        # RSS 拉取间隔（分钟）
+  score_interval: 60        # 主题评分间隔（分钟）
+  tenant_id: "00000000-0000-0000-0000-000000000001"
+  user_agent: "NewshockBot/1.0"
+  feeds:
+    - url: "https://feeds.reuters.com/reuters/businessNews"
+      source: "reuters"
+      channel: "global_macro"
+    - url: "https://feeds.reuters.com/reuters/technologyNews"
+      source: "reuters"
+      channel: "industry_news"
+    - url: "https://www.cnbc.com/id/100003114/device/rss/rss.html"
+      source: "cnbc"
+      channel: "market_flow"
+
+# LLM 大模型配置（OpenAI 兼容接口）
+llm:
+  base_url: "https://api.openai.com/v1"
+  api_key: ""
+  model: "gpt-4o-mini"

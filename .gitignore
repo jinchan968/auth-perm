@@ -5,6 +5,11 @@
 *.so
 *.dylib
 bin/
+.bin/
+auth-perm
+
+# Next.js build output
+.next/
 
 # Test binary, built with `go test -c`
 *.test

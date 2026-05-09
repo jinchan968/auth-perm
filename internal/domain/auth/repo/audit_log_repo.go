@@ -9,6 +9,7 @@ import (
 
 	"auth-perm/internal/common/errors"
 	"auth-perm/internal/common/model"
+	"auth-perm/internal/common/utils"
 	"auth-perm/internal/domain/auth/constant"
 	"auth-perm/internal/domain/auth/dm"
 	"auth-perm/internal/domain/auth/dto"
@@ -386,10 +387,11 @@ func (r *AuditLogRepo) FindLoginLogs(ctx context.Context, userID string, paginat
 
 	// 添加搜索条件（IP、设备信息）
 	if searchText != "" {
+		pat := utils.ILIKEPattern(searchText)
 		query = query.Where(
 			"(ip_address LIKE ? OR user_agent LIKE ?)",
-			"%"+searchText+"%",
-			"%"+searchText+"%",
+			pat,
+			pat,
 		)
 	}
 

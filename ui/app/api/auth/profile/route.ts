@@ -8,10 +8,7 @@ export async function GET(request: Request) {
     const headers = new Headers()
     const authHeader = request.headers.get('x-auth-token')
     if (authHeader) {
-      console.log('Profile GET: Received token:', authHeader)
       headers.set('Authorization', `Bearer ${authHeader}`)
-    } else {
-      console.log('Profile GET: No x-auth-token found')
     }
 
     // Forward the request to backend
@@ -40,23 +37,10 @@ export async function PATCH(request: Request) {
   const body = await request.json()
 
   try {
-    // Debug: Log all headers
-    const allHeaders: Record<string, string> = {}
-    request.headers.forEach((value, key) => {
-      allHeaders[key] = value
-    })
-    console.log('Profile PATCH: All received headers:', allHeaders)
-
-    // Get token from x-auth-token header (sent by API client)
     const headers = new Headers()
     const authHeader = request.headers.get('x-auth-token')
-    console.log('Profile PATCH: x-auth-token header value:', authHeader)
-
     if (authHeader) {
-      console.log('Profile PATCH: Received token:', authHeader)
       headers.set('Authorization', `Bearer ${authHeader}`)
-    } else {
-      console.log('Profile PATCH: No x-auth-token found')
     }
 
     // Forward the update profile request to backend

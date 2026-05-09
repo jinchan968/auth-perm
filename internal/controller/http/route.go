@@ -6,6 +6,7 @@ import (
 	authHandler "auth-perm/internal/domain/auth/handler"
 	"auth-perm/internal/domain/auth/service"
 	journalHandler "auth-perm/internal/domain/journal/handler"
+	newshockHandler "auth-perm/internal/domain/newshock/handler"
 	permHandler "auth-perm/internal/domain/permission/handler"
 	permissionService "auth-perm/internal/domain/permission/service"
 	tenantHandler "auth-perm/internal/domain/tenant/handler"
@@ -31,6 +32,7 @@ func RegisterRoutes(
 	resourceH *authHandler.ResourceHandler,
 	thTodoHandler *todoHandler.TodoHandler,
 	jhJournalHandler *journalHandler.JournalHandler,
+	nsNewshockHandler *newshockHandler.NewshockHandler,
 	authService *service.AuthService,
 	loginService *service.LoginService,
 	permService *permissionService.PermissionService,
@@ -38,36 +40,40 @@ func RegisterRoutes(
 	// API v1 路由组
 	v1 := router.Group("/api/v1")
 
-	// 全局 API 权限中间件（挂载到 v1 路由组，拦截所有 /api/v1/* 请求）
-	v1.Use(middleware.APIPermissionMiddleware(cfg, authService, permService))
+	// 全局 API 权限中间件（创建一次，挂载到各认证子组的 AuthMiddleware 之后）
+	permMW := middleware.APIPermissionMiddleware(cfg, authService, permService)
 
 	{
 		// 注册认证相关路由
-		RegisterAuthRoutes(v1, authH, emailH, passwordH, totpH, oauthH, resourceH, authService, loginService, permService)
+		RegisterAuthRoutes(v1, permMW, authH, emailH, passwordH, totpH, oauthH, resourceH, authService, loginService, permService)
 
 		// 注册权限相关路由
-		RegisterPermissionRoutes(v1, permissionH, permissionResourceH, loginService)
+		RegisterPermissionRoutes(v1, permMW, permissionH, permissionResourceH, loginService)
 
 		// 注册组织相关路由
-		RegisterOrganizationRoutes(v1, organizationH, loginService)
+		RegisterOrganizationRoutes(v1, permMW, organizationH, loginService)
 
 		// 注册租户相关路由
-		RegisterTenantRoutes(v1, tenantH, loginService)
+		RegisterTenantRoutes(v1, permMW, tenantH, loginService)
 
 		// 注册用户管理路由
-		RegisterUserRoutes(v1, userH, loginService)
+		RegisterUserRoutes(v1, permMW, userH, loginService)
 
 		// 注册待办路由
-		RegisterTodoRoutes(v1, thTodoHandler, loginService)
+		RegisterTodoRoutes(v1, permMW, thTodoHandler, loginService)
 
 		// 注册札记路由
-		RegisterJournalRoutes(v1, jhJournalHandler, loginService)
+		RegisterJournalRoutes(v1, permMW, jhJournalHandler, loginService)
+
+		// 注册新知路由
+		RegisterNewshockRoutes(v1, permMW, nsNewshockHandler, loginService)
 	}
 }
 
 // RegisterAuthRoutes 注册认证路由
 func RegisterAuthRoutes(
 	router *gin.RouterGroup,
+	permMW gin.HandlerFunc,
 	authH *authHandler.AuthHandler,
 	emailH *authHandler.EmailHandler,
 	passwordH *authHandler.PasswordHandler,
@@ -90,6 +96,7 @@ func RegisterAuthRoutes(
 
 	authenticated := auth.Group("/")
 	authenticated.Use(middleware.AuthMiddleware(loginService))
+	authenticated.Use(permMW)
 	{
 		authenticated.GET("/oauth/github/callback", oauthH.GitHubCallback)
 		authenticated.GET("/oauth/google/callback", oauthH.GoogleCallback)
@@ -102,8 +109,7 @@ func RegisterAuthRoutes(
 		// 资源清单接口（用于前端权限控制，白名单路由，不走权限中间件）
 		authenticated.GET("/my-resources", resourceH.GetMyResources)
 
-		admin := auth.Group("/admin")
-		admin.Use(middleware.AuthMiddleware(loginService))
+		admin := authenticated.Group("/admin")
 		admin.Use(middleware.AdminPermissionMiddleware(permService))
 		{
 			admin.POST("/logout-all-by-tenant", authH.LogoutAllByTenant)
@@ -143,12 +149,14 @@ func RegisterAuthRoutes(
 // RegisterPermissionRoutes 注册权限路由
 func RegisterPermissionRoutes(
 	router *gin.RouterGroup,
+	permMW gin.HandlerFunc,
 	permissionH *permHandler.PermissionHandler,
 	permissionResourceH *permHandler.PermissionResourceHandler,
 	loginService *service.LoginService,
 ) {
 	permissions := router.Group("/permissions")
 	permissions.Use(middleware.AuthMiddleware(loginService))
+	permissions.Use(permMW)
 	{
 		permissions.POST("/check", permissionH.CheckPermission)
 		permissions.POST("/check-any", permissionH.CheckAnyPermission)
@@ -212,11 +220,13 @@ func RegisterPermissionRoutes(
 // RegisterOrganizationRoutes 注册组织路由
 func RegisterOrganizationRoutes(
 	router *gin.RouterGroup,
+	permMW gin.HandlerFunc,
 	organizationH *permHandler.OrganizationHandler,
 	loginService *service.LoginService,
 ) {
 	organizations := router.Group("/organizations")
 	organizations.Use(middleware.AuthMiddleware(loginService))
+	organizations.Use(permMW)
 	{
 		organizations.POST("", organizationH.Create)
 		organizations.GET("/:id", organizationH.Get)
@@ -233,11 +243,13 @@ func RegisterOrganizationRoutes(
 // RegisterTenantRoutes 注册租户路由
 func RegisterTenantRoutes(
 	router *gin.RouterGroup,
+	permMW gin.HandlerFunc,
 	tenantH *tenantHandler.TenantHandler,
 	loginService *service.LoginService,
 ) {
 	tenants := router.Group("/tenants")
 	tenants.Use(middleware.AuthMiddleware(loginService))
+	tenants.Use(permMW)
 	{
 		tenants.POST("", tenantH.Create)
 		tenants.GET("/:id", tenantH.Get)
@@ -253,11 +265,13 @@ func RegisterTenantRoutes(
 // RegisterUserRoutes 注册用户管理路由
 func RegisterUserRoutes(
 	router *gin.RouterGroup,
+	permMW gin.HandlerFunc,
 	userH *authHandler.UserHandler,
 	loginService *service.LoginService,
 ) {
 	users := router.Group("/users")
 	users.Use(middleware.AuthMiddleware(loginService))
+	users.Use(permMW)
 	{
 		users.GET("", userH.ListUsers)
 		users.POST("", userH.CreateUser)
@@ -270,11 +284,13 @@ func RegisterUserRoutes(
 // RegisterJournalRoutes 注册札记路由
 func RegisterJournalRoutes(
 	router *gin.RouterGroup,
+	permMW gin.HandlerFunc,
 	h *journalHandler.JournalHandler,
 	loginService *service.LoginService,
 ) {
 	journal := router.Group("/journal")
 	journal.Use(middleware.AuthMiddleware(loginService))
+	journal.Use(permMW)
 	{
 		// 标签
 		journal.GET("/tags", h.ListTags)
@@ -295,11 +311,13 @@ func RegisterJournalRoutes(
 // RegisterTodoRoutes 注册待办路由
 func RegisterTodoRoutes(
 	router *gin.RouterGroup,
+	permMW gin.HandlerFunc,
 	h *todoHandler.TodoHandler,
 	loginService *service.LoginService,
 ) {
 	todos := router.Group("/todos")
 	todos.Use(middleware.AuthMiddleware(loginService))
+	todos.Use(permMW)
 	{
 		todos.GET("/categories", h.ListCategories)
 		todos.POST("/categories", h.CreateCategory)
@@ -313,5 +331,49 @@ func RegisterTodoRoutes(
 		todos.PATCH("/:id/status", h.UpdateTodoStatus)
 		todos.PATCH("/:id/priority", h.UpdateTodoPriority)
 		todos.DELETE("/:id", h.DeleteTodo)
+	}
+}
+
+// RegisterNewshockRoutes 注册新知路由
+func RegisterNewshockRoutes(
+	router *gin.RouterGroup,
+	permMW gin.HandlerFunc,
+	h *newshockHandler.NewshockHandler,
+	loginService *service.LoginService,
+) {
+	ns := router.Group("/newshock")
+	ns.Use(middleware.AuthMiddleware(loginService))
+	ns.Use(permMW)
+	{
+		ns.GET("/home", h.Home)
+		ns.GET("/stats", h.Stats)
+		ns.GET("/regime", h.Regime)
+		ns.GET("/pipeline", h.Pipeline)
+		ns.GET("/edge", h.Edge)
+		ns.GET("/polymarket", h.ListPolymarket)
+		ns.GET("/search", h.Search)
+
+		ns.GET("/themes", h.ListThemes)
+		ns.GET("/themes/:id", h.GetTheme)
+		ns.POST("/themes/:id/generate-description", h.GenerateThemeDescription)
+
+		ns.GET("/tickers", h.ListTickers)
+		ns.GET("/tickers/:symbol", h.GetTicker)
+
+		ns.GET("/events", h.ListEvents)
+		ns.GET("/events/:id", h.GetEvent)
+
+		// 管理端点
+		ns.POST("/themes", h.CreateTheme)
+		ns.PUT("/themes/:id", h.UpdateTheme)
+		ns.DELETE("/themes/:id", h.DeleteTheme)
+
+		ns.POST("/tickers", h.CreateTicker)
+		ns.PUT("/tickers/:id", h.UpdateTicker)
+		ns.DELETE("/tickers/:id", h.DeleteTicker)
+
+		ns.POST("/events", h.CreateEvent)
+		ns.PUT("/events/:id", h.UpdateEvent)
+		ns.DELETE("/events/:id", h.DeleteEvent)
 	}
 }

@@ -15,7 +15,7 @@ import (
 )
 
 // APIPermissionMiddleware API 权限拦截中间件
-// 全局挂载，通过白名单 + 超管绕过 + 资源匹配三层控制
+// 须挂载在 AuthMiddleware 之后，通过白名单 + 超管绕过 + 资源匹配三层控制
 func APIPermissionMiddleware(
 	cfg *config.Config,
 	authService *service.AuthService,
@@ -23,6 +23,7 @@ func APIPermissionMiddleware(
 ) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
+		method := c.Request.Method
 
 		// ========== 白名单：直接放行 ==========
 		if isWhitelisted(path) {
@@ -41,11 +42,11 @@ func APIPermissionMiddleware(
 		}
 
 		// ========== 普通用户：检查权限 ==========
-		// 如果 account_id 不存在，说明请求未经过 AuthMiddleware 认证
-		// 直接放行，让后续的 AuthMiddleware 处理认证逻辑
+		// 本中间件须挂载在 AuthMiddleware 之后，account_id 必然已注入
 		accountID, exists := c.Get("account_id")
 		if !exists || accountID == nil || accountID == "" {
-			c.Next()
+			response.Error(c, http.StatusUnauthorized, "未认证", "缺少认证信息")
+			c.Abort()
 			return
 		}
 
@@ -56,7 +57,6 @@ func APIPermissionMiddleware(
 			return
 		}
 
-		// 获取用户拥有的所有 API 资源
 		resources, err := permService.GetAccountResources(c.Request.Context(), permissionParam.NewGetAccountResourcesParams(accountIDStr, constant.ResourceTypeAPIPath))
 		if err != nil {
 			response.Error(c, http.StatusInternalServerError, "权限检查失败", err.Error())
@@ -64,13 +64,11 @@ func APIPermissionMiddleware(
 			return
 		}
 
-		// 匹配当前请求路径
-		if matchAPIPath(path, resources) {
+		if matchAPIPath(path, method, resources) {
 			c.Next()
 			return
 		}
 
-		// 无权限，返回 403
 		response.Error(c, http.StatusForbidden, "权限不足", "您没有访问此资源的权限")
 		c.Abort()
 	}
@@ -88,6 +86,7 @@ var (
 	// 去掉公共前缀 /api/v1/auth/ 后的后缀，用于前缀匹配
 	whitelistSuffixes = []string{
 		"public/",
+		"admin/",
 		"profile",
 		"sessions",
 		"devices",
@@ -126,31 +125,46 @@ func isWhitelisted(path string) bool {
 	return false
 }
 
-// matchAPIPath 匹配 API 路径
-// 支持三种匹配模式：
-// 1. 精确匹配：/api/v1/tenants
-// 2. 通配符匹配：/api/v1/tenants/* 匹配 /api/v1/tenants/xxx/settings
-// 3. 路径参数匹配：忽略 UUID/ID 段，做前缀匹配
-func matchAPIPath(requestPath string, allowedPaths []string) bool {
+// matchAPIPath 匹配 API 路径（支持 HTTP 方法区分）
+// allowedPaths 支持两种格式：
+//  1. 纯路径："/api/v1/journal" — 匹配任意 HTTP 方法（向后兼容）
+//  2. 方法+路径："DELETE /api/v1/journal/:id" — 仅匹配指定方法
+//
+// requestPath 和 requestMethod 分别为当前请求的路径
+// requestPath 和 requestMethod 分别为当前请求的路径和方法
+func matchAPIPath(requestPath string, requestMethod string, allowedPaths []string) bool {
 	for _, allowed := range allowedPaths {
+		// 检查是否包含 HTTP 方法前缀（格式："METHOD /path"）
+		var allowedMethod, allowedPath string
+		if idx := strings.Index(allowed, " "); idx > 0 {
+			allowedMethod = strings.ToUpper(allowed[:idx])
+			allowedPath = allowed[idx+1:]
+		} else {
+			// 纯路径格式，匹配任意方法
+			allowedMethod = ""
+			allowedPath = allowed
+		}
+
+		// 若 allowed 指定了方法，必须匹配
+		if allowedMethod != "" && allowedMethod != requestMethod {
+			continue
+		}
+
 		// 1. 精确匹配
-		if requestPath == allowed {
+		if requestPath == allowedPath {
 			return true
 		}
 
 		// 2. 通配符匹配（/*）
-		if strings.HasSuffix(allowed, "/*") {
-			prefix := strings.TrimSuffix(allowed, "/*")
+		if strings.HasSuffix(allowedPath, "/*") {
+			prefix := strings.TrimSuffix(allowedPath, "/*")
 			if strings.HasPrefix(requestPath, prefix+"/") || requestPath == prefix {
 				return true
 			}
 		}
 
-		// 3. 路径参数匹配（忽略 UUID/ID 段）
-		// 例如：allowed = "/api/v1/permissions/roles"
-		//      request = "/api/v1/permissions/roles/123e4567-e89b-12d3-a456-426614174000"
-		//      应该匹配成功
-		if strings.HasPrefix(requestPath, allowed+"/") {
+		// 3. 路径参数匹配（忽略 UUID/ID 段，做前缀匹配）
+		if strings.HasPrefix(requestPath, allowedPath+"/") {
 			return true
 		}
 	}

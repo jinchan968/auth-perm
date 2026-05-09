@@ -25,14 +25,8 @@ async function proxyHandler(req: NextRequest) {
   // So we need to pass it via a special header from the client
   const authHeader = req.headers.get('x-auth-token')
   if (authHeader) {
-    console.log('Proxy: Sending token:', authHeader)
     headers.set('Authorization', `Bearer ${authHeader}`)
-  } else {
-    console.log('Proxy: No x-auth-token found in request headers')
   }
-
-  console.log('Proxy: Target URL:', targetUrl)
-  console.log('Proxy: Method:', req.method)
 
   try {
     const response = await fetch(targetUrl, {
@@ -43,8 +37,6 @@ async function proxyHandler(req: NextRequest) {
       // @ts-ignore
       duplex: 'half',
     })
-
-    console.log('Proxy: Response status:', response.status)
 
     // Stream the response back to the client
     return response

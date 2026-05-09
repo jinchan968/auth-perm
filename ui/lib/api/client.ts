@@ -35,32 +35,16 @@ if (typeof window !== 'undefined') {
  * 优先从 localStorage 获取，其次从 Zustand store 获取
  */
 async function getAuthToken(): Promise<string | null> {
-  // 首先尝试从 localStorage 获取
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('auth_token')
     if (token) {
-      console.log('ApiClient: Token from localStorage:', token)
       return token
     }
 
-    // 如果 localStorage 中没有，检查 Zustand store
     if (authStore) {
       const state = authStore.getState()
-      console.log('ApiClient: Checking Zustand store for token...')
-      console.log('ApiClient: Zustand state:', { user: state.user?.username, isAuthenticated: state.isAuthenticated })
-
-      // 如果用户已认证，但 localStorage 中没有令牌，
-      // 这可能是由于旧版本登录或令牌被清除
       if (state.isAuthenticated && state.user) {
-        console.log('ApiClient: User is authenticated but no token in localStorage')
-        console.log('ApiClient: This might be a problem with the login flow')
-
-        // 尝试从 /api/auth/login 获取新令牌（通过刷新机制）
-        // 但这需要用户已经登录，所以我们需要实现一个刷新机制
-
-        // 现在，我们暂时返回一个特殊值，表示需要处理认证
-        console.log('ApiClient: Returning special NO_TOKEN value for authenticated user')
-        return 'NO_TOKEN_NEEDED' // 特殊标记，表示用户已认证但没有令牌
+        return 'NO_TOKEN_NEEDED'
       }
     }
   }
@@ -113,14 +97,12 @@ function handleAuthRedirect(response: Response): Response {
   }
 
   if (response.status === HTTP_STATUS.UNAUTHORIZED) {
-    console.log('ApiClient: Received 401, redirecting to login page')
     window.location.href = '/login'
     return response
   }
 
   if (response.status === HTTP_STATUS.FORBIDDEN) {
     if (currentPath !== '/unauthorized') {
-      console.log('ApiClient: Received 403, redirecting to unauthorized page')
       window.location.href = '/unauthorized'
     }
   }
@@ -219,50 +201,25 @@ class ApiClient {
       ...options,
     }
 
-    console.log('ApiClient: Config before token:', config)
-
-    // Add auth token for API requests
-    // This solves the cross-port cookie limitation
     if (typeof window !== 'undefined') {
-      console.log('ApiClient: Checking localStorage for token...')
-      console.log('ApiClient: All localStorage keys:', Object.keys(localStorage))
-      console.log('ApiClient: auth-storage content:', localStorage.getItem('auth-storage'))
-
       const token = await getAuthToken()
       if (token === 'NO_TOKEN_NEEDED') {
-        // 用户已认证但没有令牌，抛出错误
-        console.error('ApiClient: User is authenticated but no token found in localStorage')
-        console.error('ApiClient: This might be due to an old login session')
         throw new ApiError(
           '您的登录状态已过期，请重新登录',
           401,
           'AUTH_TOKEN_MISSING'
         )
       } else if (token) {
-        console.log('ApiClient: Adding x-auth-token header:', token)
         config.headers = {
           ...config.headers,
           'x-auth-token': token,
         }
-        console.log('ApiClient: Headers after adding token:', config.headers)
-      } else {
-        console.log('ApiClient: No token found')
-        console.log('ApiClient: Available keys:', Object.keys(localStorage))
       }
     }
 
-    console.log('ApiClient: Config after token:', config)
-
-    // 应用请求拦截器
     const processedConfig = this.applyRequestInterceptors(config)
 
-    console.log('ApiClient: Final config:', processedConfig)
-    console.log('ApiClient: Final headers:', processedConfig.headers)
-
     try {
-      console.log('ApiClient: Making fetch request to:', url)
-      console.log('ApiClient: Request method:', processedConfig.method)
-      console.log('ApiClient: Request headers:', processedConfig.headers)
       const response = await fetch(url, processedConfig)
       return await this.handleResponse<T>(response)
     } catch (error) {

@@ -3,6 +3,7 @@ package middleware
 import (
 	"auth-perm/internal/common/constant"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -96,7 +97,7 @@ func CORSMiddleware(config Config) gin.HandlerFunc {
 
 		// 设置预检请求的缓存时间
 		if config.MaxAge > 0 {
-			c.Header("Access-Control-Max-Age", string(rune(config.MaxAge)))
+			c.Header("Access-Control-Max-Age", strconv.Itoa(config.MaxAge))
 		}
 
 		// 处理预检请求

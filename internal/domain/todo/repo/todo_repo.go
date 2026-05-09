@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"auth-perm/internal/common/errors"
+	"auth-perm/internal/common/utils"
 	"auth-perm/internal/domain/todo/constant"
 	"auth-perm/internal/domain/todo/dm"
 )
@@ -108,8 +109,8 @@ func (r *TodoRepo) List(ctx context.Context, p *TodoQueryParams) ([]*dm.TodoDO, 
 		q = q.Where("category_id = ?", p.CategoryID)
 	}
 	if p.Keyword != "" {
-		like := "%" + p.Keyword + "%"
-		q = q.Where("title ILIKE ? OR description ILIKE ?", like, like)
+		pat := utils.ILIKEPattern(p.Keyword)
+		q = q.Where("title ILIKE ? OR description ILIKE ?", pat, pat)
 	}
 
 	var total int64

@@ -30,22 +30,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: errorMessage }, { status: apiRes.status })
     }
 
-    console.log('Register route: Backend response data:', data)
-    console.log('Register route: Backend response structure:', JSON.stringify(data, null, 2))
-
-    // 后端返回格式：{ code, msg, data }
-    // 需要从 data 字段中提取实际的用户数据
     if (!data.data) {
-      console.error('Register route: No data field in backend response!')
       return NextResponse.json({ message: '服务器返回格式错误' }, { status: 500 })
     }
 
     const backendData = data.data
     const { token, expires_at, ...userData } = backendData
-
-    console.log('Register route: Extracted token:', token)
-    console.log('Register route: Expires at:', expires_at)
-    console.log('Register route: Response payload:', { ...userData, expires_at, token })
 
     // 3. Return the user data to the client, with the token
     // Wrap in { data: ... } for frontend consistency
