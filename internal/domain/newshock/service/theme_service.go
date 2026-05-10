@@ -1,4 +1,4 @@
-// ThemeService 主题服务，负责投资主题的 CRUD 和搜索。
+// Package service 主题服务，负责投资主题的 CRUD 和搜索。
 //
 // 主题是 Newshock 的核心实体，代表一个投资叙事，如"AI半导体"、"地缘政治"。
 // 每个主题关联多只股票(ThemeTicker)和多个事件(Event)。
@@ -56,7 +56,7 @@ func (s *ThemeService) List(ctx context.Context, tenantID string, req vo.ListThe
 
 	items := make([]vo.ThemeResponse, 0, len(themes))
 	for _, t := range themes {
-		items = append(items, toThemeResponse(t))
+		items = append(items, vo.ToThemeResponse(t))
 	}
 	return &vo.PagedResponse{Items: items, Total: total, Page: req.Page, PageSize: req.PageSize}, nil
 }
@@ -64,16 +64,17 @@ func (s *ThemeService) List(ctx context.Context, tenantID string, req vo.ListThe
 // GetByID 主题详情，返回主题信息及其关联的股票、事件、Polymarket 数据。
 // 关联数据加载顺序：股票(通过 theme_tickers) → 事件(通过 theme_id) → Polymarket(通过 theme_id)
 func (s *ThemeService) GetByID(ctx context.Context, id, tenantID string) (*vo.ThemeDetailResponse, error) {
+	// 先查询主题基本信息（带租户隔离校验）
 	theme, err := s.themeRepo.FindByIDAndTenantID(ctx, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
 	resp := &vo.ThemeDetailResponse{
-		ThemeResponse: toThemeResponse(*theme),
+		ThemeResponse: vo.ToThemeResponse(*theme),
 	}
 
-	// 加载关联股票：theme_tickers → tickers
+	// 加载关联股票：先查 theme_tickers 中间表获取 tickerID 列表，再批量查 tickers
 	relations, _ := s.relationRepo.GetTickersByThemeID(ctx, id)
 	if len(relations) > 0 {
 		tickerIDs := make([]string, 0, len(relations))
@@ -82,17 +83,17 @@ func (s *ThemeService) GetByID(ctx context.Context, id, tenantID string) (*vo.Th
 		}
 		tickers, _ := s.tickerRepo.FindByIDs(ctx, tickerIDs)
 		for _, t := range tickers {
-			resp.Tickers = append(resp.Tickers, toTickerResponse(t))
+			resp.Tickers = append(resp.Tickers, vo.ToTickerResponse(t))
 		}
 	}
 
-	// 加载关联事件（最近20条）
+	// 加载关联事件（最近 20 条，按创建时间降序）
 	events, _ := s.eventRepo.GetByThemeID(ctx, id, 20)
 	for _, e := range events {
-		resp.Events = append(resp.Events, toEventResponse(e))
+		resp.Events = append(resp.Events, vo.ToEventResponse(e))
 	}
 
-	// 加载关联的 Polymarket 预测市场
+	// 加载关联的 Polymarket 预测市场（通过 theme_id 关联）
 	if s.pmRepo != nil {
 		pmMarkets, _ := s.pmRepo.GetByThemeID(ctx, id)
 		for _, pm := range pmMarkets {
@@ -119,7 +120,7 @@ func (s *ThemeService) Search(ctx context.Context, tenantID, keyword string, lim
 	}
 	items := make([]vo.ThemeResponse, 0, len(themes))
 	for _, t := range themes {
-		items = append(items, toThemeResponse(t))
+		items = append(items, vo.ToThemeResponse(t))
 	}
 	return items, nil
 }
@@ -132,56 +133,9 @@ func (s *ThemeService) GetTopThemes(ctx context.Context, tenantID string, limit 
 	}
 	items := make([]vo.ThemeResponse, 0, len(themes))
 	for _, t := range themes {
-		items = append(items, toThemeResponse(t))
+		items = append(items, vo.ToThemeResponse(t))
 	}
 	return items, nil
-}
-
-// toThemeResponse 将数据库模型转换为 API 响应结构体
-func toThemeResponse(t dm.Theme) vo.ThemeResponse {
-	return vo.ThemeResponse{
-		ID:                       t.ID,
-		Name:                     t.Name,
-		Description:              t.Description,
-		Category:                 t.Category,
-		Strength:                 t.Strength,
-		StrengthNorm:             t.StrengthNorm,
-		ClassificationConfidence: t.ClassificationConfidence,
-		TickerCount:              t.TickerCount,
-		EventCount:               t.EventCount,
-		Trend:                    t.Trend,
-		CreatedAt:                t.CreatedAt,
-		UpdatedAt:                t.UpdatedAt,
-	}
-}
-
-// validCategories 合法的主题分类白名单
-var validCategories = map[string]bool{
-	constant.CategoryGeopolitical:  true,
-	constant.CategoryAISemi:        true,
-	constant.CategoryMacroMonetary: true,
-	constant.CategorySupplyChain:   true,
-	constant.CategoryDefense:       true,
-	constant.CategoryEnergy:        true,
-	constant.CategoryEarningsEvent: true,
-	constant.CategoryExploratory:   true,
-	constant.CategoryPharma:        true,
-	constant.CategoryRegulatory:    true,
-}
-
-func isValidCategory(c string) bool {
-	return validCategories[c]
-}
-
-// validTrends 合法的趋势值白名单
-var validTrends = map[string]bool{
-	constant.TrendRising:    true,
-	constant.TrendStable:    true,
-	constant.TrendDeclining: true,
-}
-
-func isValidTrend(t string) bool {
-	return validTrends[t]
 }
 
 // Create 创建主题，分类为空时默认为 exploratory（探索中）
@@ -193,13 +147,13 @@ func (s *ThemeService) Create(ctx context.Context, tenantID string, req vo.Creat
 	}
 	if theme.Category == "" {
 		theme.Category = constant.CategoryExploratory
-	} else if !isValidCategory(theme.Category) {
+	} else if !vo.IsValidCategory(theme.Category) {
 		theme.Category = constant.CategoryExploratory
 	}
 	if err := s.themeRepo.Create(ctx, theme); err != nil {
 		return nil, err
 	}
-	resp := toThemeResponse(*theme)
+	resp := vo.ToThemeResponse(*theme)
 	return &resp, nil
 }
 
@@ -215,16 +169,16 @@ func (s *ThemeService) Update(ctx context.Context, id, tenantID string, req vo.U
 	if req.Description != "" {
 		theme.Description = req.Description
 	}
-	if req.Category != "" && isValidCategory(req.Category) {
+	if req.Category != "" && vo.IsValidCategory(req.Category) {
 		theme.Category = req.Category
 	}
-	if req.Trend != "" && isValidTrend(req.Trend) {
+	if req.Trend != "" && vo.IsValidTrend(req.Trend) {
 		theme.Trend = req.Trend
 	}
 	if err := s.themeRepo.Update(ctx, theme); err != nil {
 		return nil, err
 	}
-	resp := toThemeResponse(*theme)
+	resp := vo.ToThemeResponse(*theme)
 	return &resp, nil
 }
 
@@ -245,11 +199,14 @@ func (s *ThemeService) UpdateDescription(ctx context.Context, id, tenantID, desc
 
 // Delete 删除主题，同时清理关联数据：theme_tickers 关联和事件的主题绑定
 func (s *ThemeService) Delete(ctx context.Context, id, tenantID string) error {
+	// 先校验主题存在且属于该租户
 	_, err := s.themeRepo.FindByIDAndTenantID(ctx, id, tenantID)
 	if err != nil {
 		return err
 	}
+	// 清理关联数据：删除 theme_tickers 中间表记录，清除事件的 theme_id 绑定
 	s.relationRepo.ClearThemeTickers(ctx, id)
 	s.eventRepo.ClearByThemeID(ctx, id)
+	// 删除主题本身
 	return s.themeRepo.Delete(ctx, id)
 }

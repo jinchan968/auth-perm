@@ -13,11 +13,13 @@
 - [用户管理快速开始](./docs/USER_MANAGEMENT_QUICKSTART.md)
 
 ## 项目速览
-- 后端：Go + Gin + GORM + Redis，入口 `./cmd/api/main.go`
-- 依赖装配：`./internal/container/`
+- 后端：Go + Gin + GORM + Redis
+  - API 服务入口：`./cmd/api/main.go`
+  - Worker（定时任务）入口：`./cmd/worker/main.go`
+- 依赖装配：`./internal/container/`（`BuildAPIContainer` / `BuildWorkerContainer`）
 - HTTP 路由：`./internal/controller/http/route.go`
-- 领域模块：`./internal/domain/{auth,permission,tenant,todo}`
-- 前端：Next.js App Router，主目录为 `./ui/`
+- 领域模块：`./internal/domain/{auth,permission,tenant,todo,journal,newshock,cache}`
+- 前端：Next.js App Router，主目录为 `./ui/`；Newshock 前端为 `./newshock/`
 - 前端权限控制：`./ui/hooks/use-permissions.ts` + `./ui/components/ui/perm-guard.tsx`
 
 ## 必守规则
@@ -35,6 +37,7 @@
 12. 后端领域常量（枚举值、资源类型、状态码等）统一放到对应领域的 `./internal/domain/<module>/constant/` 目录下；禁止在 `dto`、`repo`、`service`、`handler` 中硬编码魔法字符串，引用方通过 `import constant` 包使用。
 13. 通过依赖注入装配的组件（`*CacheService`、`*PermissionResourceRepo`、`*SessionRepo` 等由 `container` 提供的实例）必然非 nil，禁止在业务代码中对其判空。
 14. Commit message 使用英文 Conventional Commits 格式。
+15. 后端数据转换器（dm→vo）和枚举校验器（白名单 map + isValid 函数）统一放到对应领域的 `vo` 包中，禁止在 service 层定义。
 
 ## 任务路由
 - **后端任务**：先读 `docs/ARCHITECTURE.md`，重点看 `./internal/container/`、`./internal/controller/http/`、对应领域模块。

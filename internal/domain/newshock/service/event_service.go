@@ -1,4 +1,4 @@
-// EventService 事件服务，负责市场事件的 CRUD 和搜索。
+// Package service 事件服务，负责市场事件的 CRUD 和搜索。
 // 事件是 Newshock 的核心数据单元，来源有两种：
 //  1. 自动提取：RSS 新闻经 NewsProcessor 处理后自动生成
 //  2. 手动创建：通过 API 接口手动添加
@@ -55,7 +55,7 @@ func (s *EventService) List(ctx context.Context, tenantID string, req vo.ListEve
 	}
 	items := make([]vo.EventResponse, 0, len(events))
 	for _, e := range events {
-		items = append(items, toEventResponse(e))
+		items = append(items, vo.ToEventResponse(e))
 	}
 	return &vo.PagedResponse{Items: items, Total: total, Page: req.Page, PageSize: req.PageSize}, nil
 }
@@ -66,7 +66,7 @@ func (s *EventService) GetByID(ctx context.Context, id, tenantID string) (*vo.Ev
 	if err != nil {
 		return nil, err
 	}
-	resp := toEventResponse(*event)
+	resp := vo.ToEventResponse(*event)
 
 	// 加载关联股票
 	relations, _ := s.relationRepo.GetTickersByEventID(ctx, id)
@@ -77,7 +77,7 @@ func (s *EventService) GetByID(ctx context.Context, id, tenantID string) (*vo.Ev
 		}
 		tickers, _ := s.tickerRepo.FindByIDs(ctx, tickerIDs)
 		for _, t := range tickers {
-			resp.Tickers = append(resp.Tickers, toTickerResponse(t))
+			resp.Tickers = append(resp.Tickers, vo.ToTickerResponse(t))
 		}
 	}
 
@@ -92,7 +92,7 @@ func (s *EventService) GetRecentEvents(ctx context.Context, tenantID string, lim
 	}
 	items := make([]vo.EventResponse, 0, len(events))
 	for _, e := range events {
-		items = append(items, toEventResponse(e))
+		items = append(items, vo.ToEventResponse(e))
 	}
 	return items, nil
 }
@@ -105,35 +105,9 @@ func (s *EventService) Search(ctx context.Context, tenantID, keyword string, lim
 	}
 	items := make([]vo.EventResponse, 0, len(events))
 	for _, e := range events {
-		items = append(items, toEventResponse(e))
+		items = append(items, vo.ToEventResponse(e))
 	}
 	return items, nil
-}
-
-// validChannels 合法的事件渠道白名单
-var validChannels = map[string]bool{
-	constant.ChannelGlobalMacro:  true,
-	constant.ChannelIndustryNews: true,
-	constant.ChannelMarketFlow:   true,
-}
-
-func isValidChannel(c string) bool {
-	return validChannels[c]
-}
-
-// toEventResponse 将数据库模型转换为 API 响应结构体
-func toEventResponse(e dm.Event) vo.EventResponse {
-	return vo.EventResponse{
-		ID:         e.ID,
-		Title:      e.Title,
-		Summary:    e.Summary,
-		Channel:    e.Channel,
-		Importance: e.Importance,
-		ThemeID:    e.ThemeID,
-		ThemeName:  e.ThemeName,
-		EventTime:  e.EventTime,
-		CreatedAt:  e.CreatedAt,
-	}
 }
 
 // Create 创建事件，同时：
@@ -142,13 +116,16 @@ func toEventResponse(e dm.Event) vo.EventResponse {
 //
 // importance 不在 1-5 范围内时默认为 3
 func (s *EventService) Create(ctx context.Context, tenantID string, req vo.CreateEventRequest) (*vo.EventResponse, error) {
+	// 校验重要度范围，无效值默认为 3（中等）
 	if req.Importance < 1 || req.Importance > 5 {
 		req.Importance = 3
 	}
+	// 校验渠道值，无效值默认为 global_macro
 	channel := req.Channel
-	if channel == "" || !isValidChannel(channel) {
+	if channel == "" || !vo.IsValidChannel(channel) {
 		channel = constant.ChannelGlobalMacro
 	}
+	// 创建事件记录
 	event := &dm.Event{
 		Title:      req.Title,
 		Summary:    req.Summary,
@@ -160,13 +137,15 @@ func (s *EventService) Create(ctx context.Context, tenantID string, req vo.Creat
 	if err := s.eventRepo.Create(ctx, event); err != nil {
 		return nil, err
 	}
+	// 建立事件-股票关联（event_tickers 中间表）
 	for _, tickerID := range req.TickerIDs {
 		s.relationRepo.AddEventTicker(ctx, event.ID, tickerID)
 	}
+	// 如果关联了主题，更新该主题的事件计数
 	if event.ThemeID != "" {
 		s.themeRepo.UpdateEventCount(ctx, event.ThemeID)
 	}
-	resp := toEventResponse(*event)
+	resp := vo.ToEventResponse(*event)
 	return &resp, nil
 }
 
@@ -182,7 +161,7 @@ func (s *EventService) Update(ctx context.Context, id, tenantID string, req vo.U
 	if req.Summary != "" {
 		event.Summary = req.Summary
 	}
-	if req.Channel != "" && isValidChannel(req.Channel) {
+	if req.Channel != "" && vo.IsValidChannel(req.Channel) {
 		event.Channel = req.Channel
 	}
 	if req.Importance >= 1 && req.Importance <= 5 {
@@ -194,20 +173,24 @@ func (s *EventService) Update(ctx context.Context, id, tenantID string, req vo.U
 	if err := s.eventRepo.Update(ctx, event); err != nil {
 		return nil, err
 	}
-	resp := toEventResponse(*event)
+	resp := vo.ToEventResponse(*event)
 	return &resp, nil
 }
 
 // Delete 删除事件，同时清理 event_tickers 关联并更新主题事件计数
 func (s *EventService) Delete(ctx context.Context, id, tenantID string) error {
+	// 先查出事件（需要 themeID 用于后续更新计数）
 	event, err := s.eventRepo.FindByIDAndTenantID(ctx, id, tenantID)
 	if err != nil {
 		return err
 	}
+	// 清理事件-股票关联
 	s.relationRepo.ClearEventTickers(ctx, id)
+	// 删除事件本身
 	if err := s.eventRepo.Delete(ctx, id); err != nil {
 		return err
 	}
+	// 更新关联主题的事件计数
 	if event.ThemeID != "" {
 		s.themeRepo.UpdateEventCount(ctx, event.ThemeID)
 	}

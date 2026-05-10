@@ -1,4 +1,4 @@
-// TickerService 股票服务，负责股票标的的 CRUD 和搜索。
+// Package service 股票服务，负责股票标的的 CRUD 和搜索。
 // 股票标的代表一个可投资的金融标的（如 AAPL、TSLA），属于某个市场（us/cn/hk/kr）。
 // 每只股票通过 theme_tickers 关联到投资主题，通过 event_tickers 关联到市场事件。
 // hot_score（热度评分）由 ScoringService 根据 mention_count（被提及次数）定时计算。
@@ -50,7 +50,7 @@ func (s *TickerService) List(ctx context.Context, tenantID string, req vo.ListTi
 	}
 	items := make([]vo.TickerResponse, 0, len(tickers))
 	for _, t := range tickers {
-		items = append(items, toTickerResponse(t))
+		items = append(items, vo.ToTickerResponse(t))
 	}
 	return &vo.PagedResponse{Items: items, Total: total, Page: req.Page, PageSize: req.PageSize}, nil
 }
@@ -58,16 +58,17 @@ func (s *TickerService) List(ctx context.Context, tenantID string, req vo.ListTi
 // GetBySymbol 通过股票代码查询详情（如 AAPL），返回股票信息及关联的主题和事件。
 // 关联数据加载：主题(通过 theme_tickers) → 事件(通过 event_tickers，最近20条)
 func (s *TickerService) GetBySymbol(ctx context.Context, symbol, tenantID string) (*vo.TickerDetailResponse, error) {
+	// 通过股票代码（如 AAPL）查询，带租户隔离
 	ticker, err := s.tickerRepo.FindBySymbol(ctx, symbol, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
 	resp := &vo.TickerDetailResponse{
-		TickerResponse: toTickerResponse(*ticker),
+		TickerResponse: vo.ToTickerResponse(*ticker),
 	}
 
-	// 加载关联主题
+	// 加载关联主题：先查 theme_tickers 中间表，再批量查主题
 	themeRelations, _ := s.relationRepo.GetThemesByTickerID(ctx, ticker.ID)
 	if len(themeRelations) > 0 {
 		themeIDs := make([]string, 0, len(themeRelations))
@@ -76,11 +77,11 @@ func (s *TickerService) GetBySymbol(ctx context.Context, symbol, tenantID string
 		}
 		themes, _ := s.themeRepo.FindByIDs(ctx, themeIDs)
 		for _, t := range themes {
-			resp.Themes = append(resp.Themes, toThemeResponse(t))
+			resp.Themes = append(resp.Themes, vo.ToThemeResponse(t))
 		}
 	}
 
-	// 加载关联事件（最近20条）
+	// 加载关联事件：先查 event_tickers 中间表，再批量查事件（最近 20 条）
 	eventRelations, _ := s.relationRepo.GetEventsByTickerID(ctx, ticker.ID, 20)
 	if len(eventRelations) > 0 {
 		eventIDs := make([]string, 0, len(eventRelations))
@@ -89,7 +90,7 @@ func (s *TickerService) GetBySymbol(ctx context.Context, symbol, tenantID string
 		}
 		events, _ := s.eventRepo.FindByIDs(ctx, eventIDs)
 		for _, e := range events {
-			resp.Events = append(resp.Events, toEventResponse(e))
+			resp.Events = append(resp.Events, vo.ToEventResponse(e))
 		}
 	}
 
@@ -104,7 +105,7 @@ func (s *TickerService) Search(ctx context.Context, tenantID, keyword string, li
 	}
 	items := make([]vo.TickerResponse, 0, len(tickers))
 	for _, t := range tickers {
-		items = append(items, toTickerResponse(t))
+		items = append(items, vo.ToTickerResponse(t))
 	}
 	return items, nil
 }
@@ -117,35 +118,9 @@ func (s *TickerService) GetTopTickers(ctx context.Context, tenantID string, limi
 	}
 	items := make([]vo.TickerResponse, 0, len(tickers))
 	for _, t := range tickers {
-		items = append(items, toTickerResponse(t))
+		items = append(items, vo.ToTickerResponse(t))
 	}
 	return items, nil
-}
-
-// validMarkets 合法的市场值白名单
-var validMarkets = map[string]bool{
-	constant.MarketUS: true,
-	constant.MarketCN: true,
-	constant.MarketHK: true,
-	constant.MarketKR: true,
-}
-
-func isValidMarket(m string) bool {
-	return validMarkets[m]
-}
-
-// toTickerResponse 将数据库模型转换为 API 响应结构体
-func toTickerResponse(t dm.Ticker) vo.TickerResponse {
-	return vo.TickerResponse{
-		ID:           t.ID,
-		Symbol:       t.Symbol,
-		Name:         t.Name,
-		Market:       t.Market,
-		HotScore:     t.HotScore,
-		MentionCount: t.MentionCount,
-		CreatedAt:    t.CreatedAt,
-		UpdatedAt:    t.UpdatedAt,
-	}
 }
 
 // Create 创建股票，市场值无效时默认为 us（美股）
@@ -156,13 +131,13 @@ func (s *TickerService) Create(ctx context.Context, tenantID string, req vo.Crea
 		Market:   req.Market,
 		TenantID: tenantID,
 	}
-	if ticker.Market == "" || !isValidMarket(ticker.Market) {
+	if ticker.Market == "" || !vo.IsValidMarket(ticker.Market) {
 		ticker.Market = constant.MarketUS
 	}
 	if err := s.tickerRepo.Create(ctx, ticker); err != nil {
 		return nil, err
 	}
-	resp := toTickerResponse(*ticker)
+	resp := vo.ToTickerResponse(*ticker)
 	return &resp, nil
 }
 
@@ -175,22 +150,24 @@ func (s *TickerService) Update(ctx context.Context, id, tenantID string, req vo.
 	if req.Name != "" {
 		ticker.Name = req.Name
 	}
-	if req.Market != "" && isValidMarket(req.Market) {
+	if req.Market != "" && vo.IsValidMarket(req.Market) {
 		ticker.Market = req.Market
 	}
 	if err := s.tickerRepo.Update(ctx, ticker); err != nil {
 		return nil, err
 	}
-	resp := toTickerResponse(*ticker)
+	resp := vo.ToTickerResponse(*ticker)
 	return &resp, nil
 }
 
 // Delete 删除股票，同时清理所有 theme_tickers 和 event_tickers 关联
 func (s *TickerService) Delete(ctx context.Context, id, tenantID string) error {
+	// 先校验股票存在且属于该租户
 	_, err := s.tickerRepo.FindByIDAndTenantID(ctx, id, tenantID)
 	if err != nil {
 		return err
 	}
+	// 清理关联数据：删除该股票在 theme_tickers 和 event_tickers 中的所有记录
 	err = s.relationRepo.ClearThemeTickersByTicker(ctx, id)
 	if err != nil {
 		return err
@@ -199,5 +176,6 @@ func (s *TickerService) Delete(ctx context.Context, id, tenantID string) error {
 	if err != nil {
 		return err
 	}
+	// 删除股票本身
 	return s.tickerRepo.Delete(ctx, id)
 }

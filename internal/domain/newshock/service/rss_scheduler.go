@@ -1,4 +1,4 @@
-// RSSScheduler RSS 新闻采集调度器，定时执行"拉取 → 去重 → 事件提取"管线。
+// Package service RSS 新闻采集调度器，定时执行"拉取 → 去重 → 事件提取"管线。
 //
 // 执行流程（每个周期）：
 //  1. RSSService.FetchAll — 从所有配置的 RSS 源拉取新闻，去重后写入 newshock_news_raw

@@ -1,4 +1,4 @@
-// NewsProcessor 新闻处理器，负责将 news_raw 中的原始新闻转化为 Event（市场事件）。
+// Package service 新闻处理器，负责将 news_raw 中的原始新闻转化为 Event（市场事件）。
 //
 // 处理流程：
 //  1. 按租户遍历，加载该租户所有股票标的（Ticker）
@@ -70,28 +70,30 @@ func (p *NewsProcessor) ProcessUnprocessed(ctx context.Context) {
 // processForTenant 处理单个租户的未处理新闻。
 // 先加载该租户所有股票构建 symbolMap（代码→Ticker），然后逐条处理。
 func (p *NewsProcessor) processForTenant(ctx context.Context, tenantID string) {
+	// 加载该租户所有股票，用于后续在新闻正文中匹配股票代码
 	tickers, err := p.tickerRepo.GetAllByTenant(ctx, tenantID)
 	if err != nil {
 		log.Printf("[NewsProcessor] load tickers error: %v", err)
 		return
 	}
 	if len(tickers) == 0 {
-		return
+		return // 没有股票数据，无法匹配，跳过
 	}
 
-	// 构建股票代码索引：AAPL → Ticker, TSLA → Ticker
+	// 构建股票代码索引：AAPL → Ticker, TSLA → Ticker（key 统一转大写）
 	symbolMap := make(map[string]dm.Ticker, len(tickers))
 	for _, t := range tickers {
 		symbolMap[strings.ToUpper(t.Symbol)] = t
 	}
 
-	// 获取未处理的 news_raw
+	// 获取未处理的 news_raw（processed=false），每次最多 100 条
 	newsList, err := p.newsRawRepo.GetUnprocessed(ctx, tenantID, 100)
 	if err != nil {
 		log.Printf("[NewsProcessor] get unprocessed error: %v", err)
 		return
 	}
 
+	// 逐条处理新闻
 	processed := 0
 	for _, news := range newsList {
 		if ctx.Err() != nil {
@@ -114,22 +116,24 @@ func (p *NewsProcessor) processForTenant(ctx context.Context, tenantID string) {
 //  4. 通过关联股票反查最匹配的主题，将事件归入该主题
 //  5. 标记为已处理
 func (p *NewsProcessor) processOne(ctx context.Context, news dm.NewsRaw, symbolMap map[string]dm.Ticker, tenantID string) bool {
+	// 第一步：在新闻标题+正文中查找匹配的股票代码
 	matched := findTickerMatches(news.Title, news.Content, symbolMap)
 
 	if len(matched) > 0 {
-		// 评估事件重要度（AI 不可用时默认 3）
+		// 第二步：调用 AI 评估事件重要度（1-5 分），AI 不可用时默认 3
 		importance := 3
 		if p.aiService != nil {
 			importance = p.aiService.EvaluateImportance(ctx, news.Title, news.Content)
 		}
 
+		// 第三步：创建 Event 记录
 		channel := news.Channel
 		if channel == "" {
 			channel = constant.ChannelGlobalMacro
 		}
 		event := &dm.Event{
 			Title:      news.Title,
-			Summary:    truncate(news.Content, 1000),
+			Summary:    truncate(news.Content, 1000), // 截断到 1000 字符，避免摘要过长
 			Channel:    channel,
 			Importance: importance,
 			EventTime:  news.PublishedAt,
@@ -141,7 +145,7 @@ func (p *NewsProcessor) processOne(ctx context.Context, news dm.NewsRaw, symbolM
 			return false
 		}
 
-		// 建立事件-股票关联，并增加股票的提及次数
+		// 第四步：建立事件-股票关联，并递增股票的提及次数（用于热度评分）
 		for _, ticker := range matched {
 			if err := p.relationRepo.AddEventTicker(ctx, event.ID, ticker.ID); err != nil {
 				log.Printf("[NewsProcessor] add event_ticker error: %v", err)
@@ -151,16 +155,16 @@ func (p *NewsProcessor) processOne(ctx context.Context, news dm.NewsRaw, symbolM
 			}
 		}
 
-		// 通过关联的股票反查主题，将事件归入匹配度最高的主题
+		// 第五步：通过关联的股票反查主题，将事件归入匹配度最高的主题
 		if theme := p.findBestTheme(ctx, matched); theme != nil {
 			event.ThemeID = theme.ID
 			event.ThemeName = theme.Name
-			p.eventRepo.Update(ctx, event)
-			p.themeRepo.UpdateEventCount(ctx, theme.ID)
+			p.eventRepo.Update(ctx, event)              // 回写 theme_id
+			p.themeRepo.UpdateEventCount(ctx, theme.ID) // 更新主题的事件计数
 		}
 	}
 
-	// 无论是否匹配到股票，都标记为已处理
+	// 无论是否匹配到股票，都标记为已处理（避免下次重复处理）
 	if err := p.newsRawRepo.MarkProcessed(ctx, news.ID); err != nil {
 		log.Printf("[NewsProcessor] mark processed error: %v", err)
 		return false
@@ -172,25 +176,25 @@ func (p *NewsProcessor) processOne(ctx context.Context, news dm.NewsRaw, symbolM
 // 算法：遍历每只匹配的股票，找到它所属的所有主题，统计每只股票关联了同一主题的数量。
 // 选择关联股票数最多的主题作为最佳匹配。
 func (p *NewsProcessor) findBestTheme(ctx context.Context, matched []dm.Ticker) *dm.Theme {
-	themeCounts := make(map[string]int)
-	themeIDs := make(map[string]string) // themeID → themeID (dedup)
+	// 统计每只匹配的股票关联了哪些主题，以及每个主题被多少只股票关联
+	themeCounts := make(map[string]int) // themeID → 关联的股票数量
 
 	for _, ticker := range matched {
+		// 查询该股票关联的所有主题（通过 theme_tickers 中间表）
 		relations, err := p.relationRepo.GetThemesByTickerID(ctx, ticker.ID)
 		if err != nil {
 			continue
 		}
 		for _, rel := range relations {
 			themeCounts[rel.ThemeID]++
-			themeIDs[rel.ThemeID] = rel.ThemeID
 		}
 	}
 
 	if len(themeCounts) == 0 {
-		return nil
+		return nil // 没有股票关联到任何主题
 	}
 
-	// 选择匹配 ticker 数最多的主题
+	// 选择关联股票数最多的主题（最多股票指向的主题最可能是正确归类）
 	var bestID string
 	var bestCount int
 	for id, count := range themeCounts {

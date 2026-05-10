@@ -1,4 +1,4 @@
-// SearchService 全局搜索服务，在主题、股票、事件三个维度并行搜索。
+// Package service 全局搜索服务，在主题、股票、事件三个维度并行搜索。
 // 使用 errgroup 实现并发查询，三个搜索任务同时执行，任一失败则整体失败。
 package service
 

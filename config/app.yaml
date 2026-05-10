@@ -94,6 +94,15 @@ rss:
     - url: "https://www.cnbc.com/id/100003114/device/rss/rss.html"
       source: "cnbc"
       channel: "market_flow"
+    - url: "https://aihot.virxact.com/feed.xml"
+      source: "aihot"
+      channel: "industry_news"
+    - url: "https://aihot.virxact.com/feed/all.xml"
+      source: "aihot"
+      channel: "industry_news"
+    - url: "https://aihot.virxact.com/feed/daily.xml"
+      source: "aihot"
+      channel: "industry_news"
 
 # LLM 大模型配置（OpenAI 兼容接口）
 llm:

@@ -38,22 +38,14 @@ func main() {
 	// 设置Gin模式
 	gin.SetMode(cfg.Server.Mode)
 
-	// 构建依赖注入容器
-	c, err := container.BuildContainer(cfg)
+	// 构建 API 服务容器（只包含基础设施 + HTTP 处理器，不含定时任务）
+	c, err := container.BuildAPIContainer(cfg)
 	if err != nil {
 		log.Fatalf("Failed to build container: %v", err)
 	}
 
-	// 创建顶层可取消 context，用于控制所有后台 goroutine（含定时任务）的生命周期
-	appCtx, appCancel := context.WithCancel(context.Background())
-	defer appCancel() // 兜底：确保任何异常退出路径都能释放 context
-
 	// 启动并运行应用
-	if err := c.Invoke(func(engine *gin.Engine, scheduler container.Scheduler) {
-
-		// 启动 Todo 定时调度器，绑定 appCtx——服务关闭时随之停止
-		go scheduler.Start(appCtx)
-
+	if err := c.Invoke(func(engine *gin.Engine) {
 		// 创建HTTP服务器
 		server := &http.Server{
 			Addr:         fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
@@ -65,7 +57,7 @@ func main() {
 
 		// 启动服务器
 		go func() {
-			log.Printf("Starting server on %s:%d", cfg.Server.Host, cfg.Server.Port)
+			log.Printf("Starting API server on %s:%d", cfg.Server.Host, cfg.Server.Port)
 			if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				log.Fatalf("Failed to start server: %v", err)
 			}
@@ -76,12 +68,9 @@ func main() {
 		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 		<-quit
 
-		log.Println("Shutting down server...")
+		log.Println("Shutting down API server...")
 
-		// 先取消 appCtx，通知所有后台 goroutine 退出
-		appCancel()
-
-		// 再优雅关闭 HTTP server
+		// 优雅关闭 HTTP server
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 		defer cancel()
 
@@ -89,7 +78,7 @@ func main() {
 			log.Fatalf("Server forced to shutdown: %v", err)
 		}
 
-		log.Println("Server exited")
+		log.Println("API server exited")
 	}); err != nil {
 		log.Fatalf("Failed to run application: %v", err)
 	}

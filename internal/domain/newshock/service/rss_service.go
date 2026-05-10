@@ -1,4 +1,4 @@
-// RSSService RSS 采集服务，负责从配置的 RSS 源拉取新闻。
+// Package service RSS 采集服务，负责从配置的 RSS 源拉取新闻。
 //
 // 采集流程：
 //  1. 遍历配置文件中所有 RSS Feed（reuters、bloomberg 等）
@@ -65,6 +65,7 @@ func (s *RSSService) FetchAll(ctx context.Context) {
 //  3. 查 news_raw 表是否已有相同 hash，有则跳过（去重）
 //  4. 新条目写入 news_raw 表
 func (s *RSSService) fetchFeed(ctx context.Context, feedCfg config.FeedConfig) error {
+	// 使用 gofeed 库解析 RSS XML，获取所有条目
 	feed, err := s.parser.ParseURL(feedCfg.URL)
 	if err != nil {
 		return fmt.Errorf("parse %s: %w", feedCfg.URL, err)
@@ -76,6 +77,7 @@ func (s *RSSService) fetchFeed(ctx context.Context, feedCfg config.FeedConfig) e
 			return ctx.Err()
 		}
 
+		// 计算内容哈希（SHA256(title|link)），用于去重
 		hash := makeContentHash(item.Title, item.Link)
 		existing, err := s.newsRawRepo.FindByContentHash(ctx, hash)
 		if err != nil {
@@ -83,9 +85,10 @@ func (s *RSSService) fetchFeed(ctx context.Context, feedCfg config.FeedConfig) e
 			continue
 		}
 		if existing != nil {
-			continue
+			continue // 已存在相同哈希的新闻，跳过
 		}
 
+		// 解析发布时间：优先用 PublishedParsed，其次用 UpdatedParsed
 		var publishedAt *time.Time
 		if item.PublishedParsed != nil {
 			publishedAt = item.PublishedParsed
@@ -93,20 +96,22 @@ func (s *RSSService) fetchFeed(ctx context.Context, feedCfg config.FeedConfig) e
 			publishedAt = item.UpdatedParsed
 		}
 
+		// 取新闻正文：优先用 Description，其次用 Content
 		content := item.Description
 		if content == "" && item.Content != "" {
 			content = item.Content
 		}
 
+		// 构建 NewsRaw 记录，标题截断到 500 字符避免数据库溢出
 		news := &dm.NewsRaw{
 			Title:       truncate(item.Title, 500),
 			Content:     content,
-			Source:      feedCfg.Source,
-			Channel:     feedCfg.Channel,
+			Source:      feedCfg.Source,  // 来源标识（如 "reuters"）
+			Channel:     feedCfg.Channel, // 渠道分类（如 "global_macro"）
 			URL:         item.Link,
 			PublishedAt: publishedAt,
 			ContentHash: hash,
-			Processed:   false,
+			Processed:   false, // 标记为未处理，等待 NewsProcessor 消费
 			TenantID:    s.cfg.TenantID,
 		}
 

@@ -1,4 +1,4 @@
-// PolymarketScheduler Polymarket 预测市场数据同步调度器。
+// Package service Polymarket 预测市场数据同步调度器。
 //
 // 定时从 Polymarket API 拉取活跃市场数据，存入数据库，并尝试与本地投资主题进行关键词匹配。
 // 匹配算法详见 PolymarketService.findBestThemeMatch。

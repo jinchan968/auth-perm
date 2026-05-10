@@ -26,10 +26,11 @@ cd ui && pnpm type-check
 ## 2. 环境与目录认知
 开始改动前，建议先确认你在改哪一层：
 
-- 后端启动入口：`./cmd/api/main.go`
-- 后端依赖装配：`./internal/container/`
+- 后端 API 入口：`./cmd/api/main.go`
+- 后端 Worker 入口：`./cmd/worker/main.go`
+- 后端依赖装配：`./internal/container/`（`BuildAPIContainer` / `BuildWorkerContainer`）
 - 后端路由注册：`./internal/controller/http/route.go`
-- 领域模块：`./internal/domain/{auth,permission,tenant,todo}`
+- 领域模块：`./internal/domain/{auth,permission,tenant,todo,journal,newshock,cache}`
 - 前端页面：`./ui/app/`
 - 前端 API：`./ui/lib/api/`
 - 前端权限：`./ui/hooks/use-permissions.ts`、`./ui/components/ui/perm-guard.tsx`

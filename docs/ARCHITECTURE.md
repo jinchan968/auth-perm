@@ -5,32 +5,49 @@
 ## 1. 系统概览
 - 后端：Go + Gin + GORM + Redis。
 - 前端：Next.js App Router + React Query + Zustand。
-- 关键主题：认证、权限、租户、Todo。
-- 启动入口：`./cmd/api/main.go`。
+- 关键主题：认证、权限、租户、Todo、Newshock。
+- 启动入口：
+  - `./cmd/api/main.go` — HTTP API 服务
+  - `./cmd/worker/main.go` — 定时任务服务（调度器）
 
 ## 2. 后端启动链路
-当前后端的主流程可以概括为：
 
-1. `./cmd/api/main.go`
-   - 加载 `.env` 与 `config/app.yaml`。
-   - 构建顶层 `context.Context`。
-   - 调用 `container.BuildContainer(cfg)` 完成依赖装配。
-   - 通过依赖注入拿到 `*gin.Engine` 和 `Scheduler`，启动 HTTP 服务与后台调度器。
-2. `./internal/container/container.go`
-   - 负责数据库、Redis、缓存、CodeGenerator 等基础设施装配。
-   - 调用各领域模块的 `Register*Domain` 完成 repo / service 注册。
-   - 注册 HTTP handler。
-   - 创建 Gin Engine，并在其中调用 `controller/http.RegisterRoutes(...)` 完成路由挂载。
-3. `./internal/controller/http/route.go`
-   - 负责集中注册所有 `/api/v1` 路由。
-   - 统一挂载认证与 API 权限中间件。
-   - 按主题拆分为 `RegisterAuthRoutes`、`RegisterPermissionRoutes`、`RegisterTenantRoutes`、`RegisterUserRoutes`、`RegisterTodoRoutes`。
+HTTP 服务和定时任务已拆分为两个独立进程，共享同一套依赖注入基础设施。
+
+### 2.1 API 服务（`cmd/api/main.go`）
+
+1. 加载 `.env` 与 `config/app.yaml`。
+2. 调用 `container.BuildAPIContainer(cfg)` 完成依赖装配。
+3. 通过依赖注入拿到 `*gin.Engine`，启动 HTTP 服务。
+4. 阻塞等待 SIGINT/SIGTERM，优雅关闭。
+
+### 2.2 Worker 服务（`cmd/worker/main.go`）
+
+1. 加载 `.env` 与 `config/app.yaml`。
+2. 调用 `container.BuildWorkerContainer(cfg)` 完成依赖装配。
+3. 通过依赖注入拿到 `container.Scheduler`（CompositeScheduler），启动所有定时任务。
+4. 阻塞等待 SIGINT/SIGTERM，`appCancel()` 通知调度器退出。
+
+### 2.3 容器构建（`internal/container/container.go`）
+
+容器分为三层，避免重复注册：
+
+- `BuildBaseContainer(cfg)` — 共享基础设施（config、LLM、DB、Redis、cache、code_gen）+ 所有领域模块（repo / service / scheduler）
+- `BuildAPIContainer(cfg)` — Base + HTTP handlers + Gin Engine
+- `BuildWorkerContainer(cfg)` — Base + CompositeScheduler 绑定
+
+### 2.4 路由注册（`internal/controller/http/route.go`）
+
+- 负责集中注册所有 `/api/v1` 路由。
+- 统一挂载认证与 API 权限中间件。
+- 按主题拆分为 `RegisterAuthRoutes`、`RegisterPermissionRoutes`、`RegisterTenantRoutes`、`RegisterUserRoutes`、`RegisterTodoRoutes`、`RegisterNewshockRoutes`。
 
 ### 架构含义
 - `main.go` 只负责启动和生命周期控制，不承担业务逻辑。
 - `container` 只做依赖装配，不直接承载业务规则。
 - `route.go` 只做路由组织和中间件拼装，不写业务判断。
 - 业务规则应沉到领域模块的 service / repo / validator / dto 中。
+- API 和 Worker 独立部署，互不影响：API 挂了不影响定时任务，Worker 挂了不影响 HTTP 服务。
 
 ## 3. 后端分层边界
 
@@ -53,6 +70,9 @@
 - `permission`：角色、权限项、权限资源、组织。
 - `tenant`：租户管理、租户设置、租户状态切换。
 - `todo`：分类、待办项、调度器。
+- `journal`：日记模块。
+- `newshock`：投资雷达（事件、主题、股票、RSS 采集、AI 评分、Polymarket 同步）。
+- `cache`：通用缓存抽象层。
 
 ### 3.3 新增后端能力的最低检查清单
 如果你新增一个后端接口或服务，通常至少要检查这些位置：
@@ -106,6 +126,8 @@
 | 权限 / 角色 / 资源 | `./internal/domain/permission/`、`./internal/controller/http/route.go`、`./ui/lib/api/permission*.ts`、`./ui/hooks/use-permissions.ts`、`./ui/components/ui/perm-guard.tsx`、`./ui/app/permissions/` |
 | 租户 | `./internal/domain/tenant/`、`./ui/lib/api/tenant.ts`、`./ui/types/tenant.ts`、`./ui/app/tenants/`、`./ui/components/tenants/` |
 | Todo | `./internal/domain/todo/`、`./ui/lib/api/todo.ts`、`./ui/types/todo.ts`、`./ui/app/todos/` |
+| Newshock | `./internal/domain/newshock/`、`./newshock/lib/api.ts`、`./newshock/app/` |
+| 定时任务 | `./cmd/worker/main.go`、`./internal/container/container.go`（BuildWorkerContainer）、各 domain 的 scheduler |
 | 中间件 / 路由保护 | `./internal/controller/middleware/`、`./internal/controller/http/route.go`、`./ui/middleware.ts` |
 
 ## 6. 分层约束

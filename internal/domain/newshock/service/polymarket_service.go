@@ -1,4 +1,4 @@
-// PolymarketService Polymarket 预测市场服务，负责：
+// Package service Polymarket 预测市场服务，负责：
 //  1. 从 Polymarket API 拉取活跃市场数据（SyncMarkets）
 //  2. 将市场数据与本地投资主题进行关键词匹配（matchThemes）
 //

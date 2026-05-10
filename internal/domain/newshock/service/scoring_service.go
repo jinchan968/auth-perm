@@ -1,4 +1,4 @@
-// ScoringService 评分服务，负责计算主题强度、趋势和股票热度。
+// Package service 评分服务，负责计算主题强度、趋势和股票热度。
 //
 // 主题评分算法：
 //
@@ -54,17 +54,20 @@ func NewScoringService(
 // ScoreAll 对所有租户执行评分：主题评分 → 股票评分 → AI 市场环境判断。
 // 由 ScoringScheduler 定时调用，默认每 60 分钟执行一次。
 func (s *ScoringService) ScoreAll(ctx context.Context) {
+	// 获取所有有主题数据的租户 ID，每个租户独立评分
 	tenantIDs, err := s.themeRepo.DistinctTenantIDs(ctx)
 	if err != nil || len(tenantIDs) == 0 {
 		log.Printf("[ScoringService] no tenants found, skip scoring")
 		return
 	}
+	// 遍历租户，依次执行主题评分、股票评分、AI 市场环境判断
 	for _, tenantID := range tenantIDs {
 		if ctx.Err() != nil {
 			return
 		}
 		s.scoreThemesForTenant(ctx, tenantID)
 		s.scoreTickersForTenant(ctx, tenantID)
+		// AI 市场环境判断（依赖主题评分结果，所以放在主题评分之后）
 		if s.aiService != nil {
 			s.aiService.JudgeRegime(ctx, tenantID)
 		}
@@ -79,6 +82,7 @@ func (s *ScoringService) ScoreAll(ctx context.Context) {
 //  4. 找出最大 strength，用于归一化
 //  5. 回写 strength_norm 并更新数据库
 func (s *ScoringService) scoreThemesForTenant(ctx context.Context, tenantID string) {
+	// 分页加载该租户所有主题（每页 200 条，避免一次性加载过多）
 	var allThemes []dm.Theme
 	page := 1
 	const batchSize = 200
@@ -94,7 +98,7 @@ func (s *ScoringService) scoreThemesForTenant(ctx context.Context, tenantID stri
 		}
 		allThemes = append(allThemes, themes...)
 		if len(themes) < batchSize {
-			break
+			break // 最后一页，退出循环
 		}
 		page++
 	}
@@ -103,22 +107,25 @@ func (s *ScoringService) scoreThemesForTenant(ctx context.Context, tenantID stri
 		return
 	}
 
+	// 计算时间窗口：近7天（用于评分）和前7天（用于趋势对比）
 	now := time.Now()
-	d7 := now.Add(-7 * 24 * time.Hour)
-	d14 := now.Add(-14 * 24 * time.Hour)
+	d7 := now.Add(-7 * 24 * time.Hour)   // 7天前
+	d14 := now.Add(-14 * 24 * time.Hour) // 14天前
 
 	var maxStrength float64
 
+	// 第一轮：计算每个主题的原始强度和趋势
 	for i := range allThemes {
 		theme := &allThemes[i]
 
-		// 近7天数据：事件数量和重要度总和
+		// 查询近7天的事件数量和重要度总和
 		recent7Count, _ := s.eventRepo.CountByThemeSince(ctx, theme.ID, d7)
 		recent7Imp, _ := s.eventRepo.SumImportanceByThemeSince(ctx, theme.ID, d7)
 
-		// 前7天数据（8-14天前）：用于计算趋势
+		// 查询前7天（8-14天前）的事件数量，用于趋势对比
+		// CountByThemeSince 是 >=since，所以需要减去近7天的数
 		prev7Count, _ := s.eventRepo.CountByThemeSince(ctx, theme.ID, d14)
-		prev7Count = prev7Count - recent7Count // 减去近7天的，得到前7天的
+		prev7Count = prev7Count - recent7Count // 14天内的总数 - 近7天 = 前7天
 		if prev7Count < 0 {
 			prev7Count = 0
 		}
@@ -127,18 +134,20 @@ func (s *ScoringService) scoreThemesForTenant(ctx context.Context, tenantID stri
 		strength := float64(recent7Count)*2 + recent7Imp + float64(theme.TickerCount)*0.5
 		theme.Strength = math.Round(strength*10) / 10
 
-		// 趋势判定：近7天 vs 前7天
+		// 趋势判定：近7天事件数 vs 前7天事件数的比值
 		theme.Trend = calcTrend(recent7Count, prev7Count)
 
+		// 记录最大强度，用于后续归一化
 		if theme.Strength > maxStrength {
 			maxStrength = theme.Strength
 		}
 	}
 
-	// 归一化并回写数据库
+	// 第二轮：归一化强度到 0-100 并回写数据库
 	for i := range allThemes {
 		theme := &allThemes[i]
 		if maxStrength > 0 {
+			// 归一化：自身强度 / 最大强度 × 100，四舍五入到最近的 10
 			theme.StrengthNorm = math.Round(theme.Strength/maxStrength*100) / 10 * 10
 		}
 		if err := s.themeRepo.Update(ctx, &allThemes[i]); err != nil {
@@ -153,12 +162,16 @@ func (s *ScoringService) scoreThemesForTenant(ctx context.Context, tenantID stri
 // 公式：hot_score = log2(mention_count + 1) × 10
 // 然后归一化到 0-100。
 func (s *ScoringService) scoreTickersForTenant(ctx context.Context, tenantID string) {
+	// 加载该租户所有股票（不分页，股票数量通常不会太多）
 	tickers, err := s.tickerRepo.GetAllByTenant(ctx, tenantID)
 	if err != nil {
 		log.Printf("[ScoringService] list tickers for tenant %s error: %v", tenantID, err)
 		return
 	}
 
+	// 第一轮：计算每只股票的热度评分
+	// 公式：hot_score = log2(mention_count + 1) × 10
+	// 使用对数是因为提及次数差异可能很大（1 vs 1000），对数可以压缩范围
 	var maxHot float64
 	for i := range tickers {
 		t := &tickers[i]
@@ -169,9 +182,11 @@ func (s *ScoringService) scoreTickersForTenant(ctx context.Context, tenantID str
 		}
 	}
 
+	// 第二轮：归一化到 0-100 并回写数据库
 	for i := range tickers {
 		t := &tickers[i]
 		if maxHot > 0 {
+			// 归一化：自身热度 / 最高热度 × 100
 			t.HotScore = math.Round(t.HotScore / maxHot * 100)
 		}
 		if err := s.tickerRepo.Update(ctx, &tickers[i]); err != nil {

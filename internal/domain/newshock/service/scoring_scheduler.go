@@ -1,4 +1,4 @@
-// ScoringScheduler 评分调度器，定时执行主题评分 + 趋势计算 + 市场环境判断。
+// Package service 评分调度器，定时执行主题评分 + 趋势计算 + 市场环境判断。
 //
 // 调用 ScoringService.ScoreAll，依次完成：
 //  1. 遍历所有租户，对每个租户的主题和股票重新评分

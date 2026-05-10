@@ -70,46 +70,29 @@ func NewContainer() *Container {
 	}
 }
 
-// BuildContainer 构建完整的依赖注入容器
-func BuildContainer(cfg *config.Config) (*dig.Container, error) {
+// BuildBaseContainer 构建共享基础容器（config、LLM、DB、Redis、cache、code_gen、所有 domain 模块）。
+// API 和 Worker 容器都基于此函数构建，避免重复注册。
+func BuildBaseContainer(cfg *config.Config) (*dig.Container, error) {
 	container := dig.New()
 
-	// 注册配置
-	if err := container.Provide(func() *config.Config {
-		return cfg
-	}); err != nil {
+	// 注册基础设施
+	if err := registerInfra(container, cfg); err != nil {
 		return nil, err
 	}
 
-	// 注册 LLM 客户端
-	if err := container.Provide(func(cfg *config.Config) *llm.Client {
-		return llm.NewClient(&cfg.LLM)
-	}); err != nil {
+	// 注册所有领域模块（含 repo、service、scheduler）
+	if err := registerDomains(container); err != nil {
 		return nil, err
 	}
 
-	// 注册数据库连接
-	if err := registerDatabase(container); err != nil {
-		return nil, err
-	}
+	return container, nil
+}
 
-	// 注册Redis连接
-	if err := registerRedis(container); err != nil {
-		return nil, err
-	}
-
-	// 注册缓存
-	if err := registerCache(container); err != nil {
-		return nil, err
-	}
-
-	// 注册Code生成器
-	if err := registerCodeGenerator(container); err != nil {
-		return nil, err
-	}
-
-	// 注册应用服务
-	if err := registerApplicationServices(container); err != nil {
+// BuildAPIContainer 构建 API 服务容器。
+// 在基础容器之上额外注册 HTTP 处理器和 Gin 路由引擎。
+func BuildAPIContainer(cfg *config.Config) (*dig.Container, error) {
+	container, err := BuildBaseContainer(cfg)
+	if err != nil {
 		return nil, err
 	}
 
@@ -124,6 +107,68 @@ func BuildContainer(cfg *config.Config) (*dig.Container, error) {
 	}
 
 	return container, nil
+}
+
+// BuildWorkerContainer 构建 Worker（定时任务）服务容器。
+// 在基础容器之上额外注册 CompositeScheduler，供 worker main.go 启动。
+func BuildWorkerContainer(cfg *config.Config) (*dig.Container, error) {
+	container, err := BuildBaseContainer(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	// 将多个调度器组合为一个 Scheduler，供 worker main.go 统一启动
+	if err := container.Provide(func(
+		todoScheduler *todoService.TodoScheduler,
+		rssScheduler *newshockService.RSSScheduler,
+		scoringScheduler *newshockService.ScoringScheduler,
+		pmScheduler *newshockService.PolymarketScheduler,
+	) Scheduler {
+		return NewCompositeScheduler(todoScheduler, rssScheduler, scoringScheduler, pmScheduler)
+	}); err != nil {
+		return nil, err
+	}
+
+	return container, nil
+}
+
+// registerInfra 注册基础设施依赖：config、LLM、DB、Redis、cache、code_gen
+func registerInfra(container *dig.Container, cfg *config.Config) error {
+	// 注册配置
+	if err := container.Provide(func() *config.Config {
+		return cfg
+	}); err != nil {
+		return err
+	}
+
+	// 注册 LLM 客户端
+	if err := container.Provide(func(cfg *config.Config) *llm.Client {
+		return llm.NewClient(&cfg.LLM)
+	}); err != nil {
+		return err
+	}
+
+	// 注册数据库连接
+	if err := registerDatabase(container); err != nil {
+		return err
+	}
+
+	// 注册Redis连接
+	if err := registerRedis(container); err != nil {
+		return err
+	}
+
+	// 注册缓存
+	if err := registerCache(container); err != nil {
+		return err
+	}
+
+	// 注册Code生成器
+	if err := registerCodeGenerator(container); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // registerDatabase 注册数据库相关依赖
@@ -196,10 +241,11 @@ func registerCodeGenerator(container *dig.Container) error {
 	})
 }
 
-// registerApplicationServices 注册应用服务
-func registerApplicationServices(container *dig.Container) error {
-	// 应用服务可以在这里注册
-	// 注册领域模块
+// registerDomains 注册所有领域模块（repo、service、scheduler）。
+// 每个 domain 的 Register*Domain 函数会将该领域的 repo 和 service 注册到容器。
+// scheduler 也在此注册（由各 domain 的 module.go 中 Provide），但 CompositeScheduler
+// 的组装在 BuildWorkerContainer 中完成，API 容器不需要调度器。
+func registerDomains(container *dig.Container) error {
 	if err := cache.RegisterCacheDomain(container); err != nil {
 		return err
 	}
@@ -211,7 +257,6 @@ func registerApplicationServices(container *dig.Container) error {
 	}
 
 	// 注册跨域接口适配：SessionService → tenant/service.SessionInvalidator
-	// SessionService 实现了 InvalidateTenantSessions 方法，满足 tenant 域的 SessionInvalidator 接口
 	if err := container.Provide(func(sessionSvc *service.SessionService) tenantService.SessionInvalidator {
 		return sessionSvc
 	}); err != nil {
@@ -230,18 +275,8 @@ func registerApplicationServices(container *dig.Container) error {
 	if err := newshock.RegisterNewshockDomain(container); err != nil {
 		return err
 	}
-	// 将多个调度器组合为一个 Scheduler，供 main.go 统一启动
-	if err := container.Provide(func(
-		todoScheduler *todoService.TodoScheduler,
-		rssScheduler *newshockService.RSSScheduler,
-		scoringScheduler *newshockService.ScoringScheduler,
-		pmScheduler *newshockService.PolymarketScheduler,
-	) Scheduler {
-		return NewCompositeScheduler(todoScheduler, rssScheduler, scoringScheduler, pmScheduler)
-	}); err != nil {
-		return err
-	}
-	log.Println("Application services registered successfully")
+
+	log.Println("Domain modules registered successfully")
 	return nil
 }
 
