@@ -123,8 +123,11 @@ func BuildWorkerContainer(cfg *config.Config) (*dig.Container, error) {
 		rssScheduler *newshockService.RSSScheduler,
 		scoringScheduler *newshockService.ScoringScheduler,
 		pmScheduler *newshockService.PolymarketScheduler,
+		stockListScheduler *newshockService.StockListScheduler,
+		dailyDataScheduler *newshockService.DailyDataScheduler,
+		conceptScheduler *newshockService.ConceptScheduler,
 	) Scheduler {
-		return NewCompositeScheduler(todoScheduler, rssScheduler, scoringScheduler, pmScheduler)
+		return NewCompositeScheduler(todoScheduler, rssScheduler, scoringScheduler, pmScheduler, stockListScheduler, dailyDataScheduler, conceptScheduler)
 	}); err != nil {
 		return nil, err
 	}

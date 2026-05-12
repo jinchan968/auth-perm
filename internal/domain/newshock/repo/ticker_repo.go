@@ -7,6 +7,7 @@ import (
 	stdErr "errors"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"auth-perm/internal/common/errors"
 	"auth-perm/internal/domain/newshock/dm"
@@ -36,6 +37,31 @@ func (r *TickerRepo) Create(ctx context.Context, ticker *dm.Ticker) error {
 		return errors.WrapBizError(err, "创建股票失败")
 	}
 	return nil
+}
+
+// CreateBatchIfNotExists 批量插入股票记录，symbol+tenant_id 冲突时跳过。
+func (r *TickerRepo) CreateBatchIfNotExists(ctx context.Context, tickers []dm.Ticker) (int64, error) {
+	if len(tickers) == 0 {
+		return 0, nil
+	}
+	// 分批插入，每批 500 条
+	const batchSize = 500
+	var totalAffected int64
+	for i := 0; i < len(tickers); i += batchSize {
+		end := i + batchSize
+		if end > len(tickers) {
+			end = len(tickers)
+		}
+		batch := tickers[i:end]
+		result := r.db.WithContext(ctx).
+			Clauses(clause.OnConflict{DoNothing: true}).
+			Create(&batch)
+		if result.Error != nil {
+			return totalAffected, errors.WrapBizError(result.Error, "批量创建股票失败")
+		}
+		totalAffected += result.RowsAffected
+	}
+	return totalAffected, nil
 }
 
 // FindByID 按 ID 查找股票，不存在返回 NotFoundError

@@ -3,9 +3,10 @@
 
 -- Use a fixed tenant_id for all seed data
 -- Change this to match your actual tenant
+-- +goose StatementBegin
 DO $$
 DECLARE
-    v_tenant VARCHAR(36) := '00000000-0000-0000-0000-000000000001';
+    v_tenant VARCHAR(36) := 'default';
 
     -- Theme UUIDs
     t_mideast    VARCHAR(36) := 'a0000000-0000-0000-0000-000000000001';
@@ -179,11 +180,12 @@ INSERT INTO newshock_regime (id, regime_type, confidence, summary, tenant_id) VA
  v_tenant);
 
 END $$;
+-- +goose StatementEnd
 
 -- +goose Down
 DELETE FROM newshock_event_tickers;
 DELETE FROM newshock_theme_tickers;
-DELETE FROM newshock_events WHERE tenant_id = '00000000-0000-0000-0000-000000000001';
-DELETE FROM newshock_tickers WHERE tenant_id = '00000000-0000-0000-0000-000000000001';
-DELETE FROM newshock_themes WHERE tenant_id = '00000000-0000-0000-0000-000000000001';
-DELETE FROM newshock_regime WHERE tenant_id = '00000000-0000-0000-0000-000000000001';
+DELETE FROM newshock_events WHERE tenant_id = 'default';
+DELETE FROM newshock_tickers WHERE tenant_id = 'default';
+DELETE FROM newshock_themes WHERE tenant_id = 'default';
+DELETE FROM newshock_regime WHERE tenant_id = 'default';

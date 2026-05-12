@@ -1,13 +1,41 @@
 const BASE_URL = '/api/v1/newshock';
 
+function getTokenFromCookie(): string | null {
+  if (typeof window === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|;\s*)auth_token=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function getLoginURL(): string {
+  if (typeof window === 'undefined') return '/login';
+  const { protocol, hostname } = window.location;
+  // 主 UI 默认在 3000 端口，可通过环境变量覆盖
+  const mainPort = process.env.NEXT_PUBLIC_MAIN_PORT || '3000';
+  return `${protocol}//${hostname}:${mainPort}/login`;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = getTokenFromCookie();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (options?.headers) {
+    Object.assign(headers, options.headers);
+  }
+  if (token) {
+    headers['x-auth-token'] = token;
+  }
+
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
+    headers,
   });
+
+  if (res.status === 401) {
+    window.location.href = getLoginURL();
+    throw new Error('未登录，请先登录');
+  }
+
   if (!res.ok) {
     let msg = `API error: ${res.status}`;
     try {
@@ -103,9 +131,28 @@ export interface ThemeDetail extends Theme {
   polymarket?: Polymarket[];
 }
 
+export interface TickerConcept {
+  name: string;
+  type: string; // concept/industry/region
+}
+
 export interface TickerDetail extends Ticker {
   themes?: Theme[];
   events?: Event[];
+  daily?: TickerDaily[];
+  concepts?: TickerConcept[];
+}
+
+export interface TickerDaily {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  amount: number;
+  change_pct: number;
+  turnover: number;
 }
 
 export interface SearchResults {
@@ -146,6 +193,8 @@ export const api = {
   getTickers: (params?: Record<string, string>) =>
     request<PagedResponse<Ticker>>(`/tickers${params ? '?' + new URLSearchParams(params) : ''}`),
   getTicker: (symbol: string) => request<TickerDetail>(`/tickers/${symbol}`),
+  getTickerDaily: (symbol: string, days?: number) =>
+    request<TickerDaily[]>(`/tickers/${symbol}/daily${days ? `?days=${days}` : ''}`),
   getEvents: (params?: Record<string, string>) =>
     request<PagedResponse<Event>>(`/events${params ? '?' + new URLSearchParams(params) : ''}`),
   getEvent: (id: string) => request<Event>(`/events/${id}`),

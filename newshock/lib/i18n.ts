@@ -20,6 +20,10 @@ const dict: Record<string, { zh: string; en: string }> = {
   events1w: { zh: '近一周事件', en: 'Events / 1w' },
   thematicLeaders: { zh: '主题领涨榜', en: 'Thematic Leaders' },
   noThemes: { zh: '暂无主题', en: 'No themes yet' },
+  concepts: { zh: '题材概念', en: 'Concepts' },
+  concept_concept: { zh: '概念板块', en: 'Concepts' },
+  concept_industry: { zh: '行业板块', en: 'Industry' },
+  concept_region: { zh: '地域板块', en: 'Region' },
   noTickers: { zh: '暂无股票', en: 'No tickers yet' },
   noEvents: { zh: '暂无事件', en: 'No events yet' },
   noData: { zh: '暂无数据', en: 'No data yet' },
@@ -46,6 +50,10 @@ const dict: Record<string, { zh: string; en: string }> = {
   regulatory: { zh: '监管', en: 'Regulatory' },
   allMarkets: { zh: '全部市场', en: 'All' },
   filterMarket: { zh: '市场', en: 'Market' },
+  market_cn: { zh: 'A股', en: 'A-Share' },
+  market_us: { zh: '美股', en: 'US' },
+  market_hk: { zh: '港股', en: 'HK' },
+  market_kr: { zh: '韩股', en: 'KR' },
   search: { zh: '搜索', en: 'Search' },
   searchPlaceholder: { zh: '搜索代码或名称...', en: 'Search symbol or name...' },
   searchThemes: { zh: '搜索主题名称或描述…', en: 'Search theme name or description…' },
@@ -93,6 +101,11 @@ const dict: Record<string, { zh: string; en: string }> = {
   descriptionGenFailed: { zh: '描述生成失败', en: 'Failed to generate description' },
   loadError: { zh: '加载失败', en: 'Failed to load' },
   retry: { zh: '重试', en: 'Retry' },
+  priceTrend: { zh: '价格走势', en: 'Price Trend' },
+  close: { zh: '收盘', en: 'Close' },
+  vol: { zh: '成交量', en: 'Volume' },
+  days: { zh: '天', en: 'd' },
+  year: { zh: '年', en: 'y' },
 };
 
 export function tt(key: string, lang: string): string {

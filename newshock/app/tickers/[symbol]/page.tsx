@@ -1,12 +1,18 @@
 'use client';
 
 import React from 'react';
+import dynamic from 'next/dynamic';
 import { Typography, Card, Row, Col, Spin, Descriptions, Tag, Button } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { api, TickerDetail } from '@/lib/api';
 import { useThemeContext } from '@/lib/theme-context';
 import { tt } from '@/lib/i18n';
+
+const PriceTrendChart = dynamic(() => import('@/components/charts/PriceTrendChart'), {
+  ssr: false,
+  loading: () => <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spin /></div>,
+});
 
 export default function TickerDetailPage() {
   const { lang } = useThemeContext();
@@ -45,6 +51,10 @@ export default function TickerDetailPage() {
             </Descriptions>
           </Card>
 
+          {t.daily && t.daily.length > 0 && (
+            <PriceTrendChart data={t.daily} lang={lang} />
+          )}
+
           <Card title={<Typography.Title level={5} style={{ margin: 0 }}>{tt('recentEvents', lang)}</Typography.Title>} size="small">
             {t.events && t.events.length > 0 ? t.events.map((event) => (
               <div key={event.id} className="event-item" style={{ cursor: 'pointer' }} onClick={() => router.push(`/events/${event.id}`)}>
@@ -74,6 +84,26 @@ export default function TickerDetailPage() {
               </div>
             )) : <div style={{ color: 'var(--nshock-text-muted)', textAlign: 'center', padding: 24 }}>{tt('noThemes', lang)}</div>}
           </Card>
+
+          {t.concepts && t.concepts.length > 0 && (
+            <Card title={<Typography.Title level={5} style={{ margin: 0 }}>{tt('concepts', lang)}</Typography.Title>} size="small" style={{ marginTop: 16 }}>
+              {['concept', 'industry', 'region'].map((type) => {
+                const items = t.concepts!.filter((c) => c.type === type);
+                if (!items.length) return null;
+                const colorMap: Record<string, string> = { concept: 'green', industry: 'blue', region: 'orange' };
+                return (
+                  <div key={type} style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: 'var(--nshock-text-muted)', marginBottom: 6 }}>{tt(`concept_${type}`, lang)}</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      {items.map((c) => (
+                        <Tag key={c.name} color={colorMap[type]} style={{ fontSize: 11 }}>{c.name}</Tag>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </Card>
+          )}
         </Col>
       </Row>
     </>

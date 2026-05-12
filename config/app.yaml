@@ -82,15 +82,9 @@ monitoring:
 rss:
   fetch_interval: 30        # RSS 拉取间隔（分钟）
   score_interval: 60        # 主题评分间隔（分钟）
-  tenant_id: "00000000-0000-0000-0000-000000000001"
+  tenant_id: "default"
   user_agent: "NewshockBot/1.0"
   feeds:
-    - url: "https://feeds.reuters.com/reuters/businessNews"
-      source: "reuters"
-      channel: "global_macro"
-    - url: "https://feeds.reuters.com/reuters/technologyNews"
-      source: "reuters"
-      channel: "industry_news"
     - url: "https://www.cnbc.com/id/100003114/device/rss/rss.html"
       source: "cnbc"
       channel: "market_flow"
@@ -109,3 +103,10 @@ llm:
   base_url: "https://api.openai.com/v1"
   api_key: ""
   model: "gpt-4o-mini"
+
+# A股数据采集配置
+stock:
+  sync_interval: 24       # 股票列表同步间隔（小时）
+  daily_sync_interval: 4  # 日线数据同步间隔（小时），独立于股票列表同步
+  startup_delay_min: 5    # 启动后首次同步延迟（分钟），股票列表用此值，日线/概念延迟加倍
+  tenant_id: "default"

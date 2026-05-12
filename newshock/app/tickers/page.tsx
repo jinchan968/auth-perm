@@ -18,7 +18,7 @@ export default function TickersPage() {
   const [page, setPage] = useState(1);
   const pageSize = 24;
 
-  const { data, isLoading, isError, error, refetch } = useQuery({
+  const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: ['tickers', market, keyword, page],
     queryFn: () => api.getTickers({ ...(market ? { market } : {}), ...(keyword ? { keyword } : {}), page: String(page), page_size: String(pageSize) }),
   });
@@ -31,12 +31,12 @@ export default function TickersPage() {
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
         <Select placeholder={tt('filterMarket', lang)} allowClear style={{ minWidth: 140 }} value={market || undefined}
           onChange={(v) => { setMarket(v ?? ''); setPage(1); }}
-          options={[{ label: tt('allMarkets', lang), value: '' }, ...MARKETS.map((m) => ({ label: m.toUpperCase(), value: m }))]} />
+          options={[{ label: tt('allMarkets', lang), value: '' }, ...MARKETS.map((m) => ({ label: tt(`market_${m}`, lang), value: m }))]} />
         <Input.Search placeholder={tt('searchPlaceholder', lang)} allowClear style={{ maxWidth: 300 }} onSearch={(v) => { setKeyword(v); setPage(1); }} />
       </div>
 
       {isError ? <div style={{ textAlign: 'center', padding: 60 }}><Typography.Text type="danger">{tt('loadError', lang)}: {error?.message}</Typography.Text><br /><Button style={{ marginTop: 12 }} onClick={() => refetch()}>{tt('retry', lang)}</Button></div>
-      : isLoading ? <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spin size="large" /></div>
+      : isPending && !tickers.length ? <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spin size="large" /></div>
       : tickers.length === 0 ? <div style={{ textAlign: 'center', padding: 60, color: 'var(--nshock-text-muted)' }}>{tt('noTickers', lang)}</div>
       : <>
         <Row gutter={[16, 16]}>

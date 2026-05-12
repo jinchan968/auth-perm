@@ -2,7 +2,9 @@
 // 集中管理转换逻辑，避免在 service 层散落重复的字段映射代码。
 package vo
 
-import "auth-perm/internal/domain/newshock/dm"
+import (
+	"auth-perm/internal/domain/newshock/dm"
+)
 
 // ToThemeResponse 将主题数据库模型转换为 API 响应结构体
 func ToThemeResponse(t dm.Theme) ThemeResponse {
@@ -49,5 +51,20 @@ func ToEventResponse(e dm.Event) EventResponse {
 		ThemeName:  e.ThemeName,
 		EventTime:  e.EventTime,
 		CreatedAt:  e.CreatedAt,
+	}
+}
+
+// ToTickerDailyResponse 将日线行情数据库模型转换为 API 响应结构体
+func ToTickerDailyResponse(d dm.TickerDaily) TickerDailyResponse {
+	return TickerDailyResponse{
+		Date:      d.TradeDate.Format("2006-01-02"),
+		Open:      d.Open,
+		High:      d.High,
+		Low:       d.Low,
+		Close:     d.Close,
+		Volume:    d.Volume,
+		Amount:    d.Amount,
+		ChangePct: d.ChangePct,
+		Turnover:  d.Turnover,
 	}
 }

@@ -351,6 +351,7 @@ func RegisterNewshockRoutes(
 		ns.GET("/pipeline", h.Pipeline)
 		ns.GET("/edge", h.Edge)
 		ns.GET("/polymarket", h.ListPolymarket)
+		ns.GET("/providers", h.ProviderHealth)
 		ns.GET("/search", h.Search)
 
 		ns.GET("/themes", h.ListThemes)
@@ -359,6 +360,7 @@ func RegisterNewshockRoutes(
 
 		ns.GET("/tickers", h.ListTickers)
 		ns.GET("/tickers/:symbol", h.GetTicker)
+		ns.GET("/tickers/:symbol/daily", h.GetTickerDaily)
 
 		ns.GET("/events", h.ListEvents)
 		ns.GET("/events/:id", h.GetEvent)

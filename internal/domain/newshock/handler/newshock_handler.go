@@ -14,18 +14,22 @@ import (
 
 	"auth-perm/internal/common/dto/response"
 	"auth-perm/internal/controller/util"
+	"auth-perm/internal/domain/newshock/dm"
 	"auth-perm/internal/domain/newshock/service"
 	"auth-perm/internal/domain/newshock/vo"
 )
 
 // NewshockHandler 聚合了所有 Newshock 子服务，负责接收 HTTP 请求并调用对应 Service。
 type NewshockHandler struct {
-	themeService  *service.ThemeService  // 主题 CRUD + 搜索
-	tickerService *service.TickerService // 股票 CRUD + 搜索
-	eventService  *service.EventService  // 事件 CRUD + 搜索
-	statsService  *service.StatsService  // 聚合统计（首页、边缘信号、管线状态）
-	searchService *service.SearchService // 全局搜索（并行搜索主题/股票/事件）
-	aiService     *service.AIService     // AI 分析（事件重要度评估、主题描述生成、市场环境判断）
+	themeService      *service.ThemeService  // 主题 CRUD + 搜索
+	tickerService     *service.TickerService // 股票 CRUD + 搜索
+	eventService      *service.EventService  // 事件 CRUD + 搜索
+	statsService      *service.StatsService  // 聚合统计（首页、边缘信号、管线状态）
+	searchService     *service.SearchService // 全局搜索（并行搜索主题/股票/事件）
+	aiService         *service.AIService     // AI 分析（事件重要度评估、主题描述生成、市场环境判断）
+	stockListProvider dm.StockListProvider   // 股票列表 Failover 数据源（用于健康检查提取子 provider）
+	klineProvider     dm.KlineProvider       // K 线 Failover 数据源（用于健康检查提取子 provider）
+	boardProvider     dm.BoardProvider       // 板块 Failover 数据源（用于健康检查提取子 provider）
 }
 
 func NewNewshockHandler(
@@ -35,14 +39,20 @@ func NewNewshockHandler(
 	statsService *service.StatsService,
 	searchService *service.SearchService,
 	aiService *service.AIService,
+	stockListProvider dm.StockListProvider,
+	klineProvider dm.KlineProvider,
+	boardProvider dm.BoardProvider,
 ) *NewshockHandler {
 	return &NewshockHandler{
-		themeService:  themeService,
-		tickerService: tickerService,
-		eventService:  eventService,
-		statsService:  statsService,
-		searchService: searchService,
-		aiService:     aiService,
+		themeService:      themeService,
+		tickerService:     tickerService,
+		eventService:      eventService,
+		statsService:      statsService,
+		searchService:     searchService,
+		aiService:         aiService,
+		stockListProvider: stockListProvider,
+		klineProvider:     klineProvider,
+		boardProvider:     boardProvider,
 	}
 }
 
@@ -262,6 +272,27 @@ func (h *NewshockHandler) GetTicker(c *gin.Context) {
 	response.Success(c, data)
 }
 
+// GetTickerDaily 获取指定股票的日线行情数据，用于绘制价格走势图
+// GET /api/v1/newshock/tickers/:symbol/daily?days=90
+func (h *NewshockHandler) GetTickerDaily(c *gin.Context) {
+	symbol := c.Param("symbol")
+	tenantID := h.getTenantID(c)
+	var req vo.TickerDailyRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		req.Days = 90
+	}
+	if req.Days <= 0 || req.Days > 365 {
+		req.Days = 90
+	}
+
+	data, err := h.tickerService.GetDailyBySymbol(c.Request.Context(), symbol, tenantID, req.Days)
+	if err != nil {
+		response.Error(c, http.StatusNotFound, "获取日线数据失败", err.Error())
+		return
+	}
+	response.Success(c, data)
+}
+
 // CreateTicker 创建股票标的
 // POST /api/v1/newshock/tickers
 func (h *NewshockHandler) CreateTicker(c *gin.Context) {
@@ -428,4 +459,41 @@ func (h *NewshockHandler) ListPolymarket(c *gin.Context) {
 		return
 	}
 	response.Success(c, data)
+}
+
+// ==================== 运维接口 ====================
+
+// ProviderHealth 探测所有数据源的健康状态。
+// 从 Failover Provider 中提取子 provider 列表逐个探测，返回延迟和数据条数。
+// GET /api/v1/newshock/providers
+func (h *NewshockHandler) ProviderHealth(c *gin.Context) {
+	var stockProviders []dm.StockListProvider
+	if fp, ok := h.stockListProvider.(*service.FailoverStockListProvider); ok {
+		stockProviders = fp.Providers()
+	} else {
+		stockProviders = []dm.StockListProvider{h.stockListProvider}
+	}
+
+	var klineProviders []dm.KlineProvider
+	if fp, ok := h.klineProvider.(*service.FailoverKlineProvider); ok {
+		klineProviders = fp.Providers()
+	} else {
+		klineProviders = []dm.KlineProvider{h.klineProvider}
+	}
+
+	var boardProviders []dm.BoardProvider
+	if fp, ok := h.boardProvider.(*service.FailoverBoardProvider); ok {
+		boardProviders = fp.Providers()
+	} else {
+		boardProviders = []dm.BoardProvider{h.boardProvider}
+	}
+
+	result := service.CheckProviderHealth(
+		c.Request.Context(),
+		stockProviders,
+		klineProviders,
+		boardProviders,
+		nil,
+	)
+	response.Success(c, result)
 }

@@ -22,8 +22,10 @@ package service
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/mmcdole/gofeed"
@@ -32,6 +34,27 @@ import (
 	"auth-perm/internal/domain/newshock/dm"
 	"auth-perm/internal/domain/newshock/repo"
 )
+
+// errNotModified 表示 RSS 源返回 304 Not Modified，无需重新解析。
+var errNotModified = errors.New("feed not modified (304)")
+
+// notModifiedRoundTripper 拦截 HTTP 304 响应，转为 errNotModified 错误，
+// 避免 gofeed 解析空响应体导致不可控错误。
+type notModifiedRoundTripper struct {
+	base http.RoundTripper
+}
+
+func (rt *notModifiedRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := rt.base.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode == http.StatusNotModified {
+		resp.Body.Close()
+		return nil, errNotModified
+	}
+	return resp, nil
+}
 
 type RSSService struct {
 	newsRawRepo *repo.NewsRawRepo
@@ -42,6 +65,10 @@ type RSSService struct {
 func NewRSSService(newsRawRepo *repo.NewsRawRepo, cfg *config.Config) *RSSService {
 	parser := gofeed.NewParser()
 	parser.UserAgent = cfg.RSS.UserAgent
+	parser.Client = &http.Client{
+		Timeout:   30 * time.Second,
+		Transport: &notModifiedRoundTripper{base: http.DefaultTransport},
+	}
 	return &RSSService{
 		newsRawRepo: newsRawRepo,
 		cfg:         &cfg.RSS,
@@ -68,6 +95,9 @@ func (s *RSSService) fetchFeed(ctx context.Context, feedCfg config.FeedConfig) e
 	// 使用 gofeed 库解析 RSS XML，获取所有条目
 	feed, err := s.parser.ParseURL(feedCfg.URL)
 	if err != nil {
+		if errors.Is(err, errNotModified) {
+			return nil
+		}
 		return fmt.Errorf("parse %s: %w", feedCfg.URL, err)
 	}
 

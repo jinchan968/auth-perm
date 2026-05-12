@@ -33,7 +33,7 @@ function StatCard({ label, value }: { label: string; value: number }) {
 export default function RadarPage() {
   const { lang } = useThemeContext();
   const router = useRouter();
-  const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ['home'], queryFn: api.getHome });
+  const { data, isPending, isError, error, refetch } = useQuery({ queryKey: ['home'], queryFn: api.getHome });
   const { data: pipeline } = useQuery({ queryKey: ['pipeline'], queryFn: api.getPipeline, refetchInterval: 60000 });
   const [leaderTab, setLeaderTab] = useState<string>('themes');
   const [watchlistIds, setWatchlistIds] = useState<string[]>([]);
@@ -55,7 +55,7 @@ export default function RadarPage() {
     </div>;
   }
 
-  if (isLoading || !data) {
+  if (isPending && !data) {
     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}><Spin size="large" /></div>;
   }
 

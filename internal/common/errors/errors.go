@@ -213,7 +213,7 @@ func GetHTTPStatus(err error) int {
 // WrapBizError 包装错误
 func WrapBizError(err error, message string) *AppError {
 	if err == nil {
-		return NewInternalError(message)
+		return nil
 	}
 
 	var appErr *AppError

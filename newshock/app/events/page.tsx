@@ -16,7 +16,7 @@ export default function EventsPage() {
   const [page, setPage] = useState(1);
   const pageSize = 20;
 
-  const { data, isLoading, isError, error, refetch } = useQuery({
+  const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: ['events', channel, keyword, page],
     queryFn: () => api.getEvents({ ...(channel ? { channel } : {}), ...(keyword ? { keyword } : {}), page: String(page), page_size: String(pageSize) }),
   });
@@ -34,7 +34,7 @@ export default function EventsPage() {
       </div>
 
       {isError ? <div style={{ textAlign: 'center', padding: 60 }}><Typography.Text type="danger">{tt('loadError', lang)}: {error?.message}</Typography.Text><br /><Button style={{ marginTop: 12 }} onClick={() => refetch()}>{tt('retry', lang)}</Button></div>
-      : isLoading ? <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spin size="large" /></div>
+      : isPending && !events.length ? <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spin size="large" /></div>
       : events.length === 0 ? <div style={{ textAlign: 'center', padding: 60, color: 'var(--nshock-text-muted)' }}>{tt('noEvents', lang)}</div>
       : <>
         <Card size="small">

@@ -18,7 +18,7 @@ export default function ThemesPage() {
   const [page, setPage] = useState(1);
   const pageSize = 24;
 
-  const { data, isLoading, isError, error, refetch } = useQuery({
+  const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: ['themes', category, keyword, page],
     queryFn: () => api.getThemes({ ...(category ? { category } : {}), ...(keyword ? { keyword } : {}), page: String(page), page_size: String(pageSize) }),
   });
@@ -35,7 +35,7 @@ export default function ThemesPage() {
       </div>
 
       {isError ? <div style={{ textAlign: 'center', padding: 60 }}><Typography.Text type="danger">{tt('loadError', lang)}: {error?.message}</Typography.Text><br /><Button style={{ marginTop: 12 }} onClick={() => refetch()}>{tt('retry', lang)}</Button></div>
-      : isLoading ? <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spin size="large" /></div>
+      : isPending && !themes.length ? <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spin size="large" /></div>
       : themes.length === 0 ? <div style={{ textAlign: 'center', padding: 60, color: 'var(--nshock-text-muted)' }}>{tt('noThemes', lang)}</div>
       : <>
         <Row gutter={[16, 16]}>

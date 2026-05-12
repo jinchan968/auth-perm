@@ -51,11 +51,32 @@ type TickerResponse struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
-// TickerDetailResponse 股票详情，包含关联的主题和事件
+// TickerDailyResponse 日线行情响应
+type TickerDailyResponse struct {
+	Date      string  `json:"date"`       // 日期 YYYY-MM-DD
+	Open      float64 `json:"open"`       // 开盘价
+	High      float64 `json:"high"`       // 最高价
+	Low       float64 `json:"low"`        // 最低价
+	Close     float64 `json:"close"`      // 收盘价
+	Volume    int64   `json:"volume"`     // 成交量（手）
+	Amount    float64 `json:"amount"`     // 成交额（元）
+	ChangePct float64 `json:"change_pct"` // 涨跌幅 %
+	Turnover  float64 `json:"turnover"`   // 换手率 %
+}
+
+// TickerConceptResponse 股票概念/板块响应
+type TickerConceptResponse struct {
+	Name string `json:"name"` // 板块名称
+	Type string `json:"type"` // concept/industry/region
+}
+
+// TickerDetailResponse 股票详情，包含关联的主题、事件和日线行情
 type TickerDetailResponse struct {
 	TickerResponse
-	Themes []ThemeResponse `json:"themes,omitempty"` // 所属的投资主题
-	Events []EventResponse `json:"events,omitempty"` // 相关事件（最近20条）
+	Themes   []ThemeResponse         `json:"themes,omitempty"`   // 所属的投资主题
+	Events   []EventResponse         `json:"events,omitempty"`   // 相关事件（最近20条）
+	Daily    []TickerDailyResponse   `json:"daily,omitempty"`    // 日线行情（最近90天）
+	Concepts []TickerConceptResponse `json:"concepts,omitempty"` // 概念板块（A股）
 }
 
 // EventResponse 事件响应

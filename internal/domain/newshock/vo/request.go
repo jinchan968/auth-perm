@@ -74,3 +74,7 @@ type UpdateEventRequest struct {
 	Importance int    `json:"importance"`
 	ThemeID    string `json:"theme_id"`
 }
+
+type TickerDailyRequest struct {
+	Days int `form:"days,default=90"` // 查询最近 N 天的日线数据
+}

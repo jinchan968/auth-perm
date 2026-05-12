@@ -52,15 +52,15 @@ func NewAIService(
 //	4=高（重大事件）
 //	5=极高（市场转折点）
 //
-// 超时 15 秒，避免阻塞新闻处理管线。
+// 超时 30 秒，避免阻塞新闻处理管线。
 func (s *AIService) EvaluateImportance(ctx context.Context, title, summary string) int {
 	// LLM 不可用时直接返回默认值 3（中等重要），不阻塞管线
 	if !s.llmClient.Enabled() {
 		return 3
 	}
 
-	// 设置 15 秒超时，避免 LLM 响应慢阻塞整个新闻处理管线
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	// 设置 30 秒超时，避免 LLM 响应慢阻塞整个新闻处理管线
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	// 构建 prompt：要求 LLM 只返回 JSON 格式的评分结果

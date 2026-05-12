@@ -50,21 +50,25 @@ func (r *PolymarketRepo) Upsert(ctx context.Context, market *dm.PolymarketMarket
 
 // GetByThemeID 获取某主题关联的所有 Polymarket 市场，按概率降序
 func (r *PolymarketRepo) GetByThemeID(ctx context.Context, themeID string) ([]dm.PolymarketMarket, error) {
-	var markets []dm.PolymarketMarket
-	err := r.db.WithContext(ctx).
+	markets := make([]dm.PolymarketMarket, 0)
+	if err := r.db.WithContext(ctx).
 		Where("theme_id = ?", themeID).
 		Order("probability DESC").
-		Find(&markets).Error
-	return markets, errors.WrapBizError(err, "查询主题关联市场失败")
+		Find(&markets).Error; err != nil {
+		return nil, errors.WrapBizError(err, "查询主题关联市场失败")
+	}
+	return markets, nil
 }
 
 func (r *PolymarketRepo) GetUnmatched(ctx context.Context, tenantID string) ([]dm.PolymarketMarket, error) {
-	var markets []dm.PolymarketMarket
-	err := r.db.WithContext(ctx).
+	markets := make([]dm.PolymarketMarket, 0)
+	if err := r.db.WithContext(ctx).
 		Where("tenant_id = ? AND theme_id = ''", tenantID).
 		Order("volume DESC").
-		Find(&markets).Error
-	return markets, errors.WrapBizError(err, "查询未匹配市场失败")
+		Find(&markets).Error; err != nil {
+		return nil, errors.WrapBizError(err, "查询未匹配市场失败")
+	}
+	return markets, nil
 }
 
 // SyncBatch 批量同步 Polymarket 市场（逐条 upsert），设置 last_synced_at 为当前时间
@@ -81,15 +85,17 @@ func (r *PolymarketRepo) SyncBatch(ctx context.Context, markets []dm.PolymarketM
 
 // ListByTenant returns all Polymarket markets for a tenant, ordered by volume
 func (r *PolymarketRepo) ListByTenant(ctx context.Context, tenantID string, limit int) ([]dm.PolymarketMarket, error) {
-	var markets []dm.PolymarketMarket
+	markets := make([]dm.PolymarketMarket, 0)
 	q := r.db.WithContext(ctx).
 		Where("tenant_id = ?", tenantID).
 		Order("volume DESC")
 	if limit > 0 {
 		q = q.Limit(limit)
 	}
-	err := q.Find(&markets).Error
-	return markets, errors.WrapBizError(err, "查询 Polymarket 市场列表失败")
+	if err := q.Find(&markets).Error; err != nil {
+		return nil, errors.WrapBizError(err, "查询 Polymarket 市场列表失败")
+	}
+	return markets, nil
 }
 
 func (r *PolymarketRepo) CountByTenant(ctx context.Context, tenantID string) (int64, error) {

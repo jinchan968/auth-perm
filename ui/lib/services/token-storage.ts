@@ -13,7 +13,8 @@ export class TokenStorageService {
   // ==================== Token 存取 ====================
 
   /**
-   * 存储 Token
+   * 存储 Token（localStorage + cookie）
+   * cookie 用于跨端口共享（如 newshock 在 3001 端口访问）
    */
   static setToken(token: string, expiresAt?: number): void {
     if (typeof window === 'undefined') return
@@ -21,6 +22,10 @@ export class TokenStorageService {
     if (expiresAt) {
       localStorage.setItem(this.TOKEN_EXPIRY_KEY, expiresAt.toString())
     }
+    // 同步写入 cookie，供其他端口的前端（如 newshock）读取
+    const maxAge = expiresAt ? Math.floor((expiresAt - Date.now()) / 1000) : 7 * 24 * 60 * 60
+    const secure = typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; secure' : ''
+    document.cookie = `${this.TOKEN_KEY}=${token}; path=/; max-age=${maxAge}; samesite=lax${secure}`
   }
 
   /**

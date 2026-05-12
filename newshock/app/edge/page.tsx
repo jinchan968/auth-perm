@@ -11,7 +11,7 @@ import { tt } from '@/lib/i18n';
 export default function EdgePage() {
   const { lang } = useThemeContext();
   const router = useRouter();
-  const { data, isLoading, isError, error, refetch } = useQuery<EdgeData>({ queryKey: ['edge'], queryFn: api.getEdge });
+  const { data, isPending, isError, error, refetch } = useQuery<EdgeData>({ queryKey: ['edge'], queryFn: api.getEdge });
 
   if (isError) {
     return <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', gap: 12 }}>
@@ -20,7 +20,7 @@ export default function EdgePage() {
     </div>;
   }
 
-  if (isLoading) {
+  if (isPending && !data) {
     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}><Spin size="large" /></div>;
   }
 
@@ -45,7 +45,6 @@ export default function EdgePage() {
             <Card
               title={<Typography.Title level={5} style={{ margin: 0, fontWeight: 600 }}>{tt('risingThemes', lang)}</Typography.Title>}
               size="small"
-              style={{ height: '100%' }}
             >
               {data.rising_themes.length === 0 ? (
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={tt('noThemes', lang)} />
@@ -88,7 +87,6 @@ export default function EdgePage() {
             <Card
               title={<Typography.Title level={5} style={{ margin: 0, fontWeight: 600 }}>{tt('hotTickers', lang)}</Typography.Title>}
               size="small"
-              style={{ height: '100%' }}
             >
               {data.hot_tickers.length === 0 ? (
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={tt('noTickers', lang)} />
@@ -127,12 +125,11 @@ export default function EdgePage() {
             <Card
               title={<Typography.Title level={5} style={{ margin: 0, fontWeight: 600 }}>{tt('signalEvents', lang)}</Typography.Title>}
               size="small"
-              style={{ height: '100%' }}
             >
               {data.recent_events.length === 0 ? (
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={tt('noEvents', lang)} />
               ) : (
-                <div style={{ maxHeight: 500, overflow: 'auto' }}>
+                <div>
                   {data.recent_events.map((event) => (
                     <div key={event.id} className="event-item" style={{ padding: '10px 0' }}>
                       <div className="event-meta">

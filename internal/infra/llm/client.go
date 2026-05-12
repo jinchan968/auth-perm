@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -40,12 +41,18 @@ type chatResponse struct {
 }
 
 func NewClient(cfg *config.LLMConfig) *Client {
-	return &Client{
+	c := &Client{
 		baseURL: strings.TrimRight(cfg.BaseURL, "/"),
 		apiKey:  cfg.APIKey,
 		model:   cfg.Model,
 		http:    &http.Client{Timeout: 60 * time.Second},
 	}
+	if c.Enabled() {
+		log.Printf("LLM enabled: model=%s base_url=%s", c.model, c.baseURL)
+	} else {
+		log.Printf("LLM disabled: api_key or base_url not configured")
+	}
+	return c
 }
 
 // Enabled 返回 LLM 是否已配置

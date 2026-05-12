@@ -24,6 +24,7 @@ type Config struct {
 	Monitoring MonitoringConfig `yaml:"monitoring" mapstructure:"monitoring"`
 	RSS        RSSConfig        `yaml:"rss" mapstructure:"rss"`
 	LLM        LLMConfig        `yaml:"llm" mapstructure:"llm"`
+	Stock      StockConfig      `yaml:"stock" mapstructure:"stock"`
 }
 
 // ServerConfig 服务器配置
@@ -141,6 +142,15 @@ type LLMConfig struct {
 	Model   string `yaml:"model" mapstructure:"model" default:"gpt-4o-mini"`
 }
 
+// StockConfig A股数据采集配置
+type StockConfig struct {
+	SyncInterval      int    `yaml:"sync_interval" mapstructure:"sync_interval" default:"24"`            // 股票列表同步间隔（小时）
+	DailySyncInterval int    `yaml:"daily_sync_interval" mapstructure:"daily_sync_interval" default:"4"` // 日线数据同步间隔（小时）
+	StartupDelayMin   int    `yaml:"startup_delay_min" mapstructure:"startup_delay_min" default:"5"`     // 启动后首次同步延迟（分钟），股票列表用此值，日线/概念延迟加倍
+	TenantID          string `yaml:"tenant_id" mapstructure:"tenant_id"`
+	TushareToken      string `yaml:"tushare_token" mapstructure:"tushare_token" env:"TUSHARE_TOKEN"` // Tushare Pro API token
+}
+
 // FeedConfig 单个 RSS 源配置
 type FeedConfig struct {
 	URL     string `yaml:"url" mapstructure:"url"`
@@ -183,6 +193,15 @@ func LoadConfig(configPath string) (*Config, error) {
 		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
 	}
 	if err := viper.BindEnv("server.super_admin", "SUPER_ADMIN"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	if err := viper.BindEnv("llm.base_url", "LLM_BASE_URL"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	if err := viper.BindEnv("llm.api_key", "LLM_API_KEY"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	if err := viper.BindEnv("llm.model", "LLM_MODEL"); err != nil {
 		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
 	}
 

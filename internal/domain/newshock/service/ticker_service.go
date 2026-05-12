@@ -18,6 +18,8 @@ type TickerService struct {
 	relationRepo *repo.RelationRepo
 	themeRepo    *repo.ThemeRepo
 	eventRepo    *repo.EventRepo
+	dailyRepo    *repo.TickerDailyRepo
+	conceptRepo  *repo.TickerConceptRepo
 }
 
 func NewTickerService(
@@ -25,12 +27,16 @@ func NewTickerService(
 	relationRepo *repo.RelationRepo,
 	themeRepo *repo.ThemeRepo,
 	eventRepo *repo.EventRepo,
+	dailyRepo *repo.TickerDailyRepo,
+	conceptRepo *repo.TickerConceptRepo,
 ) *TickerService {
 	return &TickerService{
 		tickerRepo:   tickerRepo,
 		relationRepo: relationRepo,
 		themeRepo:    themeRepo,
 		eventRepo:    eventRepo,
+		dailyRepo:    dailyRepo,
+		conceptRepo:  conceptRepo,
 	}
 }
 
@@ -94,7 +100,36 @@ func (s *TickerService) GetBySymbol(ctx context.Context, symbol, tenantID string
 		}
 	}
 
+	// 加载日线行情：最近 90 天
+	dailyRecords, _ := s.dailyRepo.GetByTickerID(ctx, ticker.ID, 90)
+	for _, d := range dailyRecords {
+		resp.Daily = append(resp.Daily, vo.ToTickerDailyResponse(d))
+	}
+
+	// 加载概念板块（A股）
+	concepts, _ := s.conceptRepo.GetByTickerID(ctx, ticker.ID)
+	for _, c := range concepts {
+		resp.Concepts = append(resp.Concepts, vo.TickerConceptResponse{Name: c.Name, Type: c.Type})
+	}
+
 	return resp, nil
+}
+
+// GetDailyBySymbol 获取指定股票的日线行情数据，支持自定义天数
+func (s *TickerService) GetDailyBySymbol(ctx context.Context, symbol, tenantID string, days int) ([]vo.TickerDailyResponse, error) {
+	ticker, err := s.tickerRepo.FindBySymbol(ctx, symbol, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	records, err := s.dailyRepo.GetByTickerID(ctx, ticker.ID, days)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]vo.TickerDailyResponse, 0, len(records))
+	for _, d := range records {
+		items = append(items, vo.ToTickerDailyResponse(d))
+	}
+	return items, nil
 }
 
 // Search 按关键词搜索股票（ILIKE 模糊匹配代码和名称）

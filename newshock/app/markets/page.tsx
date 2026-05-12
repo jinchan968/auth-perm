@@ -9,10 +9,10 @@ import { tt } from '@/lib/i18n';
 
 export default function MarketsPage() {
   const { lang } = useThemeContext();
-  const { data: regime, isLoading: regimeLoading, isError: regimeError, error: regimeErr } = useQuery({ queryKey: ['regime'], queryFn: () => api.getHome().then((d) => d.regime) });
-  const { data: polymarkets, isLoading: pmLoading, isError: pmError, error: pmErr, refetch: refetchPm } = useQuery<Polymarket[]>({ queryKey: ['polymarket'], queryFn: api.getPolymarket });
+  const { data: regime, isPending: regimePending, isError: regimeError, error: regimeErr } = useQuery({ queryKey: ['home'], queryFn: api.getHome, select: (d) => d.regime });
+  const { data: polymarkets, isPending: pmPending, isError: pmError, error: pmErr, refetch: refetchPm } = useQuery<Polymarket[]>({ queryKey: ['polymarket'], queryFn: api.getPolymarket });
 
-  const isLoading = regimeLoading || pmLoading;
+  const isLoading = (regimePending && !regime) || (pmPending && !polymarkets);
   const isError = regimeError || pmError;
   const error = regimeErr || pmErr;
 

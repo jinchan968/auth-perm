@@ -28,7 +28,13 @@ type Client struct {
 // NewClient 创建 Polymarket 客户端，超时 30 秒
 func NewClient() *Client {
 	return &Client{
-		http: &http.Client{Timeout: 30 * time.Second},
+		http: &http.Client{
+			Timeout: 30 * time.Second,
+			Transport: &http.Transport{
+				TLSHandshakeTimeout:   10 * time.Second,
+				ResponseHeaderTimeout: 15 * time.Second,
+			},
+		},
 	}
 }
 
