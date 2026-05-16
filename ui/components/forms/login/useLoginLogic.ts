@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/auth-store'
 import { tokenStorage } from '@/lib/services/token-storage'
 import { logger } from '@/lib/services/logger'
 import { getUserMessage, ErrorHandler } from '@/lib/services/error-handler'
+import { isSafeRedirect } from '@/lib/utils/redirect'
 
 interface LoginForm {
   identifier: string
@@ -73,9 +74,18 @@ export function useLoginLogic() {
       
       logger.info('Login: 登录成功', { username: user.username })
       
-      // 使用 setTimeout 避免在渲染过程中更新路由
+      // 检查 redirect 参数，有则跳转到目标地址（支持跨域）
+      const searchParams = new URLSearchParams(window.location.search)
+      const redirect = searchParams.get('redirect')
+      const decodedRedirect = redirect ? decodeURIComponent(redirect) : null
+      const safe = decodedRedirect ? isSafeRedirect(decodedRedirect) : false
+
       setTimeout(() => {
-        router.push('/home')
+        if (decodedRedirect && safe) {
+          window.location.href = decodedRedirect
+        } else {
+          router.push('/home')
+        }
       }, 0)
 
     } catch (error) {

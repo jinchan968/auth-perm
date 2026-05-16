@@ -21,6 +21,7 @@ type RSSScheduler struct {
 	rssService    *RSSService    // RSS 拉取服务
 	newsProcessor *NewsProcessor // 新闻 → 事件处理服务
 	interval      time.Duration  // 采集间隔（默认 30 分钟）
+	enabled       bool           // 是否启用
 }
 
 // NewRSSScheduler 创建 RSS 调度器实例，从配置读取采集间隔。
@@ -30,12 +31,17 @@ func NewRSSScheduler(rssService *RSSService, newsProcessor *NewsProcessor, cfg *
 		rssService:    rssService,
 		newsProcessor: newsProcessor,
 		interval:      interval,
+		enabled:       cfg.Stock.Enabled,
 	}
 }
 
 // Start 实现 container.Scheduler 接口，阻塞运行直到 ctx 取消。
 // 启动时立即执行一轮完整管线（拉取 + 处理），之后按 interval 定时重复。
 func (s *RSSScheduler) Start(ctx context.Context) {
+	if !s.enabled {
+		log.Println("[RSSScheduler] disabled by config (STOCK_SCHEDULER_ENABLED=false)")
+		return
+	}
 	log.Printf("[RSSScheduler] starting, interval=%v", s.interval)
 
 	// 启动时立即执行一次：拉取 → 处理

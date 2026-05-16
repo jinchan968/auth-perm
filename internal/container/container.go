@@ -30,7 +30,7 @@ import (
 	"auth-perm/internal/infra/code_gen"
 	"auth-perm/internal/infra/llm"
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/dig"
 	"gorm.io/gorm"
 )
@@ -126,8 +126,10 @@ func BuildWorkerContainer(cfg *config.Config) (*dig.Container, error) {
 		stockListScheduler *newshockService.StockListScheduler,
 		dailyDataScheduler *newshockService.DailyDataScheduler,
 		conceptScheduler *newshockService.ConceptScheduler,
+		f10Scheduler *newshockService.F10DataScheduler,
+		newsScheduler *newshockService.StockNewsScheduler,
 	) Scheduler {
-		return NewCompositeScheduler(todoScheduler, rssScheduler, scoringScheduler, pmScheduler, stockListScheduler, dailyDataScheduler, conceptScheduler)
+		return NewCompositeScheduler(todoScheduler, rssScheduler, scoringScheduler, pmScheduler, stockListScheduler, dailyDataScheduler, conceptScheduler, f10Scheduler, newsScheduler)
 	}); err != nil {
 		return nil, err
 	}

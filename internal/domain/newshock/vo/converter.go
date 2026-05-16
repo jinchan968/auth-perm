@@ -24,13 +24,14 @@ func ToThemeResponse(t dm.Theme) ThemeResponse {
 	}
 }
 
-// ToTickerResponse 将股票数据库模型转换为 API 响应结构体
+// ToTickerResponse 将证券数据库模型转换为 API 响应结构体
 func ToTickerResponse(t dm.Ticker) TickerResponse {
 	return TickerResponse{
 		ID:           t.ID,
 		Symbol:       t.Symbol,
 		Name:         t.Name,
 		Market:       t.Market,
+		SecurityType: t.SecurityType,
 		HotScore:     t.HotScore,
 		MentionCount: t.MentionCount,
 		CreatedAt:    t.CreatedAt,

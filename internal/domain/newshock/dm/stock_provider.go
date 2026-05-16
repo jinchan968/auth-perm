@@ -16,13 +16,14 @@ package dm
 
 import "context"
 
-// StockInfo A 股股票基本信息（所有数据源共享的统一结构）。
+// StockInfo 证券基本信息（所有数据源共享的统一结构）。
 // 各 infra 包返回此类型，不再各自定义 StockInfo。
 type StockInfo struct {
-	Symbol string // secid 格式：1.600519 / 0.000001（沪市前缀 1，深市前缀 0）
-	Code   string // 纯股票代码：600519
-	Name   string // 股票名称
-	Market int    // 市场：0=深市, 1=沪市
+	Symbol       string // secid 格式：1.600519 / 0.000001 / 2.830001（沪市 1，深市 0，北交所 2）
+	Code         string // 纯证券代码：600519
+	Name         string // 证券名称
+	Market       int    // 市场：0=深市, 1=沪市, 2=北交所
+	SecurityType string // 品种：stock/etf/index/bond/warrant/preferred
 }
 
 // StockListProvider 股票列表数据提供者接口。

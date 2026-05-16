@@ -20,28 +20,46 @@ import (
 type AStockService struct {
 	tickerRepo    *repo.TickerRepo
 	dailyRepo     *repo.TickerDailyRepo
+	f10Repo       *repo.TickerF10Repo
+	newsRepo      *repo.TickerNewsRepo
 	stockProvider dm.StockListProvider
 	klineProvider dm.KlineProvider
+	f10Provider   dm.F10Provider
+	newsProvider  dm.NewsProvider
 	tenantID      string
+	newsTopN      int
 }
 
 func NewAStockService(
 	tickerRepo *repo.TickerRepo,
 	dailyRepo *repo.TickerDailyRepo,
+	f10Repo *repo.TickerF10Repo,
+	newsRepo *repo.TickerNewsRepo,
 	stockProvider dm.StockListProvider,
 	klineProvider dm.KlineProvider,
+	f10Provider dm.F10Provider,
+	newsProvider dm.NewsProvider,
 	cfg *config.Config,
 ) *AStockService {
+	newsTopN := cfg.Stock.NewsTopN
+	if newsTopN <= 0 {
+		newsTopN = 200
+	}
 	return &AStockService{
 		tickerRepo:    tickerRepo,
 		dailyRepo:     dailyRepo,
+		f10Repo:       f10Repo,
+		newsRepo:      newsRepo,
 		stockProvider: stockProvider,
 		klineProvider: klineProvider,
+		f10Provider:   f10Provider,
+		newsProvider:  newsProvider,
 		tenantID:      cfg.Stock.TenantID,
+		newsTopN:      newsTopN,
 	}
 }
 
-// SyncStockList 从数据源拉取所有 A 股，自动创建不存在的 ticker。
+// SyncStockList 从数据源拉取所有证券（股票/ETF/可转债/指数），自动创建不存在的 ticker。
 // symbol 使用 secid 格式：1.600519（沪市）/ 0.000001（深市）。
 func (s *AStockService) SyncStockList(ctx context.Context) {
 	log.Printf("[AStockService] SyncStockList started, tenantID=%s", s.tenantID)
@@ -51,21 +69,27 @@ func (s *AStockService) SyncStockList(ctx context.Context) {
 		log.Printf("[AStockService] fetch stock list error: %v", err)
 		return
 	}
-	log.Printf("[AStockService] fetched %d stocks from %s", len(stocks), s.stockProvider.Name())
+	log.Printf("[AStockService] fetched %d securities from %s", len(stocks), s.stockProvider.Name())
 
-	// 过滤特殊股票，构建待插入列表
+	// 过滤特殊股票（仅对 stock 品种生效），构建待插入列表
 	filtered := 0
 	tickers := make([]dm.Ticker, 0, len(stocks))
 	for _, stock := range stocks {
-		if isSpecialStock(stock.Code, stock.Name) {
+		secType := stock.SecurityType
+		if secType == "" {
+			secType = "stock"
+		}
+		// 只对股票过滤 ST/PT/B 股，ETF/指数/可转债不过滤
+		if secType == "stock" && isSpecialStock(stock.Code, stock.Name) {
 			filtered++
 			continue
 		}
 		tickers = append(tickers, dm.Ticker{
-			Symbol:   stock.Symbol,
-			Name:     stock.Name,
-			Market:   "cn",
-			TenantID: s.tenantID,
+			Symbol:       stock.Symbol,
+			Name:         stock.Name,
+			Market:       "cn",
+			SecurityType: secType,
+			TenantID:     s.tenantID,
 		})
 	}
 	log.Printf("[AStockService] filtered %d special stocks, %d to insert", filtered, len(tickers))
@@ -106,22 +130,16 @@ func (s *AStockService) SyncDailyData(ctx context.Context) {
 		return
 	}
 
-	// 前置探测：用第一条数据测试 kline API 是否可用
-	if _, err := s.klineProvider.FetchKline(ctx, cnTickers[0].Symbol, 2); err != nil {
-		log.Printf("[AStockService] kline API unavailable (%v), skip daily sync", err)
-		return
-	}
-
-	// 获取每只票的最新数据日期，用于判断回溯天数。
-	// 先用第一条探测 DB 是否可用，避免 DB 故障时所有 ticker 被误判为"无数据"触发大量 90 天回溯。
-	latestMap := make(map[string]bool) // tickerID -> 是否有数据
-	if _, err := s.dailyRepo.GetLatestByTickerID(ctx, cnTickers[0].ID); err != nil {
+	// 前置探测：先测 DB 再测 kline API，避免 DB 不可用时做无意义的 API 调用
+	const minHealthyRecords = 20 // 低于此数量视为数据不足，触发 90 天回溯
+	countMap, err := s.dailyRepo.CountAllByTenant(ctx, s.tenantID)
+	if err != nil {
 		log.Printf("[AStockService] DB unavailable (%v), skip daily sync", err)
 		return
 	}
-	for _, t := range cnTickers {
-		latest, _ := s.dailyRepo.GetLatestByTickerID(ctx, t.ID)
-		latestMap[t.ID] = latest != nil
+	if _, err := s.klineProvider.FetchKline(ctx, cnTickers[0].Symbol, 2); err != nil {
+		log.Printf("[AStockService] kline API unavailable (%v), skip daily sync", err)
+		return
 	}
 
 	var saved atomic.Int64
@@ -136,9 +154,9 @@ func (s *AStockService) SyncDailyData(ctx context.Context) {
 			break
 		}
 
-		// 每只票单独判断回溯天数：新票拉 90 天，已有数据的拉 2 天
+		// 每只票单独判断回溯天数：无数据或数据不足拉 90 天，数据充足的拉 2 天
 		days := 2
-		if !latestMap[ticker.ID] {
+		if countMap[ticker.ID] < minHealthyRecords {
 			days = 90
 		}
 
@@ -219,6 +237,145 @@ func (s *AStockService) SyncDailyData(ctx context.Context) {
 	if sv > 0 || fc > 0 {
 		log.Printf("[AStockService] synced %d daily records for %d CN tickers (failed=%d)", sv, len(cnTickers), fc)
 	}
+}
+
+// SyncF10Data 批量拉取 CN 股票的 F10 基本面数据（ETF/指数/可转债无 F10）。
+// 分批处理，每批 50 只，避免 API 过载。连续失败 3 次提前退出。
+func (s *AStockService) SyncF10Data(ctx context.Context) {
+	cnTickers, err := s.tickerRepo.GetAllCNTickersByType(ctx, s.tenantID, "stock")
+	if err != nil {
+		log.Printf("[AStockService] list tickers for F10 error: %v", err)
+		return
+	}
+	if len(cnTickers) == 0 {
+		return
+	}
+
+	log.Printf("[AStockService] SyncF10Data started, %d CN tickers", len(cnTickers))
+
+	// 构建 symbol → tickerID 映射
+	symbolMap := make(map[string]string, len(cnTickers))
+	symbols := make([]string, 0, len(cnTickers))
+	for _, t := range cnTickers {
+		symbolMap[t.Symbol] = t.ID
+		symbols = append(symbols, t.Symbol)
+	}
+
+	// 分批获取，连续失败 3 次提前退出
+	const batchSize = 50
+	const maxConsecutiveFails = 3
+	var saved int64
+	consecutiveFails := 0
+	for i := 0; i < len(symbols); i += batchSize {
+		if ctx.Err() != nil {
+			break
+		}
+		end := min(i+batchSize, len(symbols))
+		batch := symbols[i:end]
+
+		results, err := s.f10Provider.FetchF10(ctx, batch)
+		if err != nil {
+			consecutiveFails++
+			log.Printf("[AStockService] fetch F10 batch %d error: %v (consecutive=%d)", i/batchSize, err, consecutiveFails)
+			if consecutiveFails >= maxConsecutiveFails {
+				log.Printf("[AStockService] SyncF10Data aborting after %d consecutive failures", maxConsecutiveFails)
+				break
+			}
+			continue
+		}
+		consecutiveFails = 0
+
+		// 将 TickerID 从 symbol 替换为 DB ticker ID
+		records := make([]dm.TickerF10, 0, len(results))
+		for _, r := range results {
+			dbID, ok := symbolMap[r.TickerID]
+			if !ok {
+				continue
+			}
+			r.TickerID = dbID
+			r.TenantID = s.tenantID
+			records = append(records, r)
+		}
+
+		if len(records) > 0 {
+			if err := s.f10Repo.UpsertBatch(ctx, records); err != nil {
+				consecutiveFails++
+				log.Printf("[AStockService] upsert F10 batch error: %v (consecutive=%d)", err, consecutiveFails)
+				if consecutiveFails >= maxConsecutiveFails {
+					break
+				}
+				continue
+			}
+			consecutiveFails = 0
+			saved += int64(len(records))
+		}
+	}
+
+	log.Printf("[AStockService] SyncF10Data done: saved %d records", saved)
+}
+
+// SyncStockNews 拉取热门 CN 股票的个股新闻（ETF/指数/可转债无个股新闻 API）。
+// 按热度排序取前 N 只（默认 200），每只拉取最近 20 条新闻。
+// 5 并发 goroutine，与 SyncDailyData 保持一致的并发策略。
+func (s *AStockService) SyncStockNews(ctx context.Context) {
+	targetTickers, err := s.tickerRepo.GetTopCNTickersByType(ctx, s.tenantID, "stock", s.newsTopN)
+	if err != nil {
+		log.Printf("[AStockService] list tickers for news error: %v", err)
+		return
+	}
+	if len(targetTickers) == 0 {
+		return
+	}
+
+	log.Printf("[AStockService] SyncStockNews started, top %d tickers", len(targetTickers))
+
+	var saved atomic.Int64
+	var failCount atomic.Int64
+	sem := make(chan struct{}, 5)
+	var wg sync.WaitGroup
+
+	for _, ticker := range targetTickers {
+		if ctx.Err() != nil {
+			break
+		}
+
+		wg.Add(1)
+		go func(t dm.Ticker) {
+			defer wg.Done()
+			sem <- struct{}{}        // acquire
+			defer func() { <-sem }() // release
+
+			news, err := s.newsProvider.FetchNews(ctx, t.Symbol, 20)
+			if err != nil {
+				fc := failCount.Add(1)
+				if fc <= 5 {
+					log.Printf("[AStockService] fetch news %s error: %v", t.Symbol, err)
+				}
+				return
+			}
+
+			records := make([]dm.TickerNews, 0, len(news))
+			for _, n := range news {
+				n.TickerID = t.ID
+				n.TenantID = s.tenantID
+				records = append(records, n)
+			}
+
+			if len(records) > 0 {
+				if err := s.newsRepo.UpsertBatch(ctx, records); err != nil {
+					log.Printf("[AStockService] upsert news %s error: %v", t.Symbol, err)
+					failCount.Add(1)
+					return
+				}
+				saved.Add(int64(len(records)))
+			}
+		}(ticker)
+	}
+	wg.Wait()
+
+	sv := saved.Load()
+	fc := failCount.Load()
+	log.Printf("[AStockService] SyncStockNews done: saved %d records (failed=%d)", sv, fc)
 }
 
 // isSpecialStock 过滤 ST、退市、B 股等特殊股票。

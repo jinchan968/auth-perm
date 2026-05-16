@@ -20,10 +20,8 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/text/encoding/simplifiedchinese"
-	"golang.org/x/text/transform"
-
 	"auth-perm/internal/domain/newshock/dm"
+	"auth-perm/internal/infra/httpclient"
 )
 
 const (
@@ -39,10 +37,10 @@ type Client struct {
 	http *http.Client
 }
 
-// NewClient 创建客户端
+// NewClient 创建客户端，内置 Chrome UA。
 func NewClient() *Client {
 	return &Client{
-		http: &http.Client{Timeout: 60 * time.Second},
+		http: httpclient.NewWithTimeout(60 * time.Second),
 	}
 }
 
@@ -75,10 +73,8 @@ func (c *Client) Probe(ctx context.Context) error {
 // FetchAllStocks 获取所有 A 股股票列表。
 // 使用腾讯财经批量行情接口，按代码段分批获取。
 func (c *Client) FetchAllStocks(ctx context.Context) ([]dm.StockInfo, error) {
-	// A 股代码范围：
-	// 沪市：600000-609999, 688000-688999（科创板）
-	// 深市：000001-009999, 300000-309999（创业板）
 	// A 股代码范围（每批 50 个代码查询，间隔 300ms）
+	// market: 0=深市, 1=沪市, 2=北交所
 	codeRanges := []struct {
 		prefix string
 		start  int
@@ -92,6 +88,9 @@ func (c *Client) FetchAllStocks(ctx context.Context) ([]dm.StockInfo, error) {
 		{"sz", 5000, 10000, 0},    // 深市主板
 		{"sz", 300000, 305000, 0}, // 创业板
 		{"sz", 305000, 310000, 0}, // 创业板
+		{"bj", 830000, 840000, 2}, // 北交所（创新层 83xxxx）
+		{"bj", 870000, 880000, 2}, // 北交所（精选层 87xxxx）
+		{"bj", 430000, 440000, 2}, // 北交所（基础层 43xxxx）
 	}
 
 	var allStocks []dm.StockInfo
@@ -179,12 +178,12 @@ func (c *Client) fetchStockRange(ctx context.Context, prefix string, start, end,
 		}
 
 		// 腾讯 API 返回 GBK 编码，转 UTF-8
-		utf8Body, _, err := transform.Bytes(simplifiedchinese.GBK.NewDecoder(), body)
+		utf8Body, err := httpclient.DecodeGBK(body)
 		if err != nil {
-			utf8Body = body // 转换失败用原始数据
+			utf8Body = string(body) // 转换失败用原始数据
 		}
 
-		parsed := c.parseStockListResponse(string(utf8Body), market)
+		parsed := c.parseStockListResponse(utf8Body, market)
 		stocks = append(stocks, parsed...)
 
 		time.Sleep(300 * time.Millisecond)
@@ -227,14 +226,17 @@ func (c *Client) parseStockListResponse(body string, market int) []dm.StockInfo 
 			m = 1
 		} else if strings.HasPrefix(prefixPart, "sz") {
 			m = 0
+		} else if strings.HasPrefix(prefixPart, "bj") {
+			m = 2
 		}
 
 		secid := fmt.Sprintf("%d.%s", m, code)
 		stocks = append(stocks, dm.StockInfo{
-			Symbol: secid,
-			Code:   code,
-			Name:   name,
-			Market: m,
+			Symbol:       secid,
+			Code:         code,
+			Name:         name,
+			Market:       m,
+			SecurityType: "stock",
 		})
 	}
 	return stocks
@@ -323,7 +325,7 @@ func (c *Client) FetchKline(ctx context.Context, secid string, days int) ([]dm.K
 }
 
 // secidToSinaSymbol 将 secid 格式转为新浪 symbol 格式
-// 1.600519 -> sh600519, 0.000001 -> sz000001
+// 1.600519 -> sh600519, 0.000001 -> sz000001, 2.830001 -> bj830001
 func secidToSinaSymbol(secid string) (string, error) {
 	parts := strings.SplitN(secid, ".", 2)
 	if len(parts) != 2 {
@@ -335,6 +337,8 @@ func secidToSinaSymbol(secid string) (string, error) {
 		return "sh" + code, nil
 	case "0":
 		return "sz" + code, nil
+	case "2":
+		return "bj" + code, nil
 	default:
 		return "", fmt.Errorf("unknown market prefix: %s", parts[0])
 	}

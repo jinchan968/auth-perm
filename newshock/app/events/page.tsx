@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Typography, Card, Spin, Select, Input, Pagination, Button } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { api, Event } from '@/lib/api';
+import { api, Event, displaySymbol } from '@/lib/api';
 import { useThemeContext } from '@/lib/theme-context';
 import { tt } from '@/lib/i18n';
 
@@ -50,7 +50,7 @@ export default function EventsPage() {
               {event.summary && <div className="event-summary">{event.summary.slice(0, 200)}</div>}
               {event.tickers?.length > 0 && (
                 <div className="event-tickers">
-                  {event.tickers.map((t) => <span key={t.symbol} className="ticker-theme-tag" onClick={(e) => { e.stopPropagation(); router.push(`/tickers/${t.symbol}`); }}>{t.symbol}</span>)}
+                  {event.tickers.map((t) => <span key={t.symbol} className="ticker-theme-tag" onClick={(e) => { e.stopPropagation(); router.push(`/tickers/${t.symbol}`); }}>{displaySymbol(t.symbol)}</span>)}
                 </div>
               )}
             </div>

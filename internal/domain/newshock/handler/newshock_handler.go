@@ -9,10 +9,12 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 
 	"auth-perm/internal/common/dto/response"
+	"auth-perm/internal/common/errors"
 	"auth-perm/internal/controller/util"
 	"auth-perm/internal/domain/newshock/dm"
 	"auth-perm/internal/domain/newshock/service"
@@ -22,7 +24,7 @@ import (
 // NewshockHandler 聚合了所有 Newshock 子服务，负责接收 HTTP 请求并调用对应 Service。
 type NewshockHandler struct {
 	themeService      *service.ThemeService  // 主题 CRUD + 搜索
-	tickerService     *service.TickerService // 股票 CRUD + 搜索
+	tickerService     *service.TickerService // 股票 CRUD + 搜索 + F10 + 新闻
 	eventService      *service.EventService  // 事件 CRUD + 搜索
 	statsService      *service.StatsService  // 聚合统计（首页、边缘信号、管线状态）
 	searchService     *service.SearchService // 全局搜索（并行搜索主题/股票/事件）
@@ -288,6 +290,43 @@ func (h *NewshockHandler) GetTickerDaily(c *gin.Context) {
 	data, err := h.tickerService.GetDailyBySymbol(c.Request.Context(), symbol, tenantID, req.Days)
 	if err != nil {
 		response.Error(c, http.StatusNotFound, "获取日线数据失败", err.Error())
+		return
+	}
+	response.Success(c, data)
+}
+
+// GetTickerF10 获取股票基本面数据
+// GET /api/v1/newshock/tickers/:symbol/f10
+func (h *NewshockHandler) GetTickerF10(c *gin.Context) {
+	symbol := c.Param("symbol")
+	tenantID := h.getTenantID(c)
+
+	f10, err := h.tickerService.GetF10BySymbol(c.Request.Context(), symbol, tenantID)
+	if err != nil {
+		if errors.IsNotFoundError(err) {
+			// F10 数据可能尚未同步，属于正常状态，返回 null 而非错误
+			response.Success(c, nil)
+			return
+		}
+		response.Error(c, http.StatusInternalServerError, "获取F10数据失败", err.Error())
+		return
+	}
+	response.Success(c, f10)
+}
+
+// GetTickerNews 获取个股新闻列表
+// GET /api/v1/newshock/tickers/:symbol/news?limit=20
+func (h *NewshockHandler) GetTickerNews(c *gin.Context) {
+	symbol := c.Param("symbol")
+	tenantID := h.getTenantID(c)
+
+	limit := 20
+	if v, err := strconv.Atoi(c.Query("limit")); err == nil && v > 0 && v <= 100 {
+		limit = v
+	}
+	data, err := h.tickerService.GetNewsBySymbol(c.Request.Context(), symbol, tenantID, limit)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "获取新闻失败", err.Error())
 		return
 	}
 	response.Success(c, data)

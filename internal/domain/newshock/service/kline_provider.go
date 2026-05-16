@@ -39,16 +39,43 @@ func (f *FailoverKlineProvider) Name() string { return "failover-kline" }
 // Providers 返回内部的 provider 列表，用于健康检查逐个探测。
 func (f *FailoverKlineProvider) Providers() []dm.KlineProvider { return f.providers }
 
-// FetchKline 按顺序尝试各 provider，第一个返回非空结果的胜出。
+// FetchKline 按顺序尝试各 provider，第一个返回充足数据的胜出。
+// 如果某个 provider 返回的数据量不足请求天数的 1/3（至少 5 条），视为数据不完整，继续尝试下一个。
 func (f *FailoverKlineProvider) FetchKline(ctx context.Context, secid string, days int) ([]dm.KlineBar, error) {
+	// 最低数据量阈值：请求天数的 1/3，最少 2 条（避免单条无效数据绕过 failover）
+	minBars := max(days/3, 2)
+
+	var bestBars []dm.KlineBar
+	var bestProvider string
+
 	for _, p := range f.providers {
-		bars, err := p.FetchKline(ctx, secid, days)
-		if err == nil && len(bars) > 0 {
-			return bars, nil
+		if ctx.Err() != nil {
+			break
 		}
+		bars, err := p.FetchKline(ctx, secid, days)
 		if err != nil {
 			log.Printf("[KlineProvider] %s FetchKline(%s) error: %v, trying next...", p.Name(), secid, err)
+			continue
 		}
+		if len(bars) == 0 {
+			continue
+		}
+		// 数据充足，直接返回
+		if len(bars) >= minBars {
+			return bars, nil
+		}
+		// 数据不足但非空，暂存，继续尝试其他 provider
+		if bestBars == nil || len(bars) > len(bestBars) {
+			bestBars = bars
+			bestProvider = p.Name()
+			log.Printf("[KlineProvider] %s FetchKline(%s) returned only %d bars (want >=%d), trying next...", p.Name(), secid, len(bars), minBars)
+		}
+	}
+
+	// 所有 provider 都不充足，返回数据最多的那个
+	if len(bestBars) > 0 {
+		log.Printf("[KlineProvider] all providers returned insufficient data for %s, using best from %s (%d bars)", secid, bestProvider, len(bestBars))
+		return bestBars, nil
 	}
 	return nil, fmt.Errorf("all kline providers failed for %s", secid)
 }

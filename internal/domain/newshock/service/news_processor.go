@@ -30,6 +30,7 @@ type NewsProcessor struct {
 	themeRepo    *repo.ThemeRepo
 	relationRepo *repo.RelationRepo
 	aiService    *AIService
+	tenantID     string
 }
 
 func NewNewsProcessor(
@@ -48,23 +49,21 @@ func NewNewsProcessor(
 		themeRepo:    themeRepo,
 		relationRepo: relationRepo,
 		aiService:    aiService,
+		tenantID:     cfg.RSS.TenantID,
 	}
 }
 
-// ProcessUnprocessed 处理所有租户的未处理新闻。
+// ProcessUnprocessed 处理未处理新闻。
 // 由 RSSScheduler 在每次 FetchAll 之后调用。
 func (p *NewsProcessor) ProcessUnprocessed(ctx context.Context) {
-	tenantIDs, err := p.newsRawRepo.DistinctTenantIDs(ctx)
-	if err != nil || len(tenantIDs) == 0 {
+	if p.tenantID == "" {
+		log.Println("[NewsProcessor] tenantID is empty, skip processing")
 		return
 	}
-
-	for _, tenantID := range tenantIDs {
-		if ctx.Err() != nil {
-			return
-		}
-		p.processForTenant(ctx, tenantID)
+	if ctx.Err() != nil {
+		return
 	}
+	p.processForTenant(ctx, p.tenantID)
 }
 
 // processForTenant 处理单个租户的未处理新闻。

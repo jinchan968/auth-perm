@@ -14,6 +14,7 @@ type ConceptScheduler struct {
 	service      *ConceptService
 	interval     time.Duration
 	startupDelay time.Duration
+	enabled      bool
 }
 
 // NewConceptScheduler 创建概念板块调度器实例。
@@ -31,11 +32,16 @@ func NewConceptScheduler(service *ConceptService, cfg *config.Config) *ConceptSc
 		service:      service,
 		interval:     interval,
 		startupDelay: startupDelay,
+		enabled:      cfg.Stock.Enabled,
 	}
 }
 
 // Start 实现 container.Scheduler 接口，阻塞运行直到 ctx 取消。
 func (s *ConceptScheduler) Start(ctx context.Context) {
+	if !s.enabled {
+		log.Println("[ConceptScheduler] disabled by config (STOCK_SCHEDULER_ENABLED=false)")
+		return
+	}
 	log.Printf("[ConceptScheduler] starting, interval=%v, startup_delay=%v", s.interval, s.startupDelay)
 
 	// 启动延迟等待股票列表先同步完成

@@ -187,6 +187,58 @@ func (r *TickerRepo) GetTopTickers(ctx context.Context, tenantID string, limit i
 	return tickers, nil
 }
 
+// GetAllCNTickers 获取 CN 市场全部证券，用于 K 线全量同步。
+func (r *TickerRepo) GetAllCNTickers(ctx context.Context, tenantID string) ([]dm.Ticker, error) {
+	var tickers []dm.Ticker
+	err := r.db.WithContext(ctx).
+		Where("tenant_id = ? AND market = ?", tenantID, "cn").
+		Find(&tickers).Error
+	if err != nil {
+		return nil, errors.WrapBizError(err, "查询CN证券失败")
+	}
+	return tickers, nil
+}
+
+// GetAllCNTickersByType 获取 CN 市场指定品种的全部证券。
+func (r *TickerRepo) GetAllCNTickersByType(ctx context.Context, tenantID, securityType string) ([]dm.Ticker, error) {
+	var tickers []dm.Ticker
+	err := r.db.WithContext(ctx).
+		Where("tenant_id = ? AND market = ? AND security_type = ?", tenantID, "cn", securityType).
+		Find(&tickers).Error
+	if err != nil {
+		return nil, errors.WrapBizError(err, "查询CN证券失败")
+	}
+	return tickers, nil
+}
+
+// GetTopCNTickers 获取 CN 市场热度最高的 N 只证券，用于新闻同步优先采集。
+func (r *TickerRepo) GetTopCNTickers(ctx context.Context, tenantID string, limit int) ([]dm.Ticker, error) {
+	var tickers []dm.Ticker
+	err := r.db.WithContext(ctx).
+		Where("tenant_id = ? AND market = ?", tenantID, "cn").
+		Order("hot_score DESC").
+		Limit(limit).
+		Find(&tickers).Error
+	if err != nil {
+		return nil, errors.WrapBizError(err, "查询热门CN证券失败")
+	}
+	return tickers, nil
+}
+
+// GetTopCNTickersByType 获取 CN 市场指定品种热度最高的 N 只证券。
+func (r *TickerRepo) GetTopCNTickersByType(ctx context.Context, tenantID, securityType string, limit int) ([]dm.Ticker, error) {
+	var tickers []dm.Ticker
+	err := r.db.WithContext(ctx).
+		Where("tenant_id = ? AND market = ? AND security_type = ?", tenantID, "cn", securityType).
+		Order("hot_score DESC").
+		Limit(limit).
+		Find(&tickers).Error
+	if err != nil {
+		return nil, errors.WrapBizError(err, "查询热门CN证券失败")
+	}
+	return tickers, nil
+}
+
 // FindByIDs 批量按 ID 查询股票，用于关联加载
 func (r *TickerRepo) FindByIDs(ctx context.Context, ids []string) ([]dm.Ticker, error) {
 	var tickers []dm.Ticker

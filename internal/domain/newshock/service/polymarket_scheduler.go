@@ -19,6 +19,7 @@ import (
 type PolymarketScheduler struct {
 	pmService *PolymarketService // Polymarket 服务
 	interval  time.Duration      // 同步间隔（固定 4 小时）
+	enabled   bool               // 是否启用
 }
 
 // NewPolymarketScheduler 创建 Polymarket 调度器实例。
@@ -28,12 +29,17 @@ func NewPolymarketScheduler(pmService *PolymarketService, cfg *config.Config) *P
 	return &PolymarketScheduler{
 		pmService: pmService,
 		interval:  interval,
+		enabled:   cfg.Stock.Enabled,
 	}
 }
 
 // Start 实现 container.Scheduler 接口，阻塞运行直到 ctx 取消。
 // 启动时延迟 2 分钟，确保 RSS 和评分管线先完成初始数据准备。
 func (s *PolymarketScheduler) Start(ctx context.Context) {
+	if !s.enabled {
+		log.Println("[PolymarketScheduler] disabled by config (STOCK_SCHEDULER_ENABLED=false)")
+		return
+	}
 	log.Printf("[PolymarketScheduler] starting, interval=%v", s.interval)
 
 	// 启动延迟 2 分钟，等其他数据先就绪

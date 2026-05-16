@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"auth-perm/internal/domain/newshock/dm"
+	"auth-perm/internal/infra/httpclient"
 )
 
 const apiURL = "https://api.tushare.pro"
@@ -30,10 +31,10 @@ type Client struct {
 	token string
 }
 
-// NewClient 创建 Tushare 客户端
+// NewClient 创建 Tushare 客户端，内置 Chrome UA。
 func NewClient(token string) *Client {
 	return &Client{
-		http:  &http.Client{Timeout: 60 * time.Second},
+		http:  httpclient.NewWithTimeout(60 * time.Second),
 		token: token,
 	}
 }
@@ -107,28 +108,27 @@ func (c *Client) FetchAllStocks(ctx context.Context) ([]dm.StockInfo, error) {
 		}
 		tsCode := getString(m, "ts_code")
 		name := getString(m, "name")
-		symbol := getString(m, "symbol")
-		marketStr := getString(m, "market")
 
 		if tsCode == "" || name == "" {
 			continue
 		}
 
-		// 转换为 secid 格式：600519.SH -> 1.600519, 000001.SZ -> 0.000001
+		// 转换为 secid 格式：600519.SH -> 1.600519, 000001.SZ -> 0.000001, 830001.BJ -> 2.830001
 		code := strings.Split(tsCode, ".")[0]
 		market := 0 // 深市
-		if marketStr == "主板" && strings.HasSuffix(tsCode, ".SH") {
+		if strings.HasSuffix(tsCode, ".SH") {
 			market = 1
-		} else if strings.HasSuffix(tsCode, ".SH") {
-			market = 1
+		} else if strings.HasSuffix(tsCode, ".BJ") {
+			market = 2
 		}
 		secid := fmt.Sprintf("%d.%s", market, code)
 
 		stocks = append(stocks, dm.StockInfo{
-			Symbol: secid,
-			Code:   symbol,
-			Name:   name,
-			Market: market,
+			Symbol:       secid,
+			Code:         code, // 从 ts_code 提取的纯股票代码，比 symbol 字段更可靠
+			Name:         name,
+			Market:       market,
+			SecurityType: "stock",
 		})
 	}
 	return stocks, nil
@@ -290,7 +290,7 @@ func (c *Client) doRequest(ctx context.Context, reqBody tushareRequest, result *
 }
 
 // secidToTsCode 将 secid 格式转为 Tushare ts_code 格式
-// 1.600519 -> 600519.SH, 0.000001 -> 000001.SZ
+// 1.600519 -> 600519.SH, 0.000001 -> 000001.SZ, 2.830001 -> 830001.BJ
 func secidToTsCode(secid string) (string, error) {
 	parts := strings.SplitN(secid, ".", 2)
 	if len(parts) != 2 {
@@ -302,6 +302,8 @@ func secidToTsCode(secid string) (string, error) {
 		return code + ".SH", nil
 	case "0":
 		return code + ".SZ", nil
+	case "2":
+		return code + ".BJ", nil
 	default:
 		return "", fmt.Errorf("unknown market prefix: %s", parts[0])
 	}

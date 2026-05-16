@@ -18,16 +18,21 @@ export class ApiError extends Error {
   }
 }
 
-// 导入 Zustand store
+// 延迟加载 Zustand store，避免循环依赖
 let authStore: any = null
-if (typeof window !== 'undefined') {
-  try {
-    // 动态导入以避免 SSR 问题
-    const storeModule = require('@/store/auth-store')
-    authStore = storeModule.useAuthStore
-  } catch (e) {
-    console.warn('Failed to import auth store:', e)
+let authStoreTried = false
+function getAuthStore() {
+  if (authStore || authStoreTried) return authStore
+  authStoreTried = true
+  if (typeof window !== 'undefined') {
+    try {
+      const storeModule = require('@/store/auth-store')
+      authStore = storeModule.useAuthStore
+    } catch (e) {
+      console.warn('Failed to import auth store:', e)
+    }
   }
+  return authStore
 }
 
 /**
@@ -41,8 +46,9 @@ async function getAuthToken(): Promise<string | null> {
       return token
     }
 
-    if (authStore) {
-      const state = authStore.getState()
+    const store = getAuthStore()
+    if (store) {
+      const state = store.getState()
       if (state.isAuthenticated && state.user) {
         return 'NO_TOKEN_NEEDED'
       }

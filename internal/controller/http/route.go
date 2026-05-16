@@ -361,6 +361,8 @@ func RegisterNewshockRoutes(
 		ns.GET("/tickers", h.ListTickers)
 		ns.GET("/tickers/:symbol", h.GetTicker)
 		ns.GET("/tickers/:symbol/daily", h.GetTickerDaily)
+		ns.GET("/tickers/:symbol/f10", h.GetTickerF10)
+		ns.GET("/tickers/:symbol/news", h.GetTickerNews)
 
 		ns.GET("/events", h.ListEvents)
 		ns.GET("/events/:id", h.GetEvent)

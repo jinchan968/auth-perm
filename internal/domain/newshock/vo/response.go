@@ -39,12 +39,13 @@ type PolymarketResponse struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// TickerResponse 股票响应
+// TickerResponse 证券响应
 type TickerResponse struct {
 	ID           string    `json:"id"`
-	Symbol       string    `json:"symbol"`        // 股票代码，如 AAPL
-	Name         string    `json:"name"`          // 公司名称
+	Symbol       string    `json:"symbol"`        // 证券代码，secid 格式
+	Name         string    `json:"name"`          // 证券名称
 	Market       string    `json:"market"`        // 市场：us/cn/hk/kr
+	SecurityType string    `json:"security_type"` // 品种：stock/etf/index/bond/warrant/preferred
 	HotScore     float64   `json:"hot_score"`     // 热度评分（0-100）
 	MentionCount int       `json:"mention_count"` // 被提及次数
 	CreatedAt    time.Time `json:"created_at"`

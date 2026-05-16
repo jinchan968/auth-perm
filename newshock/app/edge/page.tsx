@@ -4,7 +4,7 @@ import React from 'react';
 import { Typography, Card, Row, Col, Spin, Empty, Tag, Button } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { api, EdgeData } from '@/lib/api';
+import { api, EdgeData, displaySymbol } from '@/lib/api';
 import { useThemeContext } from '@/lib/theme-context';
 import { tt } from '@/lib/i18n';
 
@@ -101,7 +101,7 @@ export default function EdgePage() {
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                          <span style={{ fontWeight: 700, fontSize: 14 }}>{ticker.symbol}</span>
+                          <span style={{ fontWeight: 700, fontSize: 14 }}>{displaySymbol(ticker.symbol)}</span>
                           <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--nshock-text-muted)' }}>{ticker.name}</span>
                         </div>
                         <div style={{ textAlign: 'right' }}>
@@ -153,7 +153,7 @@ export default function EdgePage() {
                       {event.tickers?.length > 0 && (
                         <div className="event-tickers">
                           {event.tickers.map((t) => (
-                            <span key={t.symbol} className="ticker-theme-tag">{t.symbol}</span>
+                            <span key={t.symbol} className="ticker-theme-tag">{displaySymbol(t.symbol)}</span>
                           ))}
                         </div>
                       )}

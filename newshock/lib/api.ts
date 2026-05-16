@@ -1,5 +1,11 @@
 const BASE_URL = '/api/v1/newshock';
 
+/** 展示用：去掉 secid 前缀（0.000001 → 000001，1.600519 → 600519） */
+export function displaySymbol(symbol: string): string {
+  const dot = symbol.indexOf('.');
+  return dot > 0 ? symbol.slice(dot + 1) : symbol;
+}
+
 function getTokenFromCookie(): string | null {
   if (typeof window === 'undefined') return null;
   const match = document.cookie.match(/(?:^|;\s*)auth_token=([^;]*)/);
@@ -8,10 +14,12 @@ function getTokenFromCookie(): string | null {
 
 function getLoginURL(): string {
   if (typeof window === 'undefined') return '/login';
-  const { protocol, hostname } = window.location;
-  // 主 UI 默认在 3000 端口，可通过环境变量覆盖
+  const { origin, pathname, search } = window.location;
   const mainPort = process.env.NEXT_PUBLIC_MAIN_PORT || '3000';
-  return `${protocol}//${hostname}:${mainPort}/login`;
+  const { protocol, hostname } = window.location;
+  // redirect 必须用绝对 URL，否则相对路径会留在主 UI 域名下，跨不了端口
+  const currentUrl = encodeURIComponent(`${origin}${pathname}${search}`);
+  return `${protocol}//${hostname}:${mainPort}/login?redirect=${currentUrl}`;
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -69,6 +77,7 @@ export interface Ticker {
   symbol: string;
   name: string;
   market: string;
+  security_type: string;
   hot_score: number;
   mention_count: number;
 }
@@ -155,6 +164,36 @@ export interface TickerDaily {
   turnover: number;
 }
 
+export interface TickerF10 {
+  ticker_id: string;
+  pe_ttm: number;
+  pe_static: number;
+  pb: number;
+  total_mcap: number;
+  float_mcap: number;
+  turnover_rate: number;
+  volume_ratio: number;
+  limit_up: number;
+  limit_down: number;
+  industry: string;
+  total_shares: number;
+  float_shares: number;
+  eps: number;
+  bvps: number;
+  roe: number;
+  source: string;
+}
+
+export interface TickerNews {
+  id: string;
+  ticker_id: string;
+  title: string;
+  content: string;
+  source: string;
+  publish_time: string;
+  url: string;
+}
+
 export interface SearchResults {
   themes: Theme[];
   tickers: Ticker[];
@@ -204,4 +243,7 @@ export const api = {
   generateThemeDescription: (id: string) =>
     request<{ description: string }>(`/themes/${id}/generate-description`, { method: 'POST' }),
   getPolymarket: () => request<Polymarket[]>('/polymarket'),
+  getTickerF10: (symbol: string) => request<TickerF10>(`/tickers/${symbol}/f10`),
+  getTickerNews: (symbol: string, limit?: number) =>
+    request<TickerNews[]>(`/tickers/${symbol}/news${limit ? `?limit=${limit}` : ''}`),
 };

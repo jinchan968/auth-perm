@@ -4,6 +4,7 @@ package service
 import (
 	"context"
 	"log"
+	"strings"
 	"time"
 
 	"auth-perm/config"
@@ -94,7 +95,10 @@ func (s *ConceptService) syncBoardType(ctx context.Context, boardType int, conce
 		stocks, err := s.provider.FetchBoardStocks(boardCtx, board.Code)
 		cancel()
 		if err != nil {
-			log.Printf("[ConceptService] fetch board %s(%s) stocks error: %v", board.Name, board.Code, err)
+			// 404 表示板块在列表中存在但无成分股数据（空板块或已下线），静默跳过
+			if !strings.Contains(err.Error(), "404") && !strings.Contains(err.Error(), "not found") {
+				log.Printf("[ConceptService] fetch board %s(%s) stocks error: %v", board.Name, board.Code, err)
+			}
 			continue
 		}
 

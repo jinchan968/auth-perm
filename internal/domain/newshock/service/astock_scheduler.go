@@ -21,6 +21,7 @@ type StockListScheduler struct {
 	service      *AStockService
 	interval     time.Duration
 	startupDelay time.Duration
+	enabled      bool
 }
 
 // NewStockListScheduler 创建股票列表调度器。
@@ -37,11 +38,16 @@ func NewStockListScheduler(service *AStockService, cfg *config.Config) *StockLis
 		service:      service,
 		interval:     interval,
 		startupDelay: startupDelay,
+		enabled:      cfg.Stock.Enabled,
 	}
 }
 
 // Start 阻塞运行直到 ctx 取消。
 func (s *StockListScheduler) Start(ctx context.Context) {
+	if !s.enabled {
+		log.Println("[StockListScheduler] disabled by config (STOCK_SCHEDULER_ENABLED=false)")
+		return
+	}
 	log.Printf("[StockListScheduler] starting, interval=%v, startup_delay=%v", s.interval, s.startupDelay)
 
 	select {
@@ -72,6 +78,7 @@ type DailyDataScheduler struct {
 	service      *AStockService
 	interval     time.Duration
 	startupDelay time.Duration
+	enabled      bool
 }
 
 // NewDailyDataScheduler 创建日线数据调度器。
@@ -89,11 +96,16 @@ func NewDailyDataScheduler(service *AStockService, cfg *config.Config) *DailyDat
 		service:      service,
 		interval:     interval,
 		startupDelay: startupDelay,
+		enabled:      cfg.Stock.Enabled,
 	}
 }
 
 // Start 阻塞运行直到 ctx 取消。
 func (s *DailyDataScheduler) Start(ctx context.Context) {
+	if !s.enabled {
+		log.Println("[DailyDataScheduler] disabled by config (STOCK_SCHEDULER_ENABLED=false)")
+		return
+	}
 	log.Printf("[DailyDataScheduler] starting, interval=%v, startup_delay=%v", s.interval, s.startupDelay)
 
 	select {

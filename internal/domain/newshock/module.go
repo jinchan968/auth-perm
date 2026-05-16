@@ -92,6 +92,16 @@ func RegisterNewshockDomain(container *dig.Container) error {
 	}); err != nil {
 		return err
 	}
+	if err := container.Provide(func(db *gorm.DB) *repo.TickerF10Repo {
+		return repo.NewTickerF10Repo(db)
+	}); err != nil {
+		return err
+	}
+	if err := container.Provide(func(db *gorm.DB) *repo.TickerNewsRepo {
+		return repo.NewTickerNewsRepo(db)
+	}); err != nil {
+		return err
+	}
 
 	// Service layer — 业务逻辑层
 	if err := container.Provide(func(
@@ -112,8 +122,10 @@ func RegisterNewshockDomain(container *dig.Container) error {
 		eventRepo *repo.EventRepo,
 		dailyRepo *repo.TickerDailyRepo,
 		conceptRepo *repo.TickerConceptRepo,
+		f10Repo *repo.TickerF10Repo,
+		newsRepo *repo.TickerNewsRepo,
 	) *service.TickerService {
-		return service.NewTickerService(tickerRepo, relationRepo, themeRepo, eventRepo, dailyRepo, conceptRepo)
+		return service.NewTickerService(tickerRepo, relationRepo, themeRepo, eventRepo, dailyRepo, conceptRepo, f10Repo, newsRepo)
 	}); err != nil {
 		return err
 	}
@@ -267,15 +279,36 @@ func RegisterNewshockDomain(container *dig.Container) error {
 	}); err != nil {
 		return err
 	}
-	// A 股数据采集 — 依赖 StockListProvider + KlineProvider 接口
+	// F10Provider — 基本面数据源：腾讯估值 + 东财财务指标，合并取值
+	if err := container.Provide(func() dm.F10Provider {
+		return service.NewMergeF10Provider(
+			tencent.NewQuoteClient(), // PE/PB/市值/换手率/涨跌停价
+			eastmoney.NewF10Client(), // 行业/股本/EPS/ROE
+		)
+	}); err != nil {
+		return err
+	}
+	// NewsProvider — 个股新闻数据源：东财新闻
+	if err := container.Provide(func() dm.NewsProvider {
+		return service.NewFailoverNewsProvider(
+			eastmoney.NewNewsClient(),
+		)
+	}); err != nil {
+		return err
+	}
+	// A 股数据采集 — 依赖 StockListProvider + KlineProvider + F10Provider + NewsProvider 接口
 	if err := container.Provide(func(
 		tickerRepo *repo.TickerRepo,
 		dailyRepo *repo.TickerDailyRepo,
+		f10Repo *repo.TickerF10Repo,
+		newsRepo *repo.TickerNewsRepo,
 		stockProvider dm.StockListProvider,
 		klineProvider dm.KlineProvider,
+		f10Provider dm.F10Provider,
+		newsProvider dm.NewsProvider,
 		cfg *config.Config,
 	) *service.AStockService {
-		return service.NewAStockService(tickerRepo, dailyRepo, stockProvider, klineProvider, cfg)
+		return service.NewAStockService(tickerRepo, dailyRepo, f10Repo, newsRepo, stockProvider, klineProvider, f10Provider, newsProvider, cfg)
 	}); err != nil {
 		return err
 	}
@@ -292,6 +325,22 @@ func RegisterNewshockDomain(container *dig.Container) error {
 		cfg *config.Config,
 	) *service.DailyDataScheduler {
 		return service.NewDailyDataScheduler(astockService, cfg)
+	}); err != nil {
+		return err
+	}
+	if err := container.Provide(func(
+		astockService *service.AStockService,
+		cfg *config.Config,
+	) *service.F10DataScheduler {
+		return service.NewF10DataScheduler(astockService, cfg)
+	}); err != nil {
+		return err
+	}
+	if err := container.Provide(func(
+		astockService *service.AStockService,
+		cfg *config.Config,
+	) *service.StockNewsScheduler {
+		return service.NewStockNewsScheduler(astockService, cfg)
 	}); err != nil {
 		return err
 	}

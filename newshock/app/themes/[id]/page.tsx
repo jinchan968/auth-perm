@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Typography, Card, Row, Col, Spin, Descriptions, Tag, Button, message } from 'antd';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
-import { api, ThemeDetail, Polymarket } from '@/lib/api';
+import { api, ThemeDetail, Polymarket, displaySymbol } from '@/lib/api';
 import { useThemeContext } from '@/lib/theme-context';
 import { tt } from '@/lib/i18n';
 
@@ -117,7 +117,7 @@ export default function ThemeDetailPage() {
               <div key={ticker.id} className="ticker-row" onClick={() => router.push(`/tickers/${ticker.symbol}`)}>
                 <Row align="middle" gutter={6}>
                   <Col>
-                    <span style={{ fontWeight: 700, fontSize: 13 }}>{ticker.symbol}</span>
+                    <span style={{ fontWeight: 700, fontSize: 13 }}>{displaySymbol(ticker.symbol)}</span>
                     <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--nshock-text-muted)' }}>{ticker.market?.toUpperCase()}</span>
                   </Col>
                 </Row>

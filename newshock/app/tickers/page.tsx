@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Typography, Card, Row, Col, Spin, Select, Input, Pagination, Button } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { api, Ticker } from '@/lib/api';
+import { api, Ticker, displaySymbol } from '@/lib/api';
 import { useThemeContext } from '@/lib/theme-context';
 import { tt } from '@/lib/i18n';
 
@@ -45,7 +45,7 @@ export default function TickersPage() {
               <Card hoverable size="small" onClick={() => router.push(`/tickers/${ticker.symbol}`)} style={{ height: '100%' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 16 }}>{ticker.symbol}</div>
+                    <div style={{ fontWeight: 700, fontSize: 16 }}>{displaySymbol(ticker.symbol)}</div>
                     <div style={{ fontSize: 12, color: 'var(--nshock-text-muted)', marginTop: 2 }}>{ticker.name}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>

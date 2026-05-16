@@ -14,6 +14,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	"auth-perm/internal/domain/newshock/dm"
 )
@@ -62,7 +63,10 @@ func (f *FailoverBoardProvider) FetchBoardStocks(ctx context.Context, boardCode 
 			return stocks, nil
 		}
 		if err != nil {
-			log.Printf("[BoardProvider] %s FetchBoardStocks(%s) error: %v, trying next...", p.Name(), boardCode, err)
+			// 404/not-found 表示板块无成分股数据，属于正常情况，不打日志
+			if !strings.Contains(err.Error(), "404") && !strings.Contains(err.Error(), "not found") {
+				log.Printf("[BoardProvider] %s FetchBoardStocks(%s) error: %v, trying next...", p.Name(), boardCode, err)
+			}
 		}
 	}
 	return nil, fmt.Errorf("all board providers failed for board %s", boardCode)

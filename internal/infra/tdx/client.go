@@ -230,10 +230,11 @@ func (c *Client) FetchAllStocks(ctx context.Context) ([]dm.StockInfo, error) {
 					m = 1
 				}
 				allStocks = append(allStocks, dm.StockInfo{
-					Symbol: prefix + "." + sec.Code,
-					Code:   sec.Code,
-					Name:   sec.Name,
-					Market: m,
+					Symbol:       prefix + "." + sec.Code,
+					Code:         sec.Code,
+					Name:         sec.Name,
+					Market:       m,
+					SecurityType: "stock",
 				})
 			}
 		}

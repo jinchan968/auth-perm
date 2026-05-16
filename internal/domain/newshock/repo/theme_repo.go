@@ -215,18 +215,3 @@ func (r *ThemeRepo) CountByTenant(ctx context.Context, tenantID string) (int64, 
 	err := r.db.WithContext(ctx).Model(&dm.Theme{}).Where("tenant_id = ?", tenantID).Count(&count).Error
 	return count, err
 }
-
-// DistinctTenantIDs 获取所有有主题数据的租户 ID 列表，供批量评分遍历
-func (r *ThemeRepo) DistinctTenantIDs(ctx context.Context) ([]string, error) {
-	var tenantIDs []string
-	err := r.db.WithContext(ctx).Model(&dm.Theme{}).
-		Distinct("tenant_id").
-		Pluck("tenant_id", &tenantIDs).Error
-	if err != nil {
-		return nil, errors.WrapBizError(err, "查询租户列表失败")
-	}
-	if len(tenantIDs) == 0 {
-		tenantIDs = []string{}
-	}
-	return tenantIDs, nil
-}

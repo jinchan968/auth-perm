@@ -1,5 +1,32 @@
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 import { LoginForm } from "@/components/forms/login"
 import { AnimatedBackground } from "@/components/ui/animated-background"
+import { tokenStorage } from "@/lib/services/token-storage"
+import { isSafeRedirect } from "@/lib/utils/redirect"
+
+function LoginGuard({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectRaw = searchParams.get('redirect')
+
+  useEffect(() => {
+    const { isValid } = tokenStorage.getAuthInfo()
+    if (isValid) {
+      const decoded = redirectRaw ? decodeURIComponent(redirectRaw) : null
+      if (decoded && isSafeRedirect(decoded)) {
+        window.location.href = decoded
+      } else {
+        router.replace('/home')
+      }
+    }
+  }, [redirectRaw, router])
+
+  return <>{children}</>
+}
 
 export default function LoginPage() {
   return (
@@ -12,7 +39,11 @@ export default function LoginPage() {
 
       {/* 主要内容 */}
       <div className="relative z-10 flex min-h-screen items-center justify-center p-4">
-        <LoginForm />
+        <Suspense fallback={null}>
+          <LoginGuard>
+            <LoginForm />
+          </LoginGuard>
+        </Suspense>
       </div>
 
       {/* 装饰性元素 - 使用新主题色 */}

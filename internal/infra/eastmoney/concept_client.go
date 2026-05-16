@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"auth-perm/internal/domain/newshock/dm"
+	"auth-perm/internal/infra/httpclient"
 )
 
 const eastmoneyUT = "bd1d9ddb04089700cf9c27f6f7426281"
@@ -19,10 +20,10 @@ type ConceptClient struct {
 	http *http.Client
 }
 
-// NewConceptClient 创建板块概念客户端
+// NewConceptClient 创建板块概念客户端，内置 Chrome UA。
 func NewConceptClient() *ConceptClient {
 	return &ConceptClient{
-		http: &http.Client{Timeout: 60 * time.Second},
+		http: httpclient.NewWithTimeout(60 * time.Second),
 	}
 }
 
@@ -134,7 +135,7 @@ func (c *ConceptClient) doRequestWithRetry(ctx context.Context, rawURL string) (
 			return boardListResponse{}, fmt.Errorf("create request: %w", err)
 		}
 		req.Header.Set("Referer", "https://data.eastmoney.com")
-		req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+		req.Header.Set("User-Agent", httpclient.ChromeUA)
 
 		resp, err := c.http.Do(req)
 		if err != nil {
@@ -155,6 +156,9 @@ func (c *ConceptClient) doRequestWithRetry(ctx context.Context, rawURL string) (
 			return boardListResponse{}, fmt.Errorf("read response: %w", err)
 		}
 
+		if resp.StatusCode == http.StatusNotFound {
+			return boardListResponse{}, fmt.Errorf("board not found (404)")
+		}
 		if resp.StatusCode != http.StatusOK {
 			return boardListResponse{}, fmt.Errorf("eastmoney api error %d: %s", resp.StatusCode, string(body))
 		}

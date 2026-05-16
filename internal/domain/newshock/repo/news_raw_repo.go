@@ -137,18 +137,3 @@ func (r *NewsRawRepo) List(ctx context.Context, tenantID string, page, pageSize 
 	}
 	return news, total, nil
 }
-
-// DistinctTenantIDs 获取所有有新闻数据的租户 ID 列表，供批量处理遍历
-func (r *NewsRawRepo) DistinctTenantIDs(ctx context.Context) ([]string, error) {
-	var tenantIDs []string
-	err := r.db.WithContext(ctx).Model(&dm.NewsRaw{}).
-		Distinct("tenant_id").
-		Pluck("tenant_id", &tenantIDs).Error
-	if err != nil {
-		return nil, errors.WrapBizError(err, "查询新闻租户列表失败")
-	}
-	if len(tenantIDs) == 0 {
-		tenantIDs = []string{}
-	}
-	return tenantIDs, nil
-}

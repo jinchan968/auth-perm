@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/net/context"
 )
 
@@ -104,7 +104,7 @@ func checkRateLimit(ctx context.Context, config RateLimitConfig, key string) (bo
 	pipe.ZRemRangeByScore(ctx, key, "0", strconv.FormatInt(windowStart, 10))
 
 	// 添加当前请求
-	pipe.ZAdd(ctx, key, &redis.Z{
+	pipe.ZAdd(ctx, key, redis.Z{
 		Score:  float64(now),
 		Member: fmt.Sprintf("%d-%d", now, time.Now().Nanosecond()),
 	})

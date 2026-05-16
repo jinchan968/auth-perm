@@ -21,6 +21,7 @@ import (
 type ScoringScheduler struct {
 	scoringService *ScoringService // 评分服务
 	interval       time.Duration   // 评分间隔（默认 60 分钟）
+	enabled        bool            // 是否启用
 }
 
 // NewScoringScheduler 创建评分调度器实例，从配置读取评分间隔。
@@ -29,12 +30,17 @@ func NewScoringScheduler(scoringService *ScoringService, cfg *config.Config) *Sc
 	return &ScoringScheduler{
 		scoringService: scoringService,
 		interval:       interval,
+		enabled:        cfg.Stock.Enabled,
 	}
 }
 
 // Start 实现 container.Scheduler 接口，阻塞运行直到 ctx 取消。
 // 启动时延迟 30 秒，确保 RSS 调度器已完成第一轮数据拉取。
 func (s *ScoringScheduler) Start(ctx context.Context) {
+	if !s.enabled {
+		log.Println("[ScoringScheduler] disabled by config (STOCK_SCHEDULER_ENABLED=false)")
+		return
+	}
 	log.Printf("[ScoringScheduler] starting, interval=%v", s.interval)
 
 	// 启动时延迟 30 秒执行，等 RSS 先拉取一轮数据，确保有新闻可评分

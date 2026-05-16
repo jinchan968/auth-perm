@@ -374,3 +374,9 @@ body {
     padding-bottom: 70px;
   }
 }
+
+/* Descriptions: 强制左对齐，覆盖 Ant Design 默认的首项居中 */
+.ant-descriptions-item-label,
+.ant-descriptions-item-content {
+  text-align: left !important;
+}

@@ -144,9 +144,13 @@ type LLMConfig struct {
 
 // StockConfig A股数据采集配置
 type StockConfig struct {
-	SyncInterval      int    `yaml:"sync_interval" mapstructure:"sync_interval" default:"24"`            // 股票列表同步间隔（小时）
-	DailySyncInterval int    `yaml:"daily_sync_interval" mapstructure:"daily_sync_interval" default:"4"` // 日线数据同步间隔（小时）
-	StartupDelayMin   int    `yaml:"startup_delay_min" mapstructure:"startup_delay_min" default:"5"`     // 启动后首次同步延迟（分钟），股票列表用此值，日线/概念延迟加倍
+	Enabled           bool   `yaml:"enabled" mapstructure:"enabled" default:"true" env:"STOCK_SCHEDULER_ENABLED"` // 是否启用财经定时任务（股票采集/RSS/评分等）
+	SyncInterval      int    `yaml:"sync_interval" mapstructure:"sync_interval" default:"24"`                     // 股票列表同步间隔（小时）
+	DailySyncInterval int    `yaml:"daily_sync_interval" mapstructure:"daily_sync_interval" default:"4"`          // 日线数据同步间隔（小时）
+	F10SyncInterval   int    `yaml:"f10_sync_interval" mapstructure:"f10_sync_interval" default:"1"`              // F10基本面同步间隔（小时）
+	NewsSyncInterval  int    `yaml:"news_sync_interval" mapstructure:"news_sync_interval" default:"1"`            // 个股新闻同步间隔（小时）
+	NewsTopN          int    `yaml:"news_top_n" mapstructure:"news_top_n" default:"200"`                          // 新闻同步取成交额前 N 只
+	StartupDelayMin   int    `yaml:"startup_delay_min" mapstructure:"startup_delay_min" default:"5"`              // 启动后首次同步延迟（分钟），股票列表用此值，日线/概念延迟加倍
 	TenantID          string `yaml:"tenant_id" mapstructure:"tenant_id"`
 	TushareToken      string `yaml:"tushare_token" mapstructure:"tushare_token" env:"TUSHARE_TOKEN"` // Tushare Pro API token
 }

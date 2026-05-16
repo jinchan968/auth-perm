@@ -34,6 +34,7 @@ type ScoringService struct {
 	tickerRepo *repo.TickerRepo
 	eventRepo  *repo.EventRepo
 	aiService  *AIService
+	tenantID   string
 }
 
 func NewScoringService(
@@ -41,36 +42,31 @@ func NewScoringService(
 	tickerRepo *repo.TickerRepo,
 	eventRepo *repo.EventRepo,
 	aiService *AIService,
-	_ *config.Config,
+	cfg *config.Config,
 ) *ScoringService {
 	return &ScoringService{
 		themeRepo:  themeRepo,
 		tickerRepo: tickerRepo,
 		eventRepo:  eventRepo,
 		aiService:  aiService,
+		tenantID:   cfg.RSS.TenantID,
 	}
 }
 
-// ScoreAll 对所有租户执行评分：主题评分 → 股票评分 → AI 市场环境判断。
+// ScoreAll 执行评分：主题评分 → 股票评分 → AI 市场环境判断。
 // 由 ScoringScheduler 定时调用，默认每 60 分钟执行一次。
 func (s *ScoringService) ScoreAll(ctx context.Context) {
-	// 获取所有有主题数据的租户 ID，每个租户独立评分
-	tenantIDs, err := s.themeRepo.DistinctTenantIDs(ctx)
-	if err != nil || len(tenantIDs) == 0 {
-		log.Printf("[ScoringService] no tenants found, skip scoring")
+	if s.tenantID == "" {
+		log.Println("[ScoringService] tenantID is empty, skip scoring")
 		return
 	}
-	// 遍历租户，依次执行主题评分、股票评分、AI 市场环境判断
-	for _, tenantID := range tenantIDs {
-		if ctx.Err() != nil {
-			return
-		}
-		s.scoreThemesForTenant(ctx, tenantID)
-		s.scoreTickersForTenant(ctx, tenantID)
-		// AI 市场环境判断（依赖主题评分结果，所以放在主题评分之后）
-		if s.aiService != nil {
-			s.aiService.JudgeRegime(ctx, tenantID)
-		}
+	if ctx.Err() != nil {
+		return
+	}
+	s.scoreThemesForTenant(ctx, s.tenantID)
+	s.scoreTickersForTenant(ctx, s.tenantID)
+	if s.aiService != nil {
+		s.aiService.JudgeRegime(ctx, s.tenantID)
 	}
 }
 

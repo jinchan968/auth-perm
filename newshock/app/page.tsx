@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Card, Row, Col, Spin, Segmented, Button } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { api, HomeData } from '@/lib/api';
+import { api, HomeData, displaySymbol } from '@/lib/api';
 import { useThemeContext } from '@/lib/theme-context';
 import { tt } from '@/lib/i18n';
 import { timeAgo } from '@/lib/time';
@@ -128,7 +128,7 @@ export default function RadarPage() {
                   </div>
                   <div className="event-title">{event.title}</div>
                   {event.summary && <div className="event-summary">{event.summary.slice(0, 130)}</div>}
-                  {event.tickers?.length > 0 && <div className="event-tickers">{event.tickers.map((t) => <span key={t.symbol} className="ticker-theme-tag">{t.symbol}</span>)}</div>}
+                  {event.tickers?.length > 0 && <div className="event-tickers">{event.tickers.map((t) => <span key={t.symbol} className="ticker-theme-tag">{displaySymbol(t.symbol)}</span>)}</div>}
                 </div>
               ))}
             </div>
@@ -161,7 +161,7 @@ export default function RadarPage() {
                 <div key={ticker.id} className="ticker-row" style={{ padding: '10px 0' }} onClick={() => router.push(`/tickers/${ticker.symbol}`)}>
                   <Row justify="space-between" align="middle" style={{ width: '100%' }}>
                     <Col>
-                      <span style={{ fontWeight: 700, fontSize: 14 }}>{ticker.symbol}</span>
+                      <span style={{ fontWeight: 700, fontSize: 14 }}>{displaySymbol(ticker.symbol)}</span>
                       <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--nshock-text-muted)' }}>{ticker.name}</span>
                     </Col>
                     <Col style={{ textAlign: 'right' }}>
@@ -205,7 +205,7 @@ export default function RadarPage() {
               <div key={ticker.id} className="ticker-row" style={{ padding: '8px 0' }} onClick={() => router.push(`/tickers/${ticker.symbol}`)}>
                 <Row align="middle" gutter={6}>
                   <Col>
-                    <span style={{ fontWeight: 700, fontSize: 13 }}>{ticker.symbol}</span>
+                    <span style={{ fontWeight: 700, fontSize: 13 }}>{displaySymbol(ticker.symbol)}</span>
                     <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--nshock-text-muted)' }}>{ticker.market?.toUpperCase()}</span>
                   </Col>
                 </Row>

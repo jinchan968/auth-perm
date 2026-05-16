@@ -20,6 +20,8 @@ type TickerService struct {
 	eventRepo    *repo.EventRepo
 	dailyRepo    *repo.TickerDailyRepo
 	conceptRepo  *repo.TickerConceptRepo
+	f10Repo      *repo.TickerF10Repo
+	newsRepo     *repo.TickerNewsRepo
 }
 
 func NewTickerService(
@@ -29,6 +31,8 @@ func NewTickerService(
 	eventRepo *repo.EventRepo,
 	dailyRepo *repo.TickerDailyRepo,
 	conceptRepo *repo.TickerConceptRepo,
+	f10Repo *repo.TickerF10Repo,
+	newsRepo *repo.TickerNewsRepo,
 ) *TickerService {
 	return &TickerService{
 		tickerRepo:   tickerRepo,
@@ -37,6 +41,8 @@ func NewTickerService(
 		eventRepo:    eventRepo,
 		dailyRepo:    dailyRepo,
 		conceptRepo:  conceptRepo,
+		f10Repo:      f10Repo,
+		newsRepo:     newsRepo,
 	}
 }
 
@@ -130,6 +136,24 @@ func (s *TickerService) GetDailyBySymbol(ctx context.Context, symbol, tenantID s
 		items = append(items, vo.ToTickerDailyResponse(d))
 	}
 	return items, nil
+}
+
+// GetF10BySymbol 获取股票基本面数据（F10）。
+func (s *TickerService) GetF10BySymbol(ctx context.Context, symbol, tenantID string) (*dm.TickerF10, error) {
+	ticker, err := s.tickerRepo.FindBySymbol(ctx, symbol, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	return s.f10Repo.GetByTickerID(ctx, ticker.ID)
+}
+
+// GetNewsBySymbol 获取个股新闻列表。
+func (s *TickerService) GetNewsBySymbol(ctx context.Context, symbol, tenantID string, limit int) ([]dm.TickerNews, error) {
+	ticker, err := s.tickerRepo.FindBySymbol(ctx, symbol, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	return s.newsRepo.GetByTickerID(ctx, ticker.ID, limit)
 }
 
 // Search 按关键词搜索股票（ILIKE 模糊匹配代码和名称）

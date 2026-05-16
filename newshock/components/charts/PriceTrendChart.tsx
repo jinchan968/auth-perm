@@ -39,6 +39,9 @@ export default function PriceTrendChart({ data, lang }: Props) {
   const lastClose = filtered[filtered.length - 1]?.close || 0;
   const priceColor = lastClose >= firstClose ? '#ef5350' : '#26a69a';
 
+  const labelStyle = { fontSize: 11, fill: '#595959' };
+  const titleStyle = { fontSize: 11, fill: '#262626', fontWeight: 500 };
+
   const priceConfig = {
     data: priceData,
     xField: 'date',
@@ -52,8 +55,8 @@ export default function PriceTrendChart({ data, lang }: Props) {
       items: [{ field: 'value', name: tt('close', lang), valueFormatter: (v: number) => v?.toFixed(2) }],
     },
     axis: {
-      x: { labelAutoRotate: false, label: { style: { fontSize: 10 } } },
-      y: { title: tt('close', lang), label: { style: { fontSize: 10 } } },
+      x: { labelAutoRotate: false, label: { style: { fontSize: 10, fill: '#8c8c8c' } } },
+      y: { title: { text: tt('close', lang), style: titleStyle }, label: { style: labelStyle } },
     },
     interaction: { tooltip: { render: (e: Event, { title, items }: { title: string; items: { name: string; value: string }[] }) => { return `<div><strong>${title}</strong>${items.map(i => `<div>${i.name}: ${i.value}</div>`).join('')}</div>`; } } },
   };
@@ -66,8 +69,8 @@ export default function PriceTrendChart({ data, lang }: Props) {
     height: 80,
     style: { radiusTopLeft: 2, radiusTopRight: 2 },
     axis: {
-      x: { labelAutoRotate: false, label: { style: { fontSize: 10 } } },
-      y: { title: tt('vol', lang), label: { style: { fontSize: 10 } } },
+      x: { labelAutoRotate: false, label: { style: { fontSize: 10, fill: '#8c8c8c' } } },
+      y: { title: { text: tt('vol', lang), style: titleStyle }, label: { style: labelStyle } },
     },
     tooltip: {
       title: (d: { date: string }) => d.date,

@@ -16,9 +16,9 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"auth-perm/internal/domain/newshock/dm"
+	"auth-perm/internal/infra/httpclient"
 )
 
 // Client 腾讯财经 HTTP 客户端
@@ -26,16 +26,10 @@ type Client struct {
 	http *http.Client
 }
 
-// NewClient 创建客户端，超时 30 秒
+// NewClient 创建客户端，超时 30 秒，内置 Chrome UA。
 func NewClient() *Client {
 	return &Client{
-		http: &http.Client{
-			Timeout: 30 * time.Second,
-			Transport: &http.Transport{
-				TLSHandshakeTimeout:   10 * time.Second,
-				ResponseHeaderTimeout: 15 * time.Second,
-			},
-		},
+		http: httpclient.New(),
 	}
 }
 
@@ -173,6 +167,7 @@ func parseKlineResponse(body []byte, qqSymbol string) ([]dm.KlineBar, error) {
 }
 
 // secidToQQSymbol 将 secid 格式转为腾讯 symbol 格式
+// 1.600519 -> sh600519, 0.000001 -> sz000001, 2.830001 -> bj830001
 func secidToQQSymbol(secid string) (string, error) {
 	parts := strings.SplitN(secid, ".", 2)
 	if len(parts) != 2 {
@@ -184,6 +179,8 @@ func secidToQQSymbol(secid string) (string, error) {
 		return "sh" + code, nil
 	case "0":
 		return "sz" + code, nil
+	case "2":
+		return "bj" + code, nil
 	default:
 		return "", fmt.Errorf("unknown market prefix: %s", parts[0])
 	}
