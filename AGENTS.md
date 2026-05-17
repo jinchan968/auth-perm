@@ -38,6 +38,7 @@
 13. 通过依赖注入装配的组件（`*CacheService`、`*PermissionResourceRepo`、`*SessionRepo` 等由 `container` 提供的实例）必然非 nil，禁止在业务代码中对其判空。
 14. Commit message 使用英文 Conventional Commits 格式。
 15. 后端数据转换器（dm→vo）和枚举校验器（白名单 map + isValid 函数）统一放到对应领域的 `vo` 包中，禁止在 service 层定义。
+16. 非经用户明确要求，不得执行 `git add`、`git commit`、`git push` 等版本控制操作。改完代码后只做构建/测试验证，由用户自行决定何时提交。
 
 ## 任务路由
 - **后端任务**：先读 `docs/ARCHITECTURE.md`，重点看 `./internal/container/`、`./internal/controller/http/`、对应领域模块。
