@@ -44,8 +44,9 @@ jobs:
           host: ${{ secrets.GCP_HOST }}
           username: ${{ secrets.GCP_USER }}
           key: ${{ secrets.GCP_SSH_KEY }}
+          port: 22
           script: |
             chmod +x /opt/auth-perm/auth-perm-api /opt/auth-perm/auth-perm-worker
             sudo systemctl restart auth-perm-api
-            sudo systemctl restart auth-perm-worker
+            sudo systemctl is-enabled auth-perm-worker && sudo systemctl restart auth-perm-worker || true
             echo "Deploy done"
