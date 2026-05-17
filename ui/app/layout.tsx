@@ -5,6 +5,8 @@ import { Providers } from "@/components/providers"
 import { Toaster } from "sonner"
 import React from "react";
 
+export const runtime = 'edge';
+
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {

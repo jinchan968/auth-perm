@@ -6,7 +6,7 @@
 |--------|------|
 | `{#userName}` | VPS SSH 用户名（`whoami` 查看） |
 | `{#vpsIp}` | VPS 公网 IP |
-| `{#projectName}` | Cloudflare Pages 项目名（自动分配域名 `xxx.pages.dev`） |
+| `{#projectName}` | Cloudflare Pages 项目名（自动分配 `xxx.pages.dev` 域名） |
 
 ## 架构概览
 
@@ -14,7 +14,7 @@
 ┌──────────────────────────────────────────────────────────┐
 │  Cloudflare Pages                                        │
 │  ui (Next.js)  ← 仅部署 UI，不部署 newshock               │
-│  https://{#projectName}.pages.dev                              │
+│  https://{#projectName}.pages.dev                        │
 └───────────────┬──────────────────────────────────────────┘
                 │ /api/* (Next.js rewrite → VPS)
                 ▼
@@ -347,7 +347,11 @@ sudo systemctl start auth-perm-worker
 
 ## 五、Cloudflare Pages（UI 前端）
 
-### 5.1 配置
+### 5.1 适配说明
+
+项目已安装 `@cloudflare/next-on-pages` 适配器，使 Next.js SSR + 动态路由 `[id]` 在 Cloudflare Pages 上正常运行。
+
+### 5.2 配置
 
 1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com) → Workers & Pages → Create → Pages → Connect to Git
 2. 选择 GitHub 仓库 → 设置构建配置：
@@ -355,23 +359,23 @@ sudo systemctl start auth-perm-worker
 | 配置项 | 值 |
 |--------|-----|
 | Framework preset | Next.js |
-| Build command | `cd ui && pnpm install && pnpm build` |
-| Build output directory | `ui/out`（如果用 `output: 'export'`）或默认 `.next` |
 | Root directory | `ui` |
+| Build command | `npm install -g pnpm && pnpm install && pnpm build && npx @cloudflare/next-on-pages` |
+| Build output directory | `.vercel/output/static` |
+| Deploy command | 留空 |
 
-### 5.2 环境变量
+### 5.3 环境变量
 
-在 Cloudflare Pages → Settings → Environment variables 中添加：
+Cloudflare Pages → Settings → Environment Variables：
 
 | 变量名 | 值 |
 |--------|-----|
-| `NEXT_PUBLIC_API_URL` | `http://{#vpsIp}/api/v1`（Nginx 反代后不再带 8080 端口） |
+| `NEXT_PUBLIC_API_URL` | `http://{#vpsIp}/api/v1` |
 
-> Cloudflare Pages 会通过 `next.config.js` 的 rewrite 规则将 `/api/*` 代理到 VPS。如果 VPS 没有公网域名，用 IP 即可。
+### 5.4 默认域名
 
-### 5.3 默认域名
+Cloudflare Pages 自动分配 `https://{#projectName}.pages.dev` 域名，需添加到 VPS CORS 白名单：
 
-Cloudflare Pages 自动分配 `https://{#projectName}.pages.dev` 域名，可直接用于测试。此域名需要添加到 VPS 的 CORS 白名单中：
 ```bash
 CORS_ORIGINS=https://{#projectName}.pages.dev
 ```
@@ -438,7 +442,7 @@ redis-cli -h your-redis.upstash.io -p 6379 -a password --tls PING
 
 | 变量 | 说明 |
 |------|------|
-| `NEXT_PUBLIC_API_URL` | 后端 API 地址 `http://{#vpsIp}/api/v1` |
+| `NEXT_PUBLIC_API_URL` | `http://{#vpsIp}/api/v1` |
 
 ---
 
@@ -459,8 +463,8 @@ redis-cli -h your-redis.upstash.io -p 6379 -a password --tls PING
 | `status=1/FAILURE` + `mkdir logs: permission denied` | 工作目录属主不对，执行 `chown -R {#userName}:{#userName} /opt/auth-perm` |
 | `status=1/FAILURE` + 数据库连接错误 | `.env` 中 `DB_*` 是否正确；Supabase 免费项目是否因 1 周未活动被暂停 |
 | API 起不来 | `sudo journalctl -u auth-perm-api -n 50 --no-pager` 看具体错误 |
-| 前端 401 | 检查 `CORS_ORIGINS` 是否包含 Cloudflare Pages 域名 |
-| 前端 CORS 错误 | 确认 `CORS_ORIGINS=https://xxx.pages.dev` 已在 VPS `.env` 中设置并重启了服务 |
+| 前端 401 | 检查 `CORS_ORIGINS` 是否包含 Vercel 域名 |
+| 前端 CORS 错误 | 确认 `CORS_ORIGINS=https://{#projectName}.pages.dev` 已在 VPS `.env` 中设置并重启了服务 |
 | 数据库连接失败 | `DB_SSLMODE=require` 是否设置；Supabase 免费项目是否暂停；`DB_PORT` 是否用 6543 (pooler) |
 | Redis 连接失败 | `REDIS_USE_TLS=true` 是否设置；Upstash 日请求配额是否耗尽 |
 | 登录后跳转失败 | 检查 `NEXT_PUBLIC_API_URL` 和 rewrite 规则 |
