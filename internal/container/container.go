@@ -2,7 +2,9 @@ package container
 
 import (
 	"context"
+	"crypto/tls"
 	"log"
+	"strings"
 
 	"auth-perm/config"
 	"auth-perm/internal/common/errors"
@@ -191,12 +193,17 @@ func registerDatabase(container *dig.Container) error {
 // registerRedis 注册Redis相关依赖
 func registerRedis(container *dig.Container) error {
 	return container.Provide(func(cfg *config.Config) (*redis.Client, error) {
-		client := redis.NewClient(&redis.Options{
+		opts := &redis.Options{
 			Addr:     cfg.Redis.GetAddr(),
 			Password: cfg.Redis.Password,
 			DB:       cfg.Redis.DB,
 			PoolSize: cfg.Redis.PoolSize,
-		})
+		}
+		if cfg.Redis.UseTLS {
+			opts.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+		}
+
+		client := redis.NewClient(opts)
 
 		// 测试连接
 		ctx := context.Background()
@@ -407,7 +414,7 @@ func registerGinEngine(container *dig.Container) error {
 		engine.Use(middleware.RecoveryMiddleware())
 		engine.Use(middleware.LoggingMiddleware(cfg))
 		engine.Use(middleware.RouteLoggingMiddleware())
-		engine.Use(middleware.CORSMiddleware(middleware.DefaultConfig()))
+		engine.Use(middleware.CORSMiddleware(corsConfig(cfg)))
 		rateLimitConfig := middleware.DefaultRateLimitConfig(redisClient)
 		engine.Use(middleware.RateLimitMiddleware(rateLimitConfig))
 
@@ -420,4 +427,19 @@ func registerGinEngine(container *dig.Container) error {
 		log.Println("Gin engine registered successfully")
 		return engine
 	})
+}
+
+// corsConfig 构建 CORS 配置，合并 localhost 默认源与配置中额外源
+func corsConfig(cfg *config.Config) middleware.Config {
+	config := middleware.DefaultConfig()
+	if cfg.Server.CORSOrigins != "" {
+		origins := strings.Split(cfg.Server.CORSOrigins, ",")
+		for _, o := range origins {
+			o = strings.TrimSpace(o)
+			if o != "" {
+				config.AllowOrigins = append(config.AllowOrigins, o)
+			}
+		}
+	}
+	return config
 }

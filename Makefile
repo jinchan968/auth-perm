@@ -202,9 +202,10 @@ dev-setup: install-tools deps migrate-up ## 快速设置开发环境
 	@echo "开发环境设置完成！"
 
 # 生产构建
-build-prod: ## 生产环境构建
+build-prod: ## 生产环境构建（API + Worker，linux/amd64）
 	@echo "生产环境构建..."
-	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o bin/auth-perm-linux cmd/api/main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o bin/auth-perm-linux cmd/api/main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -o bin/auth-perm-worker-linux cmd/worker/main.go
 	CGO_ENABLED=0 GOOS=darwin go build -a -installsuffix cgo -o bin/auth-perm-darwin cmd/api/main.go
 	CGO_ENABLED=0 GOOS=windows go build -a -installsuffix cgo -o bin/auth-perm.exe cmd/api/main.go
 

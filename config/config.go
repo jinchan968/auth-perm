@@ -29,10 +29,11 @@ type Config struct {
 
 // ServerConfig 服务器配置
 type ServerConfig struct {
-	Host       string `mapstructure:"host" yaml:"host" env:"SERVER_HOST" default:"localhost"`
-	Port       int    `mapstructure:"port" yaml:"port" env:"SERVER_PORT" default:"8080"`
-	Mode       string `mapstructure:"mode" yaml:"mode" env:"GIN_MODE" default:"debug"`
-	SuperAdmin string `mapstructure:"super_admin" yaml:"super_admin" env:"SUPER_ADMIN" default:""`
+	Host        string `mapstructure:"host" yaml:"host" env:"SERVER_HOST" default:"localhost"`
+	Port        int    `mapstructure:"port" yaml:"port" env:"SERVER_PORT" default:"8080"`
+	Mode        string `mapstructure:"mode" yaml:"mode" env:"GIN_MODE" default:"debug"`
+	SuperAdmin  string `mapstructure:"super_admin" yaml:"super_admin" env:"SUPER_ADMIN" default:""`
+	CORSOrigins string `mapstructure:"cors_origins" yaml:"cors_origins" env:"CORS_ORIGINS" default:""` // 额外允许的跨域源，逗号分隔
 }
 
 // DatabaseConfig 数据库配置
@@ -54,6 +55,7 @@ type RedisConfig struct {
 	Password string `mapstructure:"password" yaml:"password" env:"REDIS_PASSWORD" default:""`
 	DB       int    `mapstructure:"db" yaml:"db" env:"REDIS_DB" default:"0"`
 	PoolSize int    `mapstructure:"pool_size" yaml:"pool_size" env:"REDIS_POOL_SIZE" default:"10"`
+	UseTLS   bool   `mapstructure:"use_tls" yaml:"use_tls" env:"REDIS_USE_TLS"` // Upstash 等云端 Redis 需要 TLS
 }
 
 // CacheConfig 缓存配置
@@ -206,6 +208,45 @@ func LoadConfig(configPath string) (*Config, error) {
 		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
 	}
 	if err := viper.BindEnv("llm.model", "LLM_MODEL"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	if err := viper.BindEnv("server.cors_origins", "CORS_ORIGINS"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	// 数据库环境变量
+	if err := viper.BindEnv("database.host", "DB_HOST"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	if err := viper.BindEnv("database.port", "DB_PORT"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	if err := viper.BindEnv("database.user", "DB_USER"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	if err := viper.BindEnv("database.password", "DB_PASSWORD"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	if err := viper.BindEnv("database.dbname", "DB_NAME"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	if err := viper.BindEnv("database.sslmode", "DB_SSLMODE"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	// Redis 环境变量
+	if err := viper.BindEnv("redis.host", "REDIS_HOST"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	if err := viper.BindEnv("redis.port", "REDIS_PORT"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	if err := viper.BindEnv("redis.password", "REDIS_PASSWORD"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	if err := viper.BindEnv("redis.use_tls", "REDIS_USE_TLS"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	// 财经定时任务开关
+	if err := viper.BindEnv("stock.enabled", "STOCK_SCHEDULER_ENABLED"); err != nil {
 		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
 	}
 
