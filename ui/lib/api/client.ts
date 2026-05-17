@@ -1,7 +1,4 @@
-const IS_SERVER = typeof window === 'undefined'
-const API_BASE_URL = IS_SERVER
-  ? process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
-  : '/api'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
 
 // API 错误类
 export class ApiError extends Error {
