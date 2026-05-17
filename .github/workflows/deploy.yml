@@ -1,0 +1,51 @@
+name: Deploy to GCP VPS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cmd/**'
+      - 'internal/**'
+      - 'config/**'
+      - 'migrations/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Build binaries
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/auth-perm-api cmd/api/main.go
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/auth-perm-worker cmd/worker/main.go
+
+      - name: Deploy to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.GCP_HOST }}
+          username: ${{ secrets.GCP_USER }}
+          key: ${{ secrets.GCP_SSH_KEY }}
+          source: 'bin/auth-perm-api,bin/auth-perm-worker'
+          target: '/opt/auth-perm/'
+          strip_components: 1
+
+      - name: Restart services
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.GCP_HOST }}
+          username: ${{ secrets.GCP_USER }}
+          key: ${{ secrets.GCP_SSH_KEY }}
+          script: |
+            chmod +x /opt/auth-perm/auth-perm-api /opt/auth-perm/auth-perm-worker
+            sudo systemctl restart auth-perm-api
+            sudo systemctl restart auth-perm-worker
+            echo "Deploy done"

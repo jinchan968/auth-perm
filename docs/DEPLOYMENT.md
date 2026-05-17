@@ -467,4 +467,35 @@ redis-cli -h your-redis.upstash.io -p 6379 -a password --tls PING
 | 前端 CORS 错误 | 确认 `CORS_ORIGINS=https://{#projectName}.pages.dev` 已在 VPS `.env` 中设置并重启了服务 |
 | 数据库连接失败 | `DB_SSLMODE=require` 是否设置；Supabase 免费项目是否暂停；`DB_PORT` 是否用 6543 (pooler) |
 | Redis 连接失败 | `REDIS_USE_TLS=true` 是否设置；Upstash 日请求配额是否耗尽 |
-| 登录后跳转失败 | 检查 `NEXT_PUBLIC_API_URL` 和 rewrite 规则 |
+| `X-Forwarded-For` inet 报错 | Cloudflare 代理 IP 列表逗号分隔，已通过 `extractClientIP()` 取第一个 IP 修复 |
+
+## 十、CI/CD 自动部署（GitHub Actions）
+
+push main 分支时自动构建、上传、重启 VPS 服务，无需手动 scp。
+
+### 10.1 配置 Secrets
+
+GitHub 仓库 → Settings → Secrets and variables → Actions → 添加三个 secrets：
+
+| Secret | 值 |
+|--------|-----|
+| `GCP_HOST` | VPS 公网 IP |
+| `GCP_USER` | VPS SSH 用户名 |
+| `GCP_SSH_KEY` | SSH 私钥（`~/.ssh/id_rsa` 或 `~/.ssh/id_ed25519` 的内容） |
+
+### 10.2 工作流
+
+`.github/workflows/deploy.yml` 已配置，触发条件：main 分支 push，且改动涉及 `cmd/**`、`internal/**`、`config/**`、`go.*`。
+
+流程：Setup Go → 交叉编译 linux/amd64 → scp 上传 → ssh 重启 systemd 服务。
+
+### 10.3 首次使用
+
+确保 VPS 已配置 SSH key：
+```bash
+# 本机
+ssh-copy-id {#userName}@{#vpsIp}
+
+# 确认免密登录
+ssh {#userName}@{#vpsIp} "echo ok"
+```

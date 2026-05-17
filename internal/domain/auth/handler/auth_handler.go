@@ -65,10 +65,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 	if req.IPAddress == "" {
-		req.IPAddress = c.GetHeader("X-Forwarded-For")
-		if req.IPAddress == "" {
-			req.IPAddress = c.ClientIP()
-		}
+		req.IPAddress = extractClientIP(c)
 	}
 	if req.UserAgent == "" {
 		req.UserAgent = c.GetHeader("User-Agent")
@@ -109,7 +106,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 	identifier, _ := req.GetIdentifier()
-	loginParams := param.NewLoginParams(identifier, req.Password, "", c.GetHeader("User-Agent"), c.ClientIP(), req.TenantID, false)
+	loginParams := param.NewLoginParams(identifier, req.Password, "", c.GetHeader("User-Agent"), extractClientIP(c), req.TenantID, false)
 	loginUser, loginAccount, err := h.loginService.Login(c.Request.Context(), loginParams)
 	if err != nil {
 		userResp := &controllerVo.UserResponse{}
@@ -119,7 +116,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		response.Success(c, gin.H{"message": "注册成功，请手动登录", "user": userResp, "account": accountResp})
 		return
 	}
-	sessionParams := param.NewSessionTokenParams(c.Request.Context(), loginUser, loginAccount, c.ClientIP(), c.GetHeader("User-Agent"), req.TenantID, false)
+	sessionParams := param.NewSessionTokenParams(c.Request.Context(), loginUser, loginAccount, extractClientIP(c), c.GetHeader("User-Agent"), req.TenantID, false)
 	loginResult, err := h.loginService.CreateSessionAndToken(sessionParams)
 	if err != nil {
 		userResp := &controllerVo.UserResponse{}
@@ -452,4 +449,18 @@ func (h *AuthHandler) GetSecurityLogs(c *gin.Context) {
 	responseData := &controllerVo.SecurityLogsListResponse{}
 	responseData.FromSecurityLogsListDTO(securityLogsDTO)
 	response.Success(c, responseData)
+}
+
+// extractClientIP 从 X-Forwarded-For 头提取客户端真实 IP。
+// Cloudflare 等代理会追加多个 IP（逗号分隔），PostgreSQL inet 类型只接受单个 IP。
+func extractClientIP(c *gin.Context) string {
+	xff := c.GetHeader("X-Forwarded-For")
+	if xff != "" {
+		// 取第一个 IP（最靠近客户端的）
+		ips := strings.Split(xff, ",")
+		if len(ips) > 0 {
+			return strings.TrimSpace(ips[0])
+		}
+	}
+	return c.ClientIP()
 }
