@@ -45,7 +45,7 @@ export function useRegisterLogic() {
         confirm_password: data.confirm_password,
       }
 
-      const response = await fetch('/api/auth/register', {
+      const response = await fetch('/api/auth/public/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(registerData),

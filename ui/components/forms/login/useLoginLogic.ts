@@ -26,7 +26,7 @@ export function useLoginLogic() {
     try {
       logger.info('Login: 开始登录流程', { identifier: data.identifier })
 
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch('/api/auth/public/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
