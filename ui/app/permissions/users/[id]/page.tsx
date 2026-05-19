@@ -23,9 +23,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { useTenant } from '@/lib/tenant-context'
+import { useTenant, DEFAULT_TENANT_ID } from '@/lib/tenant-context'
 import { ShellLayout } from '@/components/layout/shell-layout'
 import { ListReturnButton } from '@/components/ui/list-return-button'
+import { usePermissions } from '@/hooks/use-permissions'
 import { showError, showSuccess } from '@/lib/toast'
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
@@ -45,7 +46,8 @@ interface RoleDetailCacheEntry {
 export default function UserDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const { selectedTenantId, tenants } = useTenant()
+  const { selectedTenantId, tenants, tenantId } = useTenant()
+  const { isSuperAdmin } = usePermissions()
   const usersListHref = '/permissions?tab=users'
 
   const accountId = params.id as string
@@ -220,6 +222,10 @@ export default function UserDetailPage() {
   }
 
   const handleResetPassword = async () => {
+    if (!tenantId) {
+      showError('租户未加载完成，请刷新重试')
+      return
+    }
     if (!resetPwdForm.new_password || !resetPwdForm.confirm_password) {
       showError('请填写所有密码字段')
       return
@@ -234,7 +240,7 @@ export default function UserDetailPage() {
     }
     setResetPwdSaving(true)
     try {
-      await resetUserPassword(accountId, {
+      await resetUserPassword(accountId, tenantId, {
         new_password: resetPwdForm.new_password,
         confirm_password: resetPwdForm.confirm_password,
       })
@@ -301,10 +307,12 @@ export default function UserDetailPage() {
             title={`用户角色分配 - ${userDetail.username || userDetail.nickname || accountId}`}
             actions={
               <DetailActionBar returnHref={usersListHref} returnLabel="返回">
-                <Button variant="outline" onClick={() => setResetPwdOpen(true)}>
-                  <KeyRound className="h-4 w-4 mr-1" />
-                  重置密码
-                </Button>
+                {isSuperAdmin && (
+                  <Button variant="outline" onClick={() => setResetPwdOpen(true)}>
+                    <KeyRound className="h-4 w-4 mr-1" />
+                    重置密码
+                  </Button>
+                )}
                 <Button onClick={handleSave} disabled={saving}>
                   <Save className="h-4 w-4 mr-1" />
                   {saving ? '保存中...' : '保存'}

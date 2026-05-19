@@ -62,7 +62,8 @@ export async function getUserAccounts(userId: string): Promise<AccountListItem[]
 // Reset user password (admin function)
 export async function resetUserPassword(
   accountId: string,
+  tenantId: string,
   request: { new_password: string; confirm_password: string }
 ): Promise<void> {
-  await apiClient.post(`${API_BASE}/${accountId}/reset-password`, request)
+  await apiClient.post(`${API_BASE}/${accountId}/reset-password?tenant_id=${tenantId}`, request)
 }

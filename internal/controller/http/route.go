@@ -57,7 +57,7 @@ func RegisterRoutes(
 		RegisterTenantRoutes(v1, permMW, tenantH, loginService)
 
 		// 注册用户管理路由
-		RegisterUserRoutes(v1, permMW, userH, loginService)
+		RegisterUserRoutes(v1, permMW, userH, loginService, permService)
 
 		// 注册待办路由
 		RegisterTodoRoutes(v1, permMW, thTodoHandler, loginService)
@@ -268,6 +268,7 @@ func RegisterUserRoutes(
 	permMW gin.HandlerFunc,
 	userH *authHandler.UserHandler,
 	loginService *service.LoginService,
+	permService *permissionService.PermissionService,
 ) {
 	users := router.Group("/users")
 	users.Use(middleware.AuthMiddleware(loginService))
@@ -278,7 +279,9 @@ func RegisterUserRoutes(
 		users.GET("/:id", userH.GetUser)
 		users.PATCH("/:id/status", userH.UpdateUserStatus)
 		users.GET("/:id/accounts", userH.GetUserAccounts)
-		users.POST("/:id/reset-password", userH.ResetUserPassword)
+
+		// 重置密码：仅超管可用
+		users.POST("/:id/reset-password", middleware.AdminPermissionMiddleware(permService), userH.ResetUserPassword)
 	}
 }
 

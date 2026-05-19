@@ -11,6 +11,9 @@ import { listTenants } from '@/lib/api/tenant'
 import { TenantListItem } from '@/types/tenant'
 import { useAuthStore } from '@/store/auth-store'
 
+// 默认租户 ID（与后端 constant.DefaultTenantID = "default" 保持一致）
+export const DEFAULT_TENANT_ID = 'default'
+
 interface TenantContextType {
   tenants: TenantListItem[]
   selectedTenantId: string
@@ -106,7 +109,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   }, [tenants, user, selectedTenantId])
 
   // 计算实际使用的 tenantId
-  const tenantId = selectedTenantId || user?.tenant_id || ''
+  const tenantId = selectedTenantId || user?.tenant_id || DEFAULT_TENANT_ID
 
   return (
     <TenantContext.Provider

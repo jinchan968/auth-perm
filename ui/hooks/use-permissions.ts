@@ -10,6 +10,7 @@ interface PermissionsState {
   menus: Set<string>
   buttons: Set<string>
   apiPaths: Set<string>
+  isSuperAdmin: boolean
   loading: boolean
   loaded: boolean
   error: string | null
@@ -27,6 +28,7 @@ export const usePermissionsStore = create<PermissionsState>((set, get) => ({
   menus: new Set(),
   buttons: new Set(),
   apiPaths: new Set(),
+  isSuperAdmin: false,
   loading: false,
   loaded: false,
   error: null,
@@ -38,7 +40,7 @@ export const usePermissionsStore = create<PermissionsState>((set, get) => ({
     set({ loading: true, error: null })
 
     try {
-      const resources = await getMyResources()
+      const { resources, is_super_admin } = await getMyResources()
 
       const menus = new Set<string>()
       const buttons = new Set<string>()
@@ -59,6 +61,7 @@ export const usePermissionsStore = create<PermissionsState>((set, get) => ({
         menus,
         buttons,
         apiPaths,
+        isSuperAdmin: is_super_admin,
         loading: false,
         loaded: true,
       })
@@ -101,6 +104,7 @@ export const usePermissionsStore = create<PermissionsState>((set, get) => ({
       menus: new Set(),
       buttons: new Set(),
       apiPaths: new Set(),
+      isSuperAdmin: false,
       loading: false,
       loaded: false,
       error: null,
@@ -140,6 +144,7 @@ export function usePermissions() {
     hasButton,
     hasAnyMenu,
     hasAnyButton,
+    isSuperAdmin: get().isSuperAdmin,
     refetch: fetchResources,
   }
 }

@@ -45,6 +45,7 @@ func (h *ResourceHandler) GetMyResources(c *gin.Context) {
 	}
 
 	response.Success(c, gin.H{
-		"resources": resources,
+		"resources":      resources,
+		"is_super_admin": isSuperAdmin,
 	})
 }

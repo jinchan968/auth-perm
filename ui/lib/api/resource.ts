@@ -13,13 +13,14 @@ export interface ResourceItem {
 
 export interface MyResourcesResponse {
   resources: ResourceItem[]
+  is_super_admin: boolean
 }
 
 /**
  * 获取当前用户可访问的资源清单
  * 用于前端权限控制（菜单、按钮显隐）
  */
-export async function getMyResources(): Promise<ResourceItem[]> {
+export async function getMyResources(): Promise<MyResourcesResponse> {
   const response = await apiClient.get<MyResourcesResponse>('/auth/my-resources')
-  return response.resources || []
+  return response
 }

@@ -25,8 +25,8 @@ jobs:
 
       - name: Build binaries
         run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/auth-perm-api cmd/api/main.go
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/auth-perm-worker cmd/worker/main.go
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/auth-perm-linux cmd/api/main.go
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/auth-perm-worker-linux cmd/worker/main.go
 
       - name: Deploy to VPS
         uses: appleboy/scp-action@v0.1.7
@@ -34,7 +34,7 @@ jobs:
           host: ${{ secrets.GCP_HOST }}
           username: ${{ secrets.GCP_USER }}
           key: ${{ secrets.GCP_SSH_KEY }}
-          source: 'bin/auth-perm-api,bin/auth-perm-worker'
+          source: 'bin/auth-perm-linux,bin/auth-perm-worker-linux'
           target: '/opt/auth-perm/'
           strip_components: 1
 
@@ -46,7 +46,7 @@ jobs:
           key: ${{ secrets.GCP_SSH_KEY }}
           port: 22
           script: |
-            chmod +x /opt/auth-perm/auth-perm-api /opt/auth-perm/auth-perm-worker
+            chmod +x /opt/auth-perm/auth-perm-linux /opt/auth-perm/auth-perm-worker-linux
             sudo systemctl restart auth-perm-api
             sudo systemctl is-enabled auth-perm-worker && sudo systemctl restart auth-perm-worker || true
             echo "Deploy done"
