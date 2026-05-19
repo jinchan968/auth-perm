@@ -46,3 +46,8 @@ export interface UpdateUserStatusRequest {
   tenant_id: string
   status: AccountStatus
 }
+
+export interface ResetPasswordRequest {
+  new_password: string
+  confirm_password: string
+}

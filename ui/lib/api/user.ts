@@ -58,3 +58,11 @@ export async function getUserAccounts(userId: string): Promise<AccountListItem[]
   const data = await apiClient.get<{ data: AccountListItem[] }>(`${API_BASE}/${userId}/accounts`)
   return data.data || []
 }
+
+// Reset user password (admin function)
+export async function resetUserPassword(
+  accountId: string,
+  request: { new_password: string; confirm_password: string }
+): Promise<void> {
+  await apiClient.post(`${API_BASE}/${accountId}/reset-password`, request)
+}

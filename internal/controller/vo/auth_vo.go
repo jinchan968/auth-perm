@@ -149,6 +149,12 @@ type ResetPasswordRequest struct {
 	ConfirmPassword string `json:"confirm_password" binding:"required,min=6"`
 }
 
+// AdminResetPasswordRequest 管理员重置用户密码请求
+type AdminResetPasswordRequest struct {
+	NewPassword     string `json:"new_password" binding:"required,min=6"`
+	ConfirmPassword string `json:"confirm_password" binding:"required"`
+}
+
 // OAuthCallbackRequest OAuth回调请求
 type OAuthCallbackRequest struct {
 	Code  string `form:"code" binding:"required"`

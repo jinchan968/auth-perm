@@ -10,6 +10,7 @@ const (
 	ActionChangePassword          = "change_password"
 	ActionResetPassword           = "reset_password"
 	ActionResetPasswordWithToken  = "reset_password_with_token"
+	ActionAdminResetPassword      = "admin_reset_password"
 	ActionInvalidateSessionsError = "invalidate_sessions_error"
 	ActionLogoutAllByTenant       = "logout_all_by_tenant"
 	ActionLogoutAllByUser         = "logout_all_by_user"

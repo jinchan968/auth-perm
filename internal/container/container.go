@@ -365,8 +365,9 @@ func registerHandlers(container *dig.Container) error {
 	if err := container.Provide(func(
 		authService *service.AuthService,
 		registerService *service.RegisterService,
+		passwordService *service.PasswordService,
 	) *authHandler.UserHandler {
-		return authHandler.NewUserHandler(authService, registerService)
+		return authHandler.NewUserHandler(authService, registerService, passwordService)
 	}); err != nil {
 		return err
 	}

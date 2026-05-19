@@ -20,11 +20,12 @@ import (
 type UserHandler struct {
 	authService     *service.AuthService
 	registerService *service.RegisterService
+	passwordService *service.PasswordService
 }
 
 // NewUserHandler 创建用户管理处理器
-func NewUserHandler(authService *service.AuthService, registerService *service.RegisterService) *UserHandler {
-	return &UserHandler{authService: authService, registerService: registerService}
+func NewUserHandler(authService *service.AuthService, registerService *service.RegisterService, passwordService *service.PasswordService) *UserHandler {
+	return &UserHandler{authService: authService, registerService: registerService, passwordService: passwordService}
 }
 
 // duplicateKeyMsg 将唯一约束冲突错误转换为用户友好的提示信息。
@@ -191,4 +192,64 @@ func (h *UserHandler) GetUserAccounts(c *gin.Context) {
 		return
 	}
 	response.Success(c, gin.H{"message": "此功能暂未实现", "user_id": userID})
+}
+
+func (h *UserHandler) ResetUserPassword(c *gin.Context) {
+	accountID := c.Param("id")
+	tenantID := c.Query("tenant_id")
+	if accountID == "" {
+		response.Error(c, http.StatusBadRequest, "账户ID不能为空", "")
+		return
+	}
+	if tenantID == "" {
+		response.Error(c, http.StatusBadRequest, "租户ID不能为空", "")
+		return
+	}
+
+	var req controllerVo.AdminResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "请求参数错误", err.Error())
+		return
+	}
+
+	if req.NewPassword != req.ConfirmPassword {
+		response.Error(c, http.StatusBadRequest, "两次输入的密码不一致", "")
+		return
+	}
+
+	if len(req.NewPassword) < 6 {
+		response.Error(c, http.StatusBadRequest, "密码长度不能少于6位", "")
+		return
+	}
+
+	userWithAccount, err := h.authService.GetAccountWithUser(c.Request.Context(), accountID)
+	if err != nil {
+		response.Error(c, http.StatusNotFound, "账户不存在", err.Error())
+		return
+	}
+
+	if userWithAccount.TenantID != tenantID {
+		response.Error(c, http.StatusForbidden, "无权重置此用户密码", "")
+		return
+	}
+
+	identifier := ""
+	if userWithAccount.Email != "" {
+		identifier = userWithAccount.Email
+	} else if userWithAccount.Phone != "" {
+		identifier = userWithAccount.Phone
+	}
+
+	if identifier == "" {
+		response.Error(c, http.StatusBadRequest, "用户邮箱和手机号均为空，无法重置密码", "")
+		return
+	}
+
+	err = h.passwordService.ResetPassword(c.Request.Context(), identifier, req.NewPassword, constant.ActionAdminResetPassword)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "重置密码失败", err.Error())
+		return
+	}
+
+	response.Success(c, gin.H{"message": "密码重置成功，已使该用户所有登录会话失效"})
 }

@@ -120,7 +120,8 @@ func (s *PasswordService) ChangePassword(ctx context.Context, params *param.Chan
 }
 
 // ResetPassword 重置密码
-func (s *PasswordService) ResetPassword(ctx context.Context, identifier, newPassword string) error {
+// action 参数用于指定审计日志动作，传入空字符串时默认使用 ActionResetPassword
+func (s *PasswordService) ResetPassword(ctx context.Context, identifier, newPassword string, action ...string) error {
 	// 查找账户（支持邮箱和手机号）
 	var account *dm.AccountDO
 	var err error
@@ -182,8 +183,12 @@ func (s *PasswordService) ResetPassword(ctx context.Context, identifier, newPass
 	s.invalidateUserSessions(ctx, account.UserID, authConstant.ReasonPasswordReset)
 
 	// 异步记录审计日志
+	auditAction := authConstant.ActionResetPassword
+	if len(action) > 0 && action[0] != "" {
+		auditAction = action[0]
+	}
 	s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
-		Action:       authConstant.ActionResetPassword,
+		Action:       auditAction,
 		ResourceType: authConstant.AuditResourceAccount,
 		ResourceID:   account.ID,
 		NewValues: dto.AuditLogValuesDTO{

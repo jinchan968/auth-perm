@@ -278,6 +278,7 @@ func RegisterUserRoutes(
 		users.GET("/:id", userH.GetUser)
 		users.PATCH("/:id/status", userH.UpdateUserStatus)
 		users.GET("/:id/accounts", userH.GetUserAccounts)
+		users.POST("/:id/reset-password", userH.ResetUserPassword)
 	}
 }
 

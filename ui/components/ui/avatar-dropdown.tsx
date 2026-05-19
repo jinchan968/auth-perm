@@ -17,6 +17,7 @@ export function AvatarDropdown({ user }: AvatarDropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const portalRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const logout = useAuthStore((state) => state.logout)
   const contactInfo = getContactInfo(user || null)
@@ -70,9 +71,14 @@ export function AvatarDropdown({ user }: AvatarDropdownProps) {
   useEffect(() => {
     if (!isOpen) return
     const handleClickOutside = (e: Event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsOpen(false)
+      const target = e.target as Node
+      if (
+        (dropdownRef.current && dropdownRef.current.contains(target)) ||
+        (portalRef.current && portalRef.current.contains(target))
+      ) {
+        return
       }
+      setIsOpen(false)
     }
     document.addEventListener('mousedown', handleClickOutside)
     document.addEventListener('touchend', handleClickOutside)
@@ -119,6 +125,7 @@ export function AvatarDropdown({ user }: AvatarDropdownProps) {
 
       {isOpen && !isEditProfileOpen && dropdownRef.current && createPortal(
         <div
+          ref={portalRef}
           className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-slate-200 py-1 z-[60] transition-opacity duration-200"
           style={{
             position: 'fixed',

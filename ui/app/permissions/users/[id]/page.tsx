@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Save, Check, Eye, Loader2 } from 'lucide-react'
-import { getUser } from '@/lib/api/user'
+import { Save, Check, Eye, Loader2, KeyRound } from 'lucide-react'
+import { getUser, resetUserPassword } from '@/lib/api/user'
 import { listRoles, assignRoleToAccount, getUserRoles, getRolePermissions } from '@/lib/api/role'
 import { listPermissionResources, type PermissionResource } from '@/lib/api/permission-resource'
 import { AccountListItem } from '@/types/user'
@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { DetailActionBar } from '@/components/ui/detail-action-bar'
 import { DetailPageHeader } from '@/components/ui/detail-page-header'
 import {
@@ -24,7 +26,7 @@ import {
 import { useTenant } from '@/lib/tenant-context'
 import { ShellLayout } from '@/components/layout/shell-layout'
 import { ListReturnButton } from '@/components/ui/list-return-button'
-import { showError } from '@/lib/toast'
+import { showError, showSuccess } from '@/lib/toast'
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
   return (
@@ -60,6 +62,9 @@ export default function UserDetailPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveSuccessOpen, setSaveSuccessOpen] = useState(false)
+  const [resetPwdOpen, setResetPwdOpen] = useState(false)
+  const [resetPwdForm, setResetPwdForm] = useState({ new_password: '', confirm_password: '' })
+  const [resetPwdSaving, setResetPwdSaving] = useState(false)
   
   const roleDetailCacheRef = useRef<Record<string, RoleDetailCacheEntry>>({})
 
@@ -214,6 +219,35 @@ export default function UserDetailPage() {
     }
   }
 
+  const handleResetPassword = async () => {
+    if (!resetPwdForm.new_password || !resetPwdForm.confirm_password) {
+      showError('请填写所有密码字段')
+      return
+    }
+    if (resetPwdForm.new_password.length < 6) {
+      showError('密码长度至少6位')
+      return
+    }
+    if (resetPwdForm.new_password !== resetPwdForm.confirm_password) {
+      showError('两次输入的密码不一致')
+      return
+    }
+    setResetPwdSaving(true)
+    try {
+      await resetUserPassword(accountId, {
+        new_password: resetPwdForm.new_password,
+        confirm_password: resetPwdForm.confirm_password,
+      })
+      showSuccess('密码重置成功，已使该用户所有登录会话失效')
+      setResetPwdOpen(false)
+      setResetPwdForm({ new_password: '', confirm_password: '' })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : '重置密码失败')
+    } finally {
+      setResetPwdSaving(false)
+    }
+  }
+
   const breadcrumbItems = [
     { label: '首页', href: '/home' },
     { label: '权限管理', href: '/permissions?tab=users' },
@@ -267,6 +301,10 @@ export default function UserDetailPage() {
             title={`用户角色分配 - ${userDetail.username || userDetail.nickname || accountId}`}
             actions={
               <DetailActionBar returnHref={usersListHref} returnLabel="返回">
+                <Button variant="outline" onClick={() => setResetPwdOpen(true)}>
+                  <KeyRound className="h-4 w-4 mr-1" />
+                  重置密码
+                </Button>
                 <Button onClick={handleSave} disabled={saving}>
                   <Save className="h-4 w-4 mr-1" />
                   {saving ? '保存中...' : '保存'}
@@ -497,6 +535,44 @@ export default function UserDetailPage() {
           <p className="text-sm text-slate-600 py-2">角色分配已保存。</p>
           <DialogFooter>
             <Button onClick={() => setSaveSuccessOpen(false)}>确定</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={resetPwdOpen} onOpenChange={setResetPwdOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>重置密码</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPwd">新密码</Label>
+              <Input
+                id="newPwd"
+                type="password"
+                value={resetPwdForm.new_password}
+                onChange={(e) => setResetPwdForm({ ...resetPwdForm, new_password: e.target.value })}
+                placeholder="至少6位"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPwd">确认新密码</Label>
+              <Input
+                id="confirmPwd"
+                type="password"
+                value={resetPwdForm.confirm_password}
+                onChange={(e) => setResetPwdForm({ ...resetPwdForm, confirm_password: e.target.value })}
+                placeholder="再次输入新密码"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetPwdOpen(false)} disabled={resetPwdSaving}>
+              取消
+            </Button>
+            <Button onClick={handleResetPassword} disabled={resetPwdSaving}>
+              {resetPwdSaving ? '提交中...' : '确认重置'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
