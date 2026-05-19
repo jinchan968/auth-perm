@@ -11,10 +11,8 @@ import { Breadcrumb } from '@/components/ui/breadcrumb'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
-import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
-import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
+import { ShellLayout } from '@/components/layout/shell-layout'
 import { useTenant } from '@/lib/tenant-context'
-import { useAuthStore } from '@/store/auth-store'
 import { showError, showSuccess } from '@/lib/toast'
 import * as journalApi from '@/lib/api/journal'
 import type {
@@ -30,7 +28,6 @@ export default function JournalPage() {
   const router = useRouter()
   const { tenantId, selectedTenantId } = useTenant()
   const tenantReady = !!selectedTenantId
-  const { user } = useAuthStore()
 
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date())
   const [entries, setEntries] = useState<Entry[]>([])
@@ -297,22 +294,7 @@ export default function JournalPage() {
   // ---- render ----
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50/50 to-slate-50">
-      <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Auth-Perm
-            </h1>
-            <AvatarDropdown user={user ?? null} />
-          </div>
-        </div>
-      </header>
-
-      <div className="flex">
-        <DashboardSidebar pathname="/journal" />
-
-        <main className="flex-1 p-6 lg:p-8 min-w-0">
+    <ShellLayout pathname="/journal">
           <Breadcrumb
             items={[
               { label: '首页', href: '/home' },
@@ -322,7 +304,7 @@ export default function JournalPage() {
 
           {/* Toolbar: Date nav + Actions */}
           <div className="mt-4">
-            <div className="flex items-start justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
               <JournalDateNav
                 currentDate={currentDate}
                 onDateChange={handleDateChange}
@@ -407,8 +389,6 @@ export default function JournalPage() {
               )}
             </div>
           )}
-        </main>
-      </div>
 
       {/* ---- Correction Dialog ---- */}
       <Dialog open={correctionOpen} onOpenChange={setCorrectionOpen}>
@@ -607,6 +587,6 @@ export default function JournalPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </ShellLayout>
   )
 }

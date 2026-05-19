@@ -14,7 +14,6 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
-import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
 import { AppModal } from '@/components/ui/app-modal'
 import { PermGuard } from '@/components/ui/perm-guard'
 import { showError } from '@/lib/toast'
@@ -28,7 +27,7 @@ import {
 } from '@/components/ui/select'
 import { useTenant } from '@/lib/tenant-context'
 import { useAuthStore } from '@/store/auth-store'
-import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
+import { ShellLayout } from '@/components/layout/shell-layout'
 import { useTenantFilter } from '@/hooks/use-tenant-filter'
 import { usePermissions } from '@/hooks/use-permissions'
 
@@ -333,25 +332,11 @@ function PermissionsPageContent() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-      <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Auth-Perm
-            </h1>
-            <AvatarDropdown user={user ?? null} />
-          </div>
-        </div>
-      </header>
-
-      <div className="flex">
-        <DashboardSidebar pathname="/permissions" />
-        <main className="flex-1 p-8">
+    <ShellLayout pathname="/permissions">
           <Breadcrumb items={breadcrumbItems} />
 
           {/* Tabs */}
-          <div className="flex gap-2 mb-6 mt-4">
+          <div className="flex flex-wrap gap-2 mb-6 mt-4">
             <PermGuard button="perm.tab.list">
               <Button
                 variant={activeTab === 'permissions' ? 'default' : 'outline'}
@@ -378,26 +363,28 @@ function PermissionsPageContent() {
             </PermGuard>
           </div>
 
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
             <h2 className="text-xl font-semibold">
               {activeTab === 'permissions' ? '权限列表' : activeTab === 'roles' ? '角色列表' : '用户列表'}
             </h2>
-            {activeTab === 'permissions' ? (
-              <Button onClick={handleOpenPermissionModal}>新建权限</Button>
-            ) : activeTab === 'roles' ? (
-              <Button onClick={handleOpenRoleModal}>新建角色</Button>
-            ) : (
-              <Button onClick={handleOpenUserModal}>
-                <Plus className="h-4 w-4 mr-1" />
-                新增用户
-              </Button>
-            )}
+            <div className="flex-shrink-0">
+              {activeTab === 'permissions' ? (
+                <Button onClick={handleOpenPermissionModal}>新建权限</Button>
+              ) : activeTab === 'roles' ? (
+                <Button onClick={handleOpenRoleModal}>新建角色</Button>
+              ) : (
+                <Button onClick={handleOpenUserModal}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  新增用户
+                </Button>
+              )}
+            </div>
           </div>
 
           <Card>
             <CardContent className="pt-6">
               {/* Tenant Filter and Search */}
-              <div className="flex gap-2 items-center mb-4">
+              <div className="flex flex-wrap gap-2 items-center mb-4">
                 <PermGuard button="tenants.show_all">
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
                     <input
@@ -417,7 +404,7 @@ function PermissionsPageContent() {
                   }}
                   disabled={tenantLoading || tenantListLoading}
                 >
-                  <SelectTrigger className="w-[200px]">
+                  <SelectTrigger className="w-full sm:w-[200px]">
                     <SelectValue placeholder="选择租户" />
                   </SelectTrigger>
                   <SelectContent>
@@ -433,15 +420,15 @@ function PermissionsPageContent() {
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  className="max-w-xs"
+                  className="w-full sm:w-auto sm:max-w-xs"
                 />
                 <Button onClick={handleSearch}>搜索</Button>
               </div>
 
               {/* Permissions Table */}
               {activeTab === 'permissions' && (
-                <div className="border rounded">
-                  <table className="w-full">
+                <div className="border rounded overflow-x-auto">
+                  <table className="w-full min-w-[600px]">
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">名称</th>
@@ -495,8 +482,8 @@ function PermissionsPageContent() {
 
               {/* Roles Table */}
               {activeTab === 'roles' && (
-                <div className="border rounded">
-                  <table className="w-full">
+                <div className="border rounded overflow-x-auto">
+                  <table className="w-full min-w-[600px]">
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">名称</th>
@@ -543,8 +530,8 @@ function PermissionsPageContent() {
 
               {/* Users Table */}
               {activeTab === 'users' && (
-                <div className="border rounded">
-                  <table className="w-full">
+                <div className="border rounded overflow-x-auto">
+                  <table className="w-full min-w-[600px]">
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">用户名</th>
@@ -779,9 +766,7 @@ function PermissionsPageContent() {
               </div>
             </div>
           </AppModal>
-        </main>
-      </div>
-    </div>
+    </ShellLayout>
   )
 }
 
@@ -789,23 +774,9 @@ function PermissionsPageContent() {
 export default function PermissionsPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-        <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Auth-Perm
-              </h1>
-            </div>
-          </div>
-        </header>
-        <div className="flex">
-          <DashboardSidebar pathname="/permissions" />
-          <main className="flex-1 p-8">
-            <div className="text-center">加载中...</div>
-          </main>
-        </div>
-      </div>
+      <ShellLayout pathname="/permissions">
+        <div className="text-center">加载中...</div>
+      </ShellLayout>
     }>
       <PermissionsPageContent />
     </Suspense>

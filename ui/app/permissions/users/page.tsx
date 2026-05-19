@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
-import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -27,12 +26,10 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { useTenant } from '@/lib/tenant-context'
-import { useAuthStore } from '@/store/auth-store'
-import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
+import { ShellLayout } from '@/components/layout/shell-layout'
 import { showError } from '@/lib/toast'
 
 export default function UsersPage() {
-  const { user } = useAuthStore()
   const { selectedTenantId, tenantId, loading: tenantLoading } = useTenant()
 
   const [users, setUsers] = useState<AccountListItem[]>([])
@@ -179,24 +176,10 @@ export default function UsersPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-      <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Auth-Perm
-            </h1>
-            <AvatarDropdown user={user ?? null} />
-          </div>
-        </div>
-      </header>
-
-      <div className="flex">
-        <DashboardSidebar pathname="/permissions" />
-        <main className="flex-1 p-8">
+    <ShellLayout pathname="/permissions">
           <Breadcrumb items={breadcrumbItems} />
 
-          <div className="flex justify-between items-center mb-6 mt-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6 mt-4">
             <h2 className="text-xl font-semibold">用户列表</h2>
             <Button onClick={() => setCreateDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-1" />
@@ -207,13 +190,13 @@ export default function UsersPage() {
           <Card>
             <CardContent className="pt-6">
               {/* Search */}
-              <div className="flex gap-2 mb-4">
+              <div className="flex flex-wrap gap-2 mb-4">
                 <Input
                   placeholder="搜索用户名、邮箱或手机号..."
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  className="max-w-xs"
+                  className="w-full sm:w-auto sm:max-w-xs"
                 />
                 <Button onClick={handleSearch}>
                   <Search className="h-4 w-4 mr-1" />
@@ -222,8 +205,8 @@ export default function UsersPage() {
               </div>
 
               {/* Table */}
-              <div className="border rounded">
-                <table className="w-full">
+              <div className="border rounded overflow-x-auto">
+                <table className="w-full min-w-[700px]">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">用户名</th>
@@ -422,8 +405,6 @@ export default function UsersPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </main>
-      </div>
-    </div>
+    </ShellLayout>
   )
 }

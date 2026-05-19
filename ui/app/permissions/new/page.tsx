@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
-import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
 import {
   Select,
   SelectContent,
@@ -16,8 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useAuthStore } from '@/store/auth-store'
-import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
+import { ShellLayout } from '@/components/layout/shell-layout'
 import { useTenant } from '@/lib/tenant-context'
 import { DetailActionBar } from '@/components/ui/detail-action-bar'
 import { DetailPageHeader } from '@/components/ui/detail-page-header'
@@ -25,7 +23,6 @@ import { showError } from '@/lib/toast'
 import { useNavigationTransition } from '@/components/providers/navigation-transition-provider'
 
 export default function NewPermissionPage() {
-  const { user } = useAuthStore()
   const permissionsListHref = '/permissions'
   const { navigateWithTransition } = useNavigationTransition()
 
@@ -67,21 +64,7 @@ export default function NewPermissionPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-      <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Auth-Perm
-            </h1>
-            <AvatarDropdown user={user ?? null} />
-          </div>
-        </div>
-      </header>
-
-      <div className="flex">
-        <DashboardSidebar pathname="/permissions" />
-        <main className="flex-1 p-8">
+    <ShellLayout pathname="/permissions">
           <Breadcrumb items={breadcrumbItems} />
 
           <DetailPageHeader
@@ -152,8 +135,6 @@ export default function NewPermissionPage() {
               </div>
             </CardContent>
           </Card>
-        </main>
-      </div>
-    </div>
+    </ShellLayout>
   )
 }

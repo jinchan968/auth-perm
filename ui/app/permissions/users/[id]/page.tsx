@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Save, Check, Eye, Loader2 } from 'lucide-react'
-import { User } from '@/lib/api/auth'
 import { getUser } from '@/lib/api/user'
 import { listRoles, assignRoleToAccount, getUserRoles, getRolePermissions } from '@/lib/api/role'
 import { listPermissionResources, type PermissionResource } from '@/lib/api/permission-resource'
@@ -13,7 +12,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
-import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
 import { DetailActionBar } from '@/components/ui/detail-action-bar'
 import { DetailPageHeader } from '@/components/ui/detail-page-header'
 import {
@@ -24,26 +22,9 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { useTenant } from '@/lib/tenant-context'
-import { useAuthStore } from '@/store/auth-store'
-import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
+import { ShellLayout } from '@/components/layout/shell-layout'
 import { ListReturnButton } from '@/components/ui/list-return-button'
 import { showError } from '@/lib/toast'
-
-// 公共 Header，与角色详情页保持一致
-function PageHeader({ user }: { user: User | null }) {
-  return (
-    <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
-      <div className="px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Auth-Perm
-          </h1>
-          <AvatarDropdown user={user ?? null} />
-        </div>
-      </div>
-    </header>
-  )
-}
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
   return (
@@ -62,7 +43,6 @@ interface RoleDetailCacheEntry {
 export default function UserDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const { user: currentUser } = useAuthStore()
   const { selectedTenantId, tenants } = useTenant()
   const usersListHref = '/permissions?tab=users'
 
@@ -264,40 +244,23 @@ export default function UserDetailPage() {
   // ── Loading ──
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-        <PageHeader user={currentUser} />
-        <div className="flex">
-          <DashboardSidebar pathname="/permissions" />
-          <main className="flex-1 p-8">
-            <div className="text-center py-8 text-slate-400">加载中...</div>
-          </main>
-        </div>
-      </div>
+      <ShellLayout pathname="/permissions/users/[id]">
+        <div className="text-center py-8 text-slate-400">加载中...</div>
+      </ShellLayout>
     )
   }
 
   // ── Not found / error ──
   if (!userDetail) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-        <PageHeader user={currentUser} />
-        <div className="flex">
-          <DashboardSidebar pathname="/permissions" />
-          <main className="flex-1 p-8">
-            <ListReturnButton href={usersListHref} label="返回列表" />
-          </main>
-        </div>
-      </div>
+      <ShellLayout pathname="/permissions/users/[id]">
+        <ListReturnButton href={usersListHref} label="返回列表" />
+      </ShellLayout>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-      <PageHeader user={currentUser} />
-
-      <div className="flex">
-        <DashboardSidebar pathname="/permissions" />
-        <main className="flex-1 p-8">
+    <ShellLayout pathname="/permissions/users/[id]">
           <Breadcrumb items={breadcrumbItems} />
 
           <DetailPageHeader
@@ -389,7 +352,7 @@ export default function UserDetailPage() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="text-xs text-gray-400 font-mono">{role.code}</div>
                         <div className="flex items-center gap-2">
                           {isAssigned && <Badge variant="outline">已分配</Badge>}
@@ -525,10 +488,7 @@ export default function UserDetailPage() {
               </CardContent>
             </Card>
           )}
-        </main>
-      </div>
 
-      {/* 保存成功弹窗（替换原来的 alert）*/}
       <Dialog open={saveSuccessOpen} onOpenChange={setSaveSuccessOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -540,6 +500,6 @@ export default function UserDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </ShellLayout>
   )
 }

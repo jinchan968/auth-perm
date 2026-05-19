@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
-import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
+import { ShellLayout } from '@/components/layout/shell-layout'
 import { DetailActionBar } from '@/components/ui/detail-action-bar'
 import { DetailPageHeader } from '@/components/ui/detail-page-header'
 import {
@@ -29,7 +29,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useAuthStore } from '@/store/auth-store'
-import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
 import { ListReturnButton } from '@/components/ui/list-return-button'
 import { showError } from '@/lib/toast'
 import { useNavigationTransition } from '@/components/providers/navigation-transition-provider'
@@ -216,71 +215,26 @@ export default function PermissionDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-        <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Auth-Perm
-              </h1>
-              <AvatarDropdown user={user ?? null} />
-            </div>
-          </div>
-        </header>
-        <div className="flex">
-          <DashboardSidebar pathname="/permissions" />
-          <main className="flex-1 p-8">
-            <div className="text-center">加载中...</div>
-          </main>
-        </div>
-      </div>
+      <ShellLayout pathname="/permissions/[id]">
+        <div className="text-center">加载中...</div>
+      </ShellLayout>
     )
   }
 
   if (loadFailed && !permission) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-        <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Auth-Perm
-              </h1>
-              <AvatarDropdown user={user ?? null} />
-            </div>
-          </div>
-        </header>
-        <div className="flex">
-          <DashboardSidebar pathname="/permissions" />
-          <main className="flex-1 p-8">
-            <ListReturnButton href={permissionsListHref} label="返回列表" />
-          </main>
-        </div>
-      </div>
+      <ShellLayout pathname="/permissions/[id]">
+        <ListReturnButton href={permissionsListHref} label="返回列表" />
+      </ShellLayout>
     )
   }
 
   if (!permission) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-        <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Auth-Perm
-              </h1>
-              <AvatarDropdown user={user ?? null} />
-            </div>
-          </div>
-        </header>
-        <div className="flex">
-          <DashboardSidebar pathname="/permissions" />
-          <main className="flex-1 p-8">
-            <div className="text-center">权限不存在</div>
-            <ListReturnButton href={permissionsListHref} label="返回列表" />
-          </main>
-        </div>
-      </div>
+      <ShellLayout pathname="/permissions/[id]">
+        <div className="text-center">权限不存在</div>
+        <ListReturnButton href={permissionsListHref} label="返回列表" />
+      </ShellLayout>
     )
   }
 
@@ -291,21 +245,7 @@ export default function PermissionDetailPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-      <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Auth-Perm
-            </h1>
-            <AvatarDropdown user={user ?? null} />
-          </div>
-        </div>
-      </header>
-
-      <div className="flex">
-        <DashboardSidebar pathname="/permissions" />
-        <main className="flex-1 p-8">
+    <ShellLayout pathname="/permissions/[id]">
           <Breadcrumb items={breadcrumbItems} />
 
           <DetailPageHeader
@@ -425,7 +365,7 @@ export default function PermissionDetailPage() {
 
             <Card>
               <CardHeader>
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
                   <CardTitle>关联资源</CardTitle>
                   {!permission.is_system && (
                     <Button
@@ -442,7 +382,7 @@ export default function PermissionDetailPage() {
                 {/* Add Resource Form */}
                 {showResourceForm && (
                   <div className="mb-4 p-4 bg-gray-50 rounded space-y-3">
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
                         <Label>资源类型</Label>
                         <Select
@@ -493,8 +433,8 @@ export default function PermissionDetailPage() {
                 ) : resources.length === 0 ? (
                   <div className="text-center py-4 text-gray-500">暂无关联资源</div>
                 ) : (
-                  <div className="border rounded">
-                    <table className="w-full">
+                  <div className="border rounded overflow-x-auto">
+                    <table className="w-full min-w-[500px]">
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-3 py-2 text-left text-sm font-medium text-gray-500">类型</th>
@@ -545,8 +485,6 @@ export default function PermissionDetailPage() {
               </CardContent>
             </Card>
           </div>
-        </main>
-      </div>
-    </div>
+    </ShellLayout>
   )
 }

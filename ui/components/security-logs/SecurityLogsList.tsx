@@ -216,9 +216,9 @@ export function SecurityLogsList({ showFilters = true, pageSize = 20 }: Security
               return (
                 <div
                   key={log.id}
-                  className="flex items-center justify-between p-4 rounded-lg border border-slate-100 hover:bg-slate-50/50 transition-colors"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 rounded-lg border border-slate-100 hover:bg-slate-50/50 transition-colors gap-3"
                 >
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-4 min-w-0">
                     <div className={`p-3 rounded-full ${
                       color === 'green' ? 'bg-green-100' :
                       color === 'red' ? 'bg-red-100' :
@@ -259,7 +259,7 @@ export function SecurityLogsList({ showFilters = true, pageSize = 20 }: Security
                     </div>
                   </div>
                   
-                  <div className="text-right">
+                  <div className="text-right sm:text-right sm:shrink-0 sm:ml-4">
                     <div className="text-sm text-slate-600">
                       {log.createdAt && format(new Date(log.createdAt), 'yyyy-MM-dd HH:mm')}
                     </div>
@@ -275,7 +275,7 @@ export function SecurityLogsList({ showFilters = true, pageSize = 20 }: Security
         
         {/* Pagination */}
         {!isLoading && data && data.logs.length > 0 && (
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
+          <div className="flex flex-col sm:flex-row items-center justify-between mt-6 pt-4 border-t border-slate-100 gap-2">
             <div className="text-sm text-slate-500">
               共 {data.total} 条记录，第 {page} / {totalPages} 页
             </div>

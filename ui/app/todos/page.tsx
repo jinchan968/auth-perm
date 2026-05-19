@@ -13,7 +13,6 @@ import { TodoItem, TodoCategory, TodoStatus, TodoPriority } from '@/types/todo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
-import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
 import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -22,8 +21,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog'
 import { useTenant } from '@/lib/tenant-context'
-import { useAuthStore } from '@/store/auth-store'
-import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
+import { ShellLayout } from '@/components/layout/shell-layout'
 import { showError } from '@/lib/toast'
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -78,7 +76,6 @@ function isToday(iso?: string) {
 // ─── main component ───────────────────────────────────────────────────────────
 
 export default function TodosPage() {
-  const { user } = useAuthStore()
   const { selectedTenantId } = useTenant()
   const tenantReady = !!selectedTenantId
 
@@ -325,121 +322,157 @@ export default function TodosPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-      {/* Header */}
-      <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Auth-Perm
-            </h1>
-            <AvatarDropdown user={user ?? null} />
-          </div>
-        </div>
-      </header>
+    <ShellLayout pathname="/todos">
+      <Breadcrumb items={breadcrumbItems} />
 
-      <div className="flex">
-        <DashboardSidebar pathname="/todos" />
+      <div className="mt-4">
+             {/* ── Mobile: Horizontal category strip ── */}
+             <nav className="flex gap-2 overflow-x-auto pb-2 lg:hidden">
+               <button
+                 className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                   activeCategoryId === ''
+                     ? 'bg-blue-100 text-blue-700'
+                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                 }`}
+                 onClick={() => setActiveCategoryId('')}
+               >
+                 全部
+               </button>
+               <button
+                 className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                   activeCategoryId === 'none'
+                     ? 'bg-blue-100 text-blue-700'
+                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                 }`}
+                 onClick={() => setActiveCategoryId('none')}
+               >
+                 未分类
+               </button>
+               {categories.map(cat => (
+                 <button
+                   key={cat.id}
+                   className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors group ${
+                     activeCategoryId === cat.id
+                       ? 'bg-blue-100 text-blue-700'
+                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                   }`}
+                   onClick={() => setActiveCategoryId(cat.id)}
+                 >
+                   <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: cat.color }} />
+                   {cat.name}
+                   <span
+                     className="ml-0.5 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                     onClick={(e) => { e.stopPropagation(); tenantReady && handleDeleteCategory(cat.id) }}
+                   >
+                     <X className="h-3 w-3" />
+                   </span>
+                 </button>
+               ))}
+               <button
+                 className={`shrink-0 px-3 py-1.5 rounded-full text-sm border border-dashed border-slate-300 text-slate-500 hover:border-blue-400 hover:text-blue-600 transition-colors ${!tenantReady ? 'opacity-50 cursor-not-allowed' : ''}`}
+                 onClick={() => tenantReady && setCatDialogOpen(true)}
+                 disabled={!tenantReady}
+               >
+                 + 新分类
+               </button>
+             </nav>
 
-        <main className="flex-1 p-8">
-          <Breadcrumb items={breadcrumbItems} />
+             <div className="flex gap-6 mt-2 lg:mt-0">
+              {/* ── Left: Category panel (desktop) ── */}
+              <aside className="hidden lg:block w-52 shrink-0">
+                <div className="bg-white rounded-xl border border-slate-200/60 shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                    <span className="text-sm font-semibold text-slate-700">分类</span>
+                    <button
+                      className={`text-blue-600 hover:text-blue-700 transition-colors ${!tenantReady ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      onClick={() => tenantReady && setCatDialogOpen(true)}
+                      title="新建分类"
+                      disabled={!tenantReady}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
 
-          <div className="flex gap-6 mt-4">
-            {/* ── Left: Category panel ── */}
-            <aside className="w-52 shrink-0">
-              <div className="bg-white rounded-xl border border-slate-200/60 shadow-sm overflow-hidden">
-                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-slate-700">分类</span>
-                  <button
-                    className={`text-blue-600 hover:text-blue-700 transition-colors ${!tenantReady ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    onClick={() => tenantReady && setCatDialogOpen(true)}
-                    title="新建分类"
-                    disabled={!tenantReady}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
+                  <nav className="p-2 space-y-0.5">
+                    {/* All */}
+                    <CategoryNavItem
+                      active={activeCategoryId === ''}
+                      onClick={() => setActiveCategoryId('')}
+                      color="#94a3b8"
+                      label="全部"
+                    />
+                    {/* Uncategorised */}
+                    <CategoryNavItem
+                      active={activeCategoryId === 'none'}
+                      onClick={() => setActiveCategoryId('none')}
+                      color="#cbd5e1"
+                      label="未分类"
+                    />
+                    {/* User categories */}
+                    {categories.map(cat => (
+                      <div key={cat.id} className="group relative">
+                        <CategoryNavItem
+                          active={activeCategoryId === cat.id}
+                          onClick={() => setActiveCategoryId(cat.id)}
+                          color={cat.color}
+                          label={cat.name}
+                        />
+                        <button
+                          className={`absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500 ${!tenantReady ? 'cursor-not-allowed' : ''}`}
+                          onClick={() => tenantReady && handleDeleteCategory(cat.id)}
+                          disabled={!tenantReady}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </nav>
                 </div>
+              </aside>
 
-                <nav className="p-2 space-y-0.5">
-                  {/* All */}
-                  <CategoryNavItem
-                    active={activeCategoryId === ''}
-                    onClick={() => setActiveCategoryId('')}
-                    color="#94a3b8"
-                    label="全部"
-                  />
-                  {/* Uncategorised */}
-                  <CategoryNavItem
-                    active={activeCategoryId === 'none'}
-                    onClick={() => setActiveCategoryId('none')}
-                    color="#cbd5e1"
-                    label="未分类"
-                  />
-                  {/* User categories */}
-                  {categories.map(cat => (
-                    <div key={cat.id} className="group relative">
-                      <CategoryNavItem
-                        active={activeCategoryId === cat.id}
-                        onClick={() => setActiveCategoryId(cat.id)}
-                        color={cat.color}
-                        label={cat.name}
-                      />
-                      <button
-                        className={`absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500 ${!tenantReady ? 'cursor-not-allowed' : ''}`}
-                        onClick={() => tenantReady && handleDeleteCategory(cat.id)}
-                        disabled={!tenantReady}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                </nav>
-              </div>
-            </aside>
+              {/* ── Right: Todo list ── */}
+              <div className="flex-1 min-w-0">
+                {/* Toolbar */}
+                <div className="flex flex-wrap gap-2 mb-4 items-center">
+                  <div className="flex gap-2 w-full sm:w-auto sm:flex-1 sm:min-w-0">
+                    <Input
+                      placeholder="搜索待办..."
+                      value={keyword}
+                      onChange={e => setKeyword(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                      className="flex-1 sm:max-w-xs"
+                    />
+                    <Button variant="outline" onClick={handleSearch} disabled={!tenantReady}>
+                      <Search className="h-4 w-4" />
+                    </Button>
+                  </div>
 
-            {/* ── Right: Todo list ── */}
-            <div className="flex-1 min-w-0">
-              {/* Toolbar */}
-              <div className="flex flex-wrap gap-2 mb-4 items-center">
-                <div className="flex gap-2 flex-1 min-w-0">
-                  <Input
-                    placeholder="搜索待办..."
-                    value={keyword}
-                    onChange={e => setKeyword(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                    className="max-w-xs"
-                  />
-                  <Button variant="outline" onClick={handleSearch} disabled={!tenantReady}>
-                    <Search className="h-4 w-4" />
+                  <Select value={filterStatus || '_all'} onValueChange={v => setFilterStatus(v === '_all' ? '' : v)}>
+                    <SelectTrigger className="w-full sm:w-[110px]"><SelectValue placeholder="状态" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_all">全部状态</SelectItem>
+                      <SelectItem value="pending">待处理</SelectItem>
+                      <SelectItem value="in_progress">进行中</SelectItem>
+                      <SelectItem value="completed">已完成</SelectItem>
+                      <SelectItem value="cancelled">已取消</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={filterPriority || '_all'} onValueChange={v => setFilterPriority(v === '_all' ? '' : v)}>
+                    <SelectTrigger className="w-full sm:w-[110px]"><SelectValue placeholder="优先级" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_all">全部优先级</SelectItem>
+                      <SelectItem value="urgent">紧急</SelectItem>
+                      <SelectItem value="high">高</SelectItem>
+                      <SelectItem value="medium">中</SelectItem>
+                      <SelectItem value="low">低</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Button onClick={openCreate} disabled={!tenantReady}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    新建待办
                   </Button>
-                </div>
-
-                <Select value={filterStatus || '_all'} onValueChange={v => setFilterStatus(v === '_all' ? '' : v)}>
-                  <SelectTrigger className="w-[110px]"><SelectValue placeholder="状态" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_all">全部状态</SelectItem>
-                    <SelectItem value="pending">待处理</SelectItem>
-                    <SelectItem value="in_progress">进行中</SelectItem>
-                    <SelectItem value="completed">已完成</SelectItem>
-                    <SelectItem value="cancelled">已取消</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select value={filterPriority || '_all'} onValueChange={v => setFilterPriority(v === '_all' ? '' : v)}>
-                  <SelectTrigger className="w-[110px]"><SelectValue placeholder="优先级" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_all">全部优先级</SelectItem>
-                    <SelectItem value="urgent">紧急</SelectItem>
-                    <SelectItem value="high">高</SelectItem>
-                    <SelectItem value="medium">中</SelectItem>
-                    <SelectItem value="low">低</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Button onClick={openCreate} disabled={!tenantReady}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  新建待办
-                </Button>
               </div>
 
               {/* List */}
@@ -483,8 +516,7 @@ export default function TodosPage() {
               )}
             </div>
           </div>
-        </main>
-      </div>
+          </div>
 
       {/* ── Todo Dialog (Create / Edit / View) ── */}
       <Dialog open={todoDialogOpen} onOpenChange={v => { setTodoDialogOpen(v); if (!v) { setViewingTodo(null); setEditingTodo(null) } }}>
@@ -622,7 +654,7 @@ export default function TodosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </ShellLayout>
   )
 }
 

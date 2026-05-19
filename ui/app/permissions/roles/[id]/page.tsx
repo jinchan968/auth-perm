@@ -9,7 +9,6 @@ import { Role, PermissionListItem } from '@/types/permission'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
-import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
 import { DetailActionBar } from '@/components/ui/detail-action-bar'
 import { DetailPageHeader } from '@/components/ui/detail-page-header'
 import {
@@ -21,8 +20,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { useTenant } from '@/lib/tenant-context'
-import { useAuthStore } from '@/store/auth-store'
-import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
+import { ShellLayout } from '@/components/layout/shell-layout'
 import { ListReturnButton } from '@/components/ui/list-return-button'
 import { showError } from '@/lib/toast'
 import { useNavigationTransition } from '@/components/providers/navigation-transition-provider'
@@ -30,7 +28,6 @@ import { useNavigationTransition } from '@/components/providers/navigation-trans
 export default function RolePermissionsPage() {
   const params = useParams()
   const roleId = params.id as string
-  const { user } = useAuthStore()
   const rolesListHref = '/permissions?tab=roles'
   const { navigateWithTransition } = useNavigationTransition()
 
@@ -104,71 +101,26 @@ export default function RolePermissionsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-        <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Auth-Perm
-              </h1>
-              <AvatarDropdown user={user ?? null} />
-            </div>
-          </div>
-        </header>
-        <div className="flex">
-          <DashboardSidebar pathname="/permissions" />
-          <main className="flex-1 p-8">
-            <div className="text-center">加载中...</div>
-          </main>
-        </div>
-      </div>
+      <ShellLayout pathname="/permissions">
+        <div className="text-center">加载中...</div>
+      </ShellLayout>
     )
   }
 
   if (loadFailed && !role) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-        <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Auth-Perm
-              </h1>
-              <AvatarDropdown user={user ?? null} />
-            </div>
-          </div>
-        </header>
-        <div className="flex">
-          <DashboardSidebar pathname="/permissions" />
-          <main className="flex-1 p-8">
-            <ListReturnButton href={rolesListHref} label="返回列表" />
-          </main>
-        </div>
-      </div>
+      <ShellLayout pathname="/permissions">
+        <ListReturnButton href={rolesListHref} label="返回列表" />
+      </ShellLayout>
     )
   }
 
   if (!role) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-        <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Auth-Perm
-              </h1>
-              <AvatarDropdown user={user ?? null} />
-            </div>
-          </div>
-        </header>
-        <div className="flex">
-          <DashboardSidebar pathname="/permissions" />
-          <main className="flex-1 p-8">
-            <div className="text-center">角色不存在</div>
-            <ListReturnButton href={rolesListHref} label="返回列表" />
-          </main>
-        </div>
-      </div>
+      <ShellLayout pathname="/permissions">
+        <div className="text-center">角色不存在</div>
+        <ListReturnButton href={rolesListHref} label="返回列表" />
+      </ShellLayout>
     )
   }
 
@@ -190,21 +142,7 @@ export default function RolePermissionsPage() {
   }, {} as Record<string, PermissionListItem[]>)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-      <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Auth-Perm
-            </h1>
-            <AvatarDropdown user={user ?? null} />
-          </div>
-        </div>
-      </header>
-
-      <div className="flex">
-        <DashboardSidebar pathname="/permissions" />
-        <main className="flex-1 p-8">
+    <ShellLayout pathname="/permissions">
           <Breadcrumb items={breadcrumbItems} />
 
           <DetailPageHeader
@@ -318,8 +256,6 @@ export default function RolePermissionsPage() {
               </CardContent>
             </Card>
           )}
-        </main>
-      </div>
 
       <Dialog open={saveSuccessOpen} onOpenChange={setSaveSuccessOpen}>
         <DialogContent className="max-w-sm">
@@ -331,10 +267,10 @@ export default function RolePermissionsPage() {
             <Button variant="outline" onClick={() => setSaveSuccessOpen(false)}>
               继续编辑
             </Button>
-              <ListReturnButton href={rolesListHref} label="返回列表" onBeforeNavigate={() => setSaveSuccessOpen(false)} />
+            <ListReturnButton href={rolesListHref} label="返回列表" onBeforeNavigate={() => setSaveSuccessOpen(false)} />
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </ShellLayout>
   )
 }

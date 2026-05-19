@@ -12,9 +12,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
-import { AvatarDropdown } from '@/components/ui/avatar-dropdown'
+import { ShellLayout } from '@/components/layout/shell-layout'
 import { useAuthStore } from '@/store/auth-store'
-import { DashboardSidebar } from '@/components/layout/dashboard-sidebar'
 import { showError } from '@/lib/toast'
 import { DetailActionBar } from '@/components/ui/detail-action-bar'
 import { DetailPageHeader } from '@/components/ui/detail-page-header'
@@ -224,76 +223,6 @@ export default function TenantDetailPage() {
     api_rate_limit: 'API速率限制',
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-        <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Auth-Perm
-              </h1>
-              <AvatarDropdown user={user ?? null} />
-            </div>
-          </div>
-        </header>
-        <div className="flex">
-          <DashboardSidebar pathname="/tenants" />
-          <main className="flex-1 p-8">
-            <div className="text-center">加载中...</div>
-          </main>
-        </div>
-      </div>
-    )
-  }
-
-  if (loadFailed && !tenant) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-        <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Auth-Perm
-              </h1>
-              <AvatarDropdown user={user ?? null} />
-            </div>
-          </div>
-        </header>
-        <div className="flex">
-          <DashboardSidebar pathname="/tenants" />
-          <main className="flex-1 p-8">
-            <ListReturnButton href={tenantsListHref} label="返回列表" />
-          </main>
-        </div>
-      </div>
-    )
-  }
-
-  if (!tenant) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-        <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Auth-Perm
-              </h1>
-              <AvatarDropdown user={user ?? null} />
-            </div>
-          </div>
-        </header>
-        <div className="flex">
-          <DashboardSidebar pathname="/tenants" />
-          <main className="flex-1 p-8">
-            <div className="text-center">租户不存在</div>
-            <ListReturnButton href={tenantsListHref} label="返回列表" />
-          </main>
-        </div>
-      </div>
-    )
-  }
-
   const breadcrumbItems = [
     { label: '首页', href: '/home' },
     { label: '租户管理', href: '/tenants' },
@@ -301,21 +230,18 @@ export default function TenantDetailPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-slate-50">
-      <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200/20 shadow-sm sticky top-0 z-10">
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Auth-Perm
-            </h1>
-            <AvatarDropdown user={user ?? null} />
-          </div>
-        </div>
-      </header>
-
-      <div className="flex">
-        <DashboardSidebar pathname="/tenants" />
-        <main className="flex-1 p-8">
+    <ShellLayout pathname="/tenants/[id]">
+      {loading ? (
+        <div className="text-center">加载中...</div>
+      ) : loadFailed && !tenant ? (
+        <ListReturnButton href={tenantsListHref} label="返回列表" />
+      ) : !tenant ? (
+        <>
+          <div className="text-center">租户不存在</div>
+          <ListReturnButton href={tenantsListHref} label="返回列表" />
+        </>
+      ) : (
+        <>
           <Breadcrumb items={breadcrumbItems} />
 
           <DetailPageHeader
@@ -571,8 +497,8 @@ export default function TenantDetailPage() {
               </CardContent>
             </Card>
           </div>
-        </main>
-      </div>
-    </div>
+        </>
+      )}
+    </ShellLayout>
   )
 }

@@ -86,7 +86,7 @@ export function AppModal({
       {/* 居中容器 */}
       <div
         className={cn(
-          'fixed inset-0 z-[101] flex items-center justify-center pointer-events-none',
+          'fixed inset-0 z-[101] flex items-center justify-center pointer-events-none p-4',
           'transition-all duration-300 ease-out',
           visible ? 'opacity-100' : 'opacity-0',
         )}

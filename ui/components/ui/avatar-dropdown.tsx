@@ -38,7 +38,10 @@ export function AvatarDropdown({ user }: AvatarDropdownProps) {
     return name?.charAt(0).toUpperCase() || ''
   }
 
+  const hoverActiveRef = useRef(false)
+
   const handleMouseEnter = () => {
+    hoverActiveRef.current = true
     if (closeTimeoutRef.current) {
       clearTimeout(closeTimeoutRef.current)
       closeTimeoutRef.current = null
@@ -47,10 +50,37 @@ export function AvatarDropdown({ user }: AvatarDropdownProps) {
   }
 
   const handleMouseLeave = () => {
+    hoverActiveRef.current = false
     closeTimeoutRef.current = setTimeout(() => {
       setIsOpen(false)
     }, 150)
   }
+
+  // 点击 toggle（桌面端 hover 激活时忽略点击，避免 hover 已打开后点击又关闭）
+  const handleClick = () => {
+    if (hoverActiveRef.current) return
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current)
+      closeTimeoutRef.current = null
+    }
+    setIsOpen(prev => !prev)
+  }
+
+  // 点击空白处关闭
+  useEffect(() => {
+    if (!isOpen) return
+    const handleClickOutside = (e: Event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('touchend', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchend', handleClickOutside)
+    }
+  }, [isOpen])
 
   useEffect(() => {
     return () => {
@@ -80,6 +110,7 @@ export function AvatarDropdown({ user }: AvatarDropdownProps) {
             ? 'cursor-default'
             : 'hover:bg-slate-100/50 hover:shadow-sm'
         }`}
+        onClick={isEditProfileOpen ? undefined : handleClick}
       >
         <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm shadow-sm">
           {getInitials(user?.name)}
