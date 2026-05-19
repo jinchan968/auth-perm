@@ -45,7 +45,7 @@ func RegisterRoutes(
 
 	{
 		// 注册认证相关路由
-		RegisterAuthRoutes(v1, permMW, authH, emailH, passwordH, totpH, oauthH, resourceH, authService, loginService, permService)
+		RegisterAuthRoutes(v1, permMW, authH, emailH, passwordH, totpH, oauthH, resourceH, authService, loginService, permService, cfg)
 
 		// 注册权限相关路由
 		RegisterPermissionRoutes(v1, permMW, permissionH, permissionResourceH, loginService)
@@ -57,7 +57,7 @@ func RegisterRoutes(
 		RegisterTenantRoutes(v1, permMW, tenantH, loginService)
 
 		// 注册用户管理路由
-		RegisterUserRoutes(v1, permMW, userH, loginService, permService)
+		RegisterUserRoutes(v1, permMW, userH, loginService, permService, cfg)
 
 		// 注册待办路由
 		RegisterTodoRoutes(v1, permMW, thTodoHandler, loginService)
@@ -80,9 +80,10 @@ func RegisterAuthRoutes(
 	totpH *authHandler.TOTPHandler,
 	oauthH *authHandler.OAuthHandler,
 	resourceH *authHandler.ResourceHandler,
-	_ *service.AuthService,
+	authService *service.AuthService,
 	loginService *service.LoginService,
 	permService *permissionService.PermissionService,
+	cfg *config.Config,
 ) {
 	auth := router.Group("/auth")
 
@@ -110,7 +111,7 @@ func RegisterAuthRoutes(
 		authenticated.GET("/my-resources", resourceH.GetMyResources)
 
 		admin := authenticated.Group("/admin")
-		admin.Use(middleware.AdminPermissionMiddleware(permService))
+		admin.Use(middleware.AdminPermissionMiddleware(cfg, permService))
 		{
 			admin.POST("/logout-all-by-tenant", authH.LogoutAllByTenant)
 		}
@@ -269,6 +270,7 @@ func RegisterUserRoutes(
 	userH *authHandler.UserHandler,
 	loginService *service.LoginService,
 	permService *permissionService.PermissionService,
+	cfg *config.Config,
 ) {
 	users := router.Group("/users")
 	users.Use(middleware.AuthMiddleware(loginService))
@@ -281,7 +283,7 @@ func RegisterUserRoutes(
 		users.GET("/:id/accounts", userH.GetUserAccounts)
 
 		// 重置密码：仅超管可用
-		users.POST("/:id/reset-password", middleware.AdminPermissionMiddleware(permService), userH.ResetUserPassword)
+		users.POST("/:id/reset-password", middleware.AdminPermissionMiddleware(cfg, permService), userH.ResetUserPassword)
 	}
 }
 
