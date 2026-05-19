@@ -32,13 +32,30 @@ func APIPermissionMiddleware(
 		}
 
 		// ========== 超管：直接放行 ==========
+		isSuperAdmin := false
 		if cfg.Server.SuperAdmin != "" {
 			usernameStr := resolveUsernameFromContext(c, authService)
 			if usernameStr != "" && usernameStr == cfg.Server.SuperAdmin {
-				c.Set("is_super_admin", true)
-				c.Next()
-				return
+				isSuperAdmin = true
 			}
+		}
+		// 如果不是用户名超管，检查是否为系统管理员（数据库中的超管标记）
+		if !isSuperAdmin {
+			accountID, exists := c.Get("account_id")
+			if exists && accountID != nil && accountID != "" {
+				if accountIDStr, ok := accountID.(string); ok {
+					params := permissionParam.NewIsSystemAdminParams(accountIDStr)
+					isAdmin, err := permService.IsSystemAdmin(c.Request.Context(), params)
+					if err == nil && isAdmin {
+						isSuperAdmin = true
+					}
+				}
+			}
+		}
+		if isSuperAdmin {
+			c.Set("is_super_admin", true)
+			c.Next()
+			return
 		}
 
 		// ========== 普通用户：检查权限 ==========
