@@ -144,7 +144,7 @@ export function usePermissions() {
     hasButton,
     hasAnyMenu,
     hasAnyButton,
-    isSuperAdmin: get().isSuperAdmin,
+    isSuperAdmin: usePermissionsStore.getState().isSuperAdmin,
     refetch: fetchResources,
   }
 }
