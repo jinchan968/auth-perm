@@ -50,9 +50,9 @@ export interface User {
 }
 
 export interface ChangePasswordRequest {
-  currentPassword: string
-  newPassword: string
-  confirmPassword: string
+  old_password: string
+  new_password: string
+  confirm_password: string
 }
 
 export interface ForgotPasswordRequest {

@@ -499,3 +499,48 @@ ssh-copy-id {#userName}@{#vpsIp}
 # 确认免密登录
 ssh {#userName}@{#vpsIp} "echo ok"
 ```
+
+### 10.4 SSH 密钥文件说明
+
+| 文件 | 类型 | 用途 |
+|------|------|------|
+| `~/.ssh/id_rsa` | 私钥 | GitHub Actions 部署用，放入 GitHub Secrets `GCP_SSH_KEY` |
+| `~/.ssh/id_rsa.pub` | 公钥 | 放到服务器的 `~/.ssh/authorized_keys` |
+| `~/.ssh/id_ed25519` | 私钥 | 同上，ED25519 算法更安全 |
+| `~/.ssh/id_ed25519.pub` | 公钥 | 同上 |
+| `~/.ssh/authorized_keys` | 授权文件 | 允许哪些公钥登录本服务器 |
+
+**私钥内容获取：**
+```bash
+# 查看私钥内容，复制到 GitHub Secrets
+cat ~/.ssh/id_ed25519
+# 或
+cat ~/.ssh/id_rsa
+```
+
+**公钥添加到服务器（两种方式）：**
+
+方式一：本地执行
+```bash
+# 自动追加公钥到服务器
+ssh-copy-id -i ~/.ssh/id_ed25519.pub {#userName}@{#vpsIp}
+```
+
+方式二：手动添加（登录服务器后执行）
+```bash
+# 确保目录存在
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+
+# 追加公钥
+cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
+
+**常见问题：**
+
+| 问题 | 原因 | 解决 |
+|------|------|------|
+| `authorized_keys` 文件丢失 | 误操作/系统重装/快照恢复 | 重新添加公钥（见上方方式） |
+| 无法 SSH 登录 | 公钥未加入 authorized_keys 或权限错误 | 检查 `~/.ssh/` 权限 700，`authorized_keys` 权限 600 |
+| GitHub Actions 部署失败 | `GCP_SSH_KEY` Secret 为空或内容错误 | 确保放入的是私钥内容，不是公钥 |

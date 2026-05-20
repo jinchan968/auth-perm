@@ -46,6 +46,16 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         return
       }
 
+      // 请求超时保护（微信浏览器可能请求挂死）
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const startTimer = () => {
+        timer = setTimeout(() => {
+          if (!isCancelled) {
+            setLoading(false)
+          }
+        }, 8000)
+      }
+
       // 如果已有进行中的请求，复用它（请求去重）
       if (!fetchPromise) {
         // 默认只获取 active 状态的租户
@@ -64,6 +74,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       }
 
       setLoading(true)
+      startTimer()
       try {
         const data = await fetchPromise
         if (!isCancelled) {
@@ -75,6 +86,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         }
       } finally {
         if (!isCancelled) {
+          clearTimeout(timer)
           setLoading(false)
         }
       }
@@ -88,7 +100,10 @@ export function TenantProvider({ children }: { children: ReactNode }) {
 
   // 设置默认租户
   useEffect(() => {
-    if (tenants.length > 0 && !selectedTenantId) {
+    if (selectedTenantId) return
+
+    // 有可用租户时，从租户列表中选择
+    if (tenants.length > 0) {
       // 优先使用用户所属租户（如果是 active 状态）
       if (user?.tenant_id) {
         const userTenant = tenants.find((t) => t.id === user.tenant_id)
@@ -101,12 +116,24 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       const activeTenant = tenants.find((t) => t.status === 'active')
       if (activeTenant) {
         setSelectedTenantId(activeTenant.id)
-      } else if (tenants.length > 0) {
+      } else {
         // 如果没有 active 租户，使用第一个
         setSelectedTenantId(tenants[0].id)
       }
+      return
     }
-  }, [tenants, user, selectedTenantId])
+
+    // API 请求失败或无活跃租户时，降级使用用户所属租户
+    if (!loading && user?.tenant_id) {
+      setSelectedTenantId(user.tenant_id)
+      return
+    }
+
+    // 最终兜底：使用默认租户
+    if (!loading) {
+      setSelectedTenantId(DEFAULT_TENANT_ID)
+    }
+  }, [tenants, user, selectedTenantId, loading])
 
   // 计算实际使用的 tenantId
   const tenantId = selectedTenantId || user?.tenant_id || DEFAULT_TENANT_ID

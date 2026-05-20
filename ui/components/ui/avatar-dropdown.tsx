@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom'
 import { getContactInfo } from '@/hooks/get-contact-info'
 import { User } from '@/lib/api/auth'
 import { EditProfileModal } from '@/components/profile/edit-profile-modal'
+import { ChangePasswordModal } from '@/components/profile/change-password-modal'
 
 interface AvatarDropdownProps {
   user: User | null
@@ -16,6 +17,7 @@ interface AvatarDropdownProps {
 export function AvatarDropdown({ user }: AvatarDropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false)
+  const [isChangePwdOpen, setIsChangePwdOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const portalRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
@@ -32,6 +34,9 @@ export function AvatarDropdown({ user }: AvatarDropdownProps) {
     setIsOpen(false)
     if (action === 'profile') {
       setIsEditProfileOpen(true)
+    }
+    if (action === 'password') {
+      setIsChangePwdOpen(true)
     }
   }
 
@@ -96,12 +101,12 @@ export function AvatarDropdown({ user }: AvatarDropdownProps) {
     }
   }, [])
 
-  // 当编辑资料模态框打开时，关闭头像下拉菜单
+  // 当编辑资料/修改密码模态框打开时，关闭头像下拉菜单
   useEffect(() => {
-    if (isEditProfileOpen) {
+    if (isEditProfileOpen || isChangePwdOpen) {
       setIsOpen(false)
     }
-  }, [isEditProfileOpen])
+  }, [isEditProfileOpen, isChangePwdOpen])
 
   return (
     <div
@@ -178,6 +183,12 @@ export function AvatarDropdown({ user }: AvatarDropdownProps) {
           user={user}
         />
       )}
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={isChangePwdOpen}
+        onClose={() => setIsChangePwdOpen(false)}
+      />
     </div>
   )
 }

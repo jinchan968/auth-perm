@@ -46,7 +46,13 @@ jobs:
           key: ${{ secrets.GCP_SSH_KEY }}
           port: 22
           script: |
+            set -e
+            echo "[1/4] 检查上传的文件..."
+            ls -la /opt/auth-perm/auth-perm-linux /opt/auth-perm/auth-perm-worker-linux
+            echo "[2/4] 赋予执行权限..."
             chmod +x /opt/auth-perm/auth-perm-linux /opt/auth-perm/auth-perm-worker-linux
+            echo "[3/4] 重启 API 服务..."
             sudo systemctl restart auth-perm-api
-            sudo systemctl is-enabled auth-perm-worker && sudo systemctl restart auth-perm-worker || true
+            echo "[4/4] 重启 Worker 服务..."
+            sudo systemctl is-enabled auth-perm-worker && sudo systemctl restart auth-perm-worker || echo "Worker 未启用，跳过"
             echo "Deploy done"

@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	stdErr "errors"
+	"regexp"
 	"strings"
 	"time"
 
@@ -15,6 +16,9 @@ import (
 	"auth-perm/internal/domain/auth/dm"
 	"auth-perm/internal/domain/auth/dto"
 )
+
+// 匹配纯数字（允许 + - 空格 括号），用于区分手机号和用户名
+var phoneRe = regexp.MustCompile(`^[\d\s\+\-\(\)]+$`)
 
 // AccountRepo 账户仓储
 type AccountRepo struct {
@@ -81,18 +85,25 @@ func (r *AccountRepo) FindByPhone(ctx context.Context, phone string) (*dm.Accoun
 	return &account, nil
 }
 
-// FindByIdentifier 根据标识符（邮箱或手机号）查找账户
+// FindByIdentifier 根据标识符（邮箱、手机号或用户名）查找账户
 func (r *AccountRepo) FindByIdentifier(ctx context.Context, identifier string) (*dm.AccountDO, error) {
 	var account dm.AccountDO
 
-	// 自动判断是邮箱还是手机号
+	baseQuery := r.db.WithContext(ctx).Joins("JOIN users ON accounts.user_id = users.id")
+
+	// 自动判断是邮箱、手机号还是用户名
 	if strings.Contains(identifier, "@") {
 		// 邮箱登录
-		err := r.db.WithContext(ctx).
-			Joins("JOIN users ON accounts.user_id = users.id").
-			Where("users.email = ?", identifier).
-			First(&account).Error
-
+		err := baseQuery.Where("users.email = ?", identifier).First(&account).Error
+		if err != nil {
+			if stdErr.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errors.NewNotFoundErrorF("账户不存在: %s", identifier)
+			}
+			return nil, errors.WrapBizError(err, "查找账户失败")
+		}
+	} else if phoneRe.MatchString(identifier) {
+		// 手机号登录
+		err := baseQuery.Where("users.phone = ?", identifier).First(&account).Error
 		if err != nil {
 			if stdErr.Is(err, gorm.ErrRecordNotFound) {
 				return nil, errors.NewNotFoundErrorF("账户不存在: %s", identifier)
@@ -100,12 +111,8 @@ func (r *AccountRepo) FindByIdentifier(ctx context.Context, identifier string) (
 			return nil, errors.WrapBizError(err, "查找账户失败")
 		}
 	} else {
-		// 手机号登录
-		err := r.db.WithContext(ctx).
-			Joins("JOIN users ON accounts.user_id = users.id").
-			Where("users.phone = ?", identifier).
-			First(&account).Error
-
+		// 用户名登录
+		err := baseQuery.Where("users.username = ?", identifier).First(&account).Error
 		if err != nil {
 			if stdErr.Is(err, gorm.ErrRecordNotFound) {
 				return nil, errors.NewNotFoundErrorF("账户不存在: %s", identifier)

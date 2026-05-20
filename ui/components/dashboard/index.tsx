@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { EditProfileModal } from '@/components/profile/edit-profile-modal'
+import { ChangePasswordModal } from '@/components/profile/change-password-modal'
 import { Settings, Edit2, KeyRound, ChevronRight } from 'lucide-react'
 import { useAuthStore } from '@/store/auth-store'
 import { ShellLayout } from '@/components/layout/shell-layout'
@@ -16,6 +17,7 @@ import { SecurityLogsCard } from './SecurityLogsCard'
 export function DashboardPage() {
   const { user } = useAuthStore()
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false)
+  const [isChangePwdOpen, setIsChangePwdOpen] = useState(false)
 
   if (!user) return null
 
@@ -63,7 +65,7 @@ export function DashboardPage() {
             <Button
               variant="outline"
               className="w-full justify-between group"
-              disabled
+              onClick={() => setIsChangePwdOpen(true)}
             >
               <span className="flex items-center gap-2">
                 <KeyRound className="w-4 h-4 text-muted-foreground" />
@@ -85,6 +87,10 @@ export function DashboardPage() {
         isOpen={isEditProfileOpen}
         onClose={() => setIsEditProfileOpen(false)}
         user={user}
+      />
+      <ChangePasswordModal
+        isOpen={isChangePwdOpen}
+        onClose={() => setIsChangePwdOpen(false)}
       />
     </ShellLayout>
   )
