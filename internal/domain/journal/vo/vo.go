@@ -51,3 +51,17 @@ type CreateEntryParams struct {
 	EntryDate time.Time
 	TagIDs    []string
 }
+
+// CreateTemplateRequest 创建模板请求
+type CreateTemplateRequest struct {
+	Name    string   `json:"name" binding:"required,min=1,max=255"`
+	Content *string  `json:"content"`
+	Tags    []string `json:"tags"`
+}
+
+// UpdateTemplateRequest 更新模板请求
+type UpdateTemplateRequest struct {
+	Name    *string  `json:"name"`
+	Content *string  `json:"content"`
+	Tags    []string `json:"tags"`
+}

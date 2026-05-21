@@ -9,6 +9,10 @@ import {
   UpdateTagsRequest,
   CreateTagRequest,
   UpdateTagRequest,
+  Template,
+  TemplateListResponse,
+  CreateTemplateRequest,
+  UpdateTemplateRequest,
 } from '@/types/journal'
 
 const BASE = '/journal'
@@ -86,4 +90,45 @@ export async function updateTags(
 
 export async function deleteEntry(id: string, tenantId: string): Promise<void> {
   await apiClient.delete(`${BASE}/${id}?tenant_id=${tenantId}`)
+}
+
+// -------- Templates --------
+
+export async function listTemplates(params: {
+  tenant_id: string
+  page?: number
+  page_size?: number
+  name?: string
+  tag?: string
+}): Promise<TemplateListResponse> {
+  const q = new URLSearchParams()
+  q.set('tenant_id', params.tenant_id)
+  if (params.page) q.set('page', String(params.page))
+  if (params.page_size) q.set('page_size', String(params.page_size))
+  if (params.name) q.set('name', params.name)
+  if (params.tag) q.set('tag', params.tag)
+  return apiClient.get<TemplateListResponse>(`${BASE}/templates?${q.toString()}`)
+}
+
+export async function getTemplate(id: string, tenantId: string): Promise<Template> {
+  return apiClient.get<Template>(`${BASE}/templates/${id}?tenant_id=${tenantId}`)
+}
+
+export async function createTemplate(
+  req: CreateTemplateRequest & { tenant_id: string }
+): Promise<Template> {
+  const { tenant_id, ...body } = req
+  return apiClient.post<Template>(`${BASE}/templates?tenant_id=${tenant_id}`, body)
+}
+
+export async function updateTemplate(
+  id: string,
+  req: UpdateTemplateRequest & { tenant_id: string }
+): Promise<Template> {
+  const { tenant_id, ...body } = req
+  return apiClient.put<Template>(`${BASE}/templates/${id}?tenant_id=${tenant_id}`, body)
+}
+
+export async function deleteTemplate(id: string, tenantId: string): Promise<void> {
+  await apiClient.delete(`${BASE}/templates/${id}?tenant_id=${tenantId}`)
 }

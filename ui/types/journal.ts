@@ -73,3 +73,35 @@ export interface UpdateTagRequest {
   name?: string
   color?: string
 }
+
+// -------- Template --------
+
+export interface Template {
+  id: string
+  tenant_id: string
+  account_id: string
+  name: string
+  content?: string
+  tags: string[]
+  created_at: string
+  updated_at: string
+}
+
+export interface TemplateListResponse {
+  data: Template[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface CreateTemplateRequest {
+  name: string
+  content?: string
+  tags?: string[]
+}
+
+export interface UpdateTemplateRequest {
+  name?: string
+  content?: string
+  tags?: string[]
+}

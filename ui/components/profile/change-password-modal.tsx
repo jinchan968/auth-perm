@@ -4,12 +4,16 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useRouter } from 'next/navigation'
 import { authApi } from '@/lib/api/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { AppModal } from '@/components/ui/app-modal'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
 import { showError, showSuccess } from '@/lib/toast'
+import { useAuthStore } from '@/store/auth-store'
 
 const changePasswordSchema = z
   .object({
@@ -31,6 +35,7 @@ interface ChangePasswordModalProps {
 
 export function ChangePasswordModal({ isOpen, onClose }: ChangePasswordModalProps) {
   const [saving, setSaving] = useState(false)
+  const router = useRouter()
 
   const {
     register,
@@ -49,9 +54,16 @@ export function ChangePasswordModal({ isOpen, onClose }: ChangePasswordModalProp
         new_password: data.new_password,
         confirm_password: data.confirm_password,
       })
-      showSuccess('密码修改成功')
+      showSuccess('密码修改成功，请重新登录')
       reset()
       onClose()
+      // 后端已使所有会话失效，清除前端状态跳转登录页
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('auth_token')
+      }
+      useAuthStore.persist.clearStorage()
+      router.push('/login')
+      router.refresh()
     } catch (err) {
       showError(err instanceof Error ? err.message : '修改密码失败')
     } finally {
@@ -65,53 +77,58 @@ export function ChangePasswordModal({ isOpen, onClose }: ChangePasswordModalProp
   }
 
   return (
-    <AppModal open={isOpen} onClose={handleClose} title="修改密码">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="old_password">当前密码</Label>
-          <Input
-            id="old_password"
-            type="password"
-            {...register('old_password')}
-          />
-          {errors.old_password && (
-            <p className="text-sm text-red-500">{errors.old_password.message}</p>
-          )}
-        </div>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose() }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>修改密码</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="old_password">当前密码</Label>
+            <Input
+              id="old_password"
+              type="password"
+              {...register('old_password')}
+            />
+            {errors.old_password && (
+              <p className="text-sm text-red-500">{errors.old_password.message}</p>
+            )}
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="new_password">新密码</Label>
-          <Input
-            id="new_password"
-            type="password"
-            {...register('new_password')}
-          />
-          {errors.new_password && (
-            <p className="text-sm text-red-500">{errors.new_password.message}</p>
-          )}
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="new_password">新密码</Label>
+            <Input
+              id="new_password"
+              type="password"
+              {...register('new_password')}
+            />
+            {errors.new_password && (
+              <p className="text-sm text-red-500">{errors.new_password.message}</p>
+            )}
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="confirm_password">确认新密码</Label>
-          <Input
-            id="confirm_password"
-            type="password"
-            {...register('confirm_password')}
-          />
-          {errors.confirm_password && (
-            <p className="text-sm text-red-500">{errors.confirm_password.message}</p>
-          )}
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirm_password">确认新密码</Label>
+            <Input
+              id="confirm_password"
+              type="password"
+              {...register('confirm_password')}
+            />
+            {errors.confirm_password && (
+              <p className="text-sm text-red-500">{errors.confirm_password.message}</p>
+            )}
+          </div>
 
-        <div className="flex justify-end gap-3 pt-2">
-          <Button type="button" variant="outline" onClick={handleClose} disabled={saving}>
-            取消
-          </Button>
-          <Button type="submit" disabled={saving}>
-            {saving ? '提交中...' : '确认修改'}
-          </Button>
-        </div>
-      </form>
-    </AppModal>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={saving}>
+              取消
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? '提交中...' : '确认修改'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }

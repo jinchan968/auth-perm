@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
-  Plus, Tag as TagIcon, Trash2, Loader2, MessageSquarePlus, Pencil,
+  Plus, Tag as TagIcon, Trash2, Loader2, MessageSquarePlus, Pencil, FileText,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,22 +12,34 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
 import { ShellLayout } from '@/components/layout/shell-layout'
+import { PermGuard } from '@/components/ui/perm-guard'
 import { useTenant } from '@/lib/tenant-context'
 import { showError, showSuccess } from '@/lib/toast'
 import * as journalApi from '@/lib/api/journal'
 import type {
   Entry, Tag,
   AddCorrectionRequest, UpdateTagsRequest, CreateTagRequest, UpdateTagRequest,
+  Template, TemplateListResponse, CreateTemplateRequest, UpdateTemplateRequest,
 } from '@/types/journal'
 import { charLen, formatDate, formatErrMsg, PAGE_SIZE, TAG_COLORS } from '@/components/journal/constants'
 import { JournalEntryCard, FormTagPill } from '@/components/journal/journal-entry-card'
 import { JournalDateNav } from '@/components/journal/journal-date-nav'
 import { JournalEmptyState } from '@/components/journal/journal-empty-state'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useAuthStore } from '@/store/auth-store'
+
+type TabType = 'entries' | 'templates'
 
 export default function JournalPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const { user } = useAuthStore()
   const { tenantId, selectedTenantId } = useTenant()
   const tenantReady = !!selectedTenantId
+
+  // Tab state - read from URL query param
+  const initialTab = searchParams.get('tab') === 'templates' ? 'templates' : 'entries'
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab)
 
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date())
   const [entries, setEntries] = useState<Entry[]>([])
@@ -35,6 +47,21 @@ export default function JournalPage() {
   const [page, setPage] = useState(1)
   const [tags, setTags] = useState<Tag[]>([])
   const [loading, setLoading] = useState(false)
+
+  // Template state
+  const [templates, setTemplates] = useState<Template[]>([])
+  const [templateTotal, setTemplateTotal] = useState(0)
+  const [templatePage, setTemplatePage] = useState(1)
+  const [templateLoading, setTemplateLoading] = useState(false)
+  const [templateNameFilter, setTemplateNameFilter] = useState('')
+  const [templateTagFilter, setTemplateTagFilter] = useState('')
+  const [templateFormOpen, setTemplateFormOpen] = useState(false)
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null)
+  const [templateForm, setTemplateForm] = useState({ name: '', content: '', tagIds: [] as string[] })
+  const [templateSaving, setTemplateSaving] = useState(false)
+  const [deleteTemplateOpen, setDeleteTemplateOpen] = useState(false)
+  const [deleteTemplateTarget, setDeleteTemplateTarget] = useState<Template | null>(null)
+  const [deleteTemplateSaving, setDeleteTemplateSaving] = useState(false)
 
   const [correctionOpen, setCorrectionOpen] = useState(false)
   const [correctionEntryId, setCorrectionEntryId] = useState('')
@@ -64,8 +91,56 @@ export default function JournalPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deleteTargetId, setDeleteTargetId] = useState('')
   const [deleteSaving, setDeleteSaving] = useState(false)
+  const templateSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ---- data fetching ----
+  const handleTemplateSearch = (value: string) => {
+    if (templateSearchTimerRef.current) clearTimeout(templateSearchTimerRef.current)
+    templateSearchTimerRef.current = setTimeout(() => {
+      setTemplateNameFilter(value)
+      setTemplatePage(1)
+    }, 300)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (templateSearchTimerRef.current) clearTimeout(templateSearchTimerRef.current)
+    }
+  }, [])
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab)
+    setPage(1)
+    setTemplatePage(1)
+    setTemplateNameFilter('')
+    setTemplateTagFilter('')
+  }
+
+  // Template fetch
+  const fetchTemplates = useCallback(async () => {
+    if (!tenantId) return
+    setTemplateLoading(true)
+    try {
+      const res = await journalApi.listTemplates({
+        tenant_id: tenantId,
+        page: templatePage,
+        page_size: PAGE_SIZE,
+        name: templateNameFilter || undefined,
+        tag: templateTagFilter || undefined,
+      })
+      setTemplates(res.data || [])
+      setTemplateTotal(res.total || 0)
+    } catch (e: unknown) {
+      showError(formatErrMsg(e, '加载模板失败'))
+    } finally {
+      setTemplateLoading(false)
+    }
+  }, [tenantId, templatePage, templateNameFilter, templateTagFilter])
+
+  useEffect(() => {
+    if (tenantReady && activeTab === 'templates') {
+      fetchTemplates()
+    }
+  }, [tenantReady, activeTab, fetchTemplates])
 
   const fetchEntries = useCallback(async () => {
     if (!tenantId) return
@@ -302,6 +377,29 @@ export default function JournalPage() {
             ]}
           />
 
+          {/* Tab 切换 */}
+          <div className="flex flex-wrap gap-2 mb-6 mt-4">
+            <PermGuard button="journal.tab.entries">
+              <Button
+                variant={activeTab === 'entries' ? 'default' : 'outline'}
+                onClick={() => handleTabChange('entries')}
+              >
+                当前札记
+              </Button>
+            </PermGuard>
+            <PermGuard button="journal.tab.templates">
+              <Button
+                variant={activeTab === 'templates' ? 'default' : 'outline'}
+                onClick={() => handleTabChange('templates')}
+              >
+                模板管理
+              </Button>
+            </PermGuard>
+          </div>
+
+          {/* Tab Content */}
+          {activeTab === 'entries' ? (
+            <>
           {/* Toolbar: Date nav + Actions */}
           <div className="mt-4">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
@@ -389,6 +487,114 @@ export default function JournalPage() {
               )}
             </div>
           )}
+          </>
+        ) : (
+          /* ---- Templates Tab ---- */
+          <div className="mt-4 space-y-4">
+            {/* Template Toolbar */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex-1 max-w-md">
+                <Input
+                  placeholder="搜索模板名称..."
+                  value={templateNameFilter}
+                  onChange={e => handleTemplateSearch(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                {tags.length > 0 && (
+                  <select
+                    className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm"
+                    value={templateTagFilter}
+                    onChange={e => { setTemplateTagFilter(e.target.value); setTemplatePage(1) }}
+                  >
+                    <option value="">全部标签</option>
+                    {tags.map(tag => (
+                      <option key={tag.id} value={tag.id}>{tag.name}</option>
+                    ))}
+                  </select>
+                )}
+                <Button
+                  size="sm"
+                  onClick={() => { setEditingTemplate(null); setTemplateForm({ name: '', content: '', tagIds: [] }); setTemplateFormOpen(true) }}
+                  disabled={!tenantReady}
+                  className="bg-gradient-to-r from-primary to-accent text-white"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  新建模板
+                </Button>
+              </div>
+            </div>
+
+            {/* Template List */}
+            {templateLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+              </div>
+            ) : templates.length === 0 ? (
+              <div className="text-center py-12 text-slate-400">
+                <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>暂无模板，点击上方按钮创建</p>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {templates.map(t => (
+                  <Card key={t.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="py-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-slate-900 truncate">{t.name}</h3>
+                          {t.content && (
+                            <p className="text-sm text-slate-500 mt-1 line-clamp-2">{t.content}</p>
+                          )}
+                          {t.tags && t.tags.length > 0 && (
+                            <div className="flex gap-1 mt-2 flex-wrap">
+                              {t.tags.map(tagId => {
+                                const tag = tags.find(tag => tag.id === tagId)
+                                return tag ? (
+                                  <span key={tagId} className="px-2 py-0.5 rounded text-xs" style={{ backgroundColor: tag.color + '20', color: tag.color }}>
+                                    {tag.name}
+                                  </span>
+                                ) : null
+                              })}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 ml-3">
+                          {t.account_id === user?.id && (
+                            <>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingTemplate(t); setTemplateForm({ name: t.name, content: t.content || '', tagIds: t.tags || [] }); setTemplateFormOpen(true) }}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => { setDeleteTemplateTarget(t); setDeleteTemplateOpen(true) }}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {/* Template Pagination */}
+            {templateTotal > PAGE_SIZE && (
+              <div className="flex justify-center gap-2 pt-2">
+                <Button variant="outline" size="sm" disabled={templatePage <= 1} onClick={() => setTemplatePage(p => Math.max(1, p - 1))}>
+                  上一页
+                </Button>
+                <span className="text-sm text-slate-500 py-1">
+                  {templatePage} / {Math.ceil(templateTotal / PAGE_SIZE)}
+                </span>
+                <Button variant="outline" size="sm" disabled={templatePage >= Math.ceil(templateTotal / PAGE_SIZE)} onClick={() => setTemplatePage(p => p + 1)}>
+                  下一页
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
 
       {/* ---- Correction Dialog ---- */}
       <Dialog open={correctionOpen} onOpenChange={setCorrectionOpen}>
@@ -582,6 +788,118 @@ export default function JournalPage() {
             <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>取消</Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleteSaving}>
               {deleteSaving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              确认删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ---- Template Form Dialog ---- */}
+      <Dialog open={templateFormOpen} onOpenChange={setTemplateFormOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingTemplate ? '编辑模板' : '新建模板'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="text-sm font-medium text-slate-700">名称</label>
+              <Input
+                value={templateForm.name}
+                onChange={e => setTemplateForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="模板名称"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700">内容</label>
+              <textarea
+                value={templateForm.content}
+                onChange={e => setTemplateForm(f => ({ ...f, content: e.target.value }))}
+                placeholder="模板内容（可选）"
+                className="w-full min-h-[100px] mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700">标签</label>
+              <div className="flex gap-2 flex-wrap mt-1">
+                {tags.map(t => (
+                  <FormTagPill
+                    key={t.id}
+                    tag={t}
+                    selected={templateForm.tagIds.includes(t.id)}
+                    onToggle={() => {
+                      setTemplateForm(f => ({
+                        ...f,
+                        tagIds: f.tagIds.includes(t.id)
+                          ? f.tagIds.filter(id => id !== t.id)
+                          : [...f.tagIds, t.id],
+                      }))
+                    }}
+                  />
+                ))}
+                {tags.length === 0 && (
+                  <p className="text-xs text-slate-400 py-1">暂无可用标签，请先在标签管理中创建</p>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplateFormOpen(false)} disabled={templateSaving}>取消</Button>
+            <Button onClick={async () => {
+              if (!templateForm.name.trim()) { showError('请输入模板名称'); return }
+              setTemplateSaving(true)
+              try {
+                if (editingTemplate) {
+                      await journalApi.updateTemplate(editingTemplate.id, {
+                        tenant_id: tenantId,
+                        name: templateForm.name.trim() || undefined,
+                        content: templateForm.content,
+                        tags: templateForm.tagIds,
+                      })
+                    } else {
+                      await journalApi.createTemplate({
+                        tenant_id: tenantId,
+                        name: templateForm.name.trim(),
+                        content: templateForm.content || undefined,
+                        tags: templateForm.tagIds.length > 0 ? templateForm.tagIds : undefined,
+                  })
+                }
+                showSuccess(editingTemplate ? '模板已更新' : '模板已创建')
+                setTemplateFormOpen(false)
+                fetchTemplates()
+              } catch (e) { showError(formatErrMsg(e, '操作失败')) }
+              finally { setTemplateSaving(false) }
+            }} disabled={templateSaving}>
+              {templateSaving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ---- Delete Template Confirm ---- */}
+      <Dialog open={deleteTemplateOpen} onOpenChange={setDeleteTemplateOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>确认删除模板</DialogTitle>
+            <DialogDescription>
+              确定要删除 &ldquo;{deleteTemplateTarget?.name}&rdquo; 吗？此操作不可恢复。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTemplateOpen(false)}>取消</Button>
+            <Button variant="destructive" onClick={async () => {
+              if (!deleteTemplateTarget) return
+              setDeleteTemplateSaving(true)
+              try {
+                await journalApi.deleteTemplate(deleteTemplateTarget.id, tenantId)
+                showSuccess('模板已删除')
+                setDeleteTemplateOpen(false)
+                fetchTemplates()
+              } catch (e) { showError(formatErrMsg(e, '删除失败')) }
+              finally { setDeleteTemplateSaving(false) }
+            }} disabled={deleteTemplateSaving}>
+              {deleteTemplateSaving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
               确认删除
             </Button>
           </DialogFooter>

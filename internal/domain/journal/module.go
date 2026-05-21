@@ -22,6 +22,11 @@ func RegisterJournalDomain(container *dig.Container) error {
 	}); err != nil {
 		return err
 	}
+	if err := container.Provide(func(db *gorm.DB) *repo.TemplateRepo {
+		return repo.NewTemplateRepo(db)
+	}); err != nil {
+		return err
+	}
 
 	// 服务层
 	if err := container.Provide(func(entryRepo *repo.JournalRepo, tagRepo *repo.TagRepo) *service.JournalService {
@@ -29,10 +34,20 @@ func RegisterJournalDomain(container *dig.Container) error {
 	}); err != nil {
 		return err
 	}
+	if err := container.Provide(func(templateRepo *repo.TemplateRepo) *service.TemplateService {
+		return service.NewTemplateService(templateRepo)
+	}); err != nil {
+		return err
+	}
 
 	// HTTP 处理器
 	if err := container.Provide(func(svc *service.JournalService) *handler.JournalHandler {
 		return handler.NewJournalHandler(svc)
+	}); err != nil {
+		return err
+	}
+	if err := container.Provide(func(svc *service.TemplateService) *handler.TemplateHandler {
+		return handler.NewTemplateHandler(svc)
 	}); err != nil {
 		return err
 	}

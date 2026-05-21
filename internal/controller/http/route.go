@@ -32,6 +32,7 @@ func RegisterRoutes(
 	resourceH *authHandler.ResourceHandler,
 	thTodoHandler *todoHandler.TodoHandler,
 	jhJournalHandler *journalHandler.JournalHandler,
+	thTemplateHandler *journalHandler.TemplateHandler,
 	nsNewshockHandler *newshockHandler.NewshockHandler,
 	authService *service.AuthService,
 	loginService *service.LoginService,
@@ -63,7 +64,7 @@ func RegisterRoutes(
 		RegisterTodoRoutes(v1, permMW, thTodoHandler, loginService)
 
 		// 注册札记路由
-		RegisterJournalRoutes(v1, permMW, jhJournalHandler, loginService)
+		RegisterJournalRoutes(v1, permMW, jhJournalHandler, thTemplateHandler, loginService)
 
 		// 注册新知路由
 		RegisterNewshockRoutes(v1, permMW, nsNewshockHandler, loginService)
@@ -292,6 +293,7 @@ func RegisterJournalRoutes(
 	router *gin.RouterGroup,
 	permMW gin.HandlerFunc,
 	h *journalHandler.JournalHandler,
+	th *journalHandler.TemplateHandler,
 	loginService *service.LoginService,
 ) {
 	journal := router.Group("/journal")
@@ -311,6 +313,13 @@ func RegisterJournalRoutes(
 		journal.POST("/:id/corrections", h.AddCorrection)
 		journal.PUT("/:id/tags", h.UpdateTags)
 		journal.DELETE("/:id", h.DeleteEntry)
+
+		// 模板
+		journal.GET("/templates", th.ListTemplates)
+		journal.GET("/templates/:id", th.GetTemplate)
+		journal.POST("/templates", th.CreateTemplate)
+		journal.PUT("/templates/:id", th.UpdateTemplate)
+		journal.DELETE("/templates/:id", th.DeleteTemplate)
 	}
 }
 

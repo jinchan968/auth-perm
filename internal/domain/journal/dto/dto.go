@@ -124,3 +124,79 @@ func FromEntryDOList(entries []*dm.JournalEntryDO) []*EntryDTO {
 	}
 	return result
 }
+
+// ===================== 模板相关 DTO =====================
+
+// TemplateDTO 模板数据传输对象
+type TemplateDTO struct {
+	ID        string   `json:"id"`
+	TenantID  string   `json:"tenant_id"`
+	AccountID string   `json:"account_id"`
+	Name      string   `json:"name"`
+	Content   *string  `json:"content"`
+	Tags      []string `json:"tags"`
+	CreatedAt string   `json:"created_at"`
+	UpdatedAt string   `json:"updated_at"`
+}
+
+// TemplateListResult 模板列表结果
+type TemplateListResult struct {
+	Data     []*TemplateDTO `json:"data"`
+	Total    int64          `json:"total"`
+	Page     int            `json:"page"`
+	PageSize int            `json:"page_size"`
+}
+
+// FromTemplateDO 从领域对象转换模板 DTO
+func FromTemplateDO(d *dm.JournalTemplateDO) *TemplateDTO {
+	if d == nil {
+		return nil
+	}
+	return &TemplateDTO{
+		ID:        d.ID,
+		TenantID:  d.TenantID,
+		AccountID: d.AccountID,
+		Name:      d.Name,
+		Content:   d.Content,
+		Tags:      d.Tags,
+		CreatedAt: d.CreatedAt.Format(time.RFC3339),
+		UpdatedAt: d.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+// FromTemplateDOList 批量转换
+func FromTemplateDOList(templates []*dm.JournalTemplateDO) []*TemplateDTO {
+	result := make([]*TemplateDTO, 0, len(templates))
+	for _, t := range templates {
+		result = append(result, FromTemplateDO(t))
+	}
+	return result
+}
+
+// CreateTemplateParams 创建模板参数
+type CreateTemplateParams struct {
+	TenantID  string
+	AccountID string
+	Name      string
+	Content   *string
+	Tags      []string
+}
+
+// UpdateTemplateParams 更新模板参数
+type UpdateTemplateParams struct {
+	ID        string
+	TenantID  string
+	AccountID string
+	Name      *string
+	Content   *string
+	Tags      []string
+}
+
+// ListTemplateParams 列表查询参数
+type ListTemplateParams struct {
+	TenantID string
+	Page     int
+	PageSize int
+	Name     string
+	Tag      string
+}

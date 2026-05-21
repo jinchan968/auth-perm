@@ -9,7 +9,9 @@ import { authApi } from '@/lib/api/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { AppModal } from '@/components/ui/app-modal'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
 import { useAuthStore } from '@/store/auth-store'
 import { useRouter } from 'next/navigation'
 import { showError } from '@/lib/toast'
@@ -87,64 +89,69 @@ export function EditProfileModal({ isOpen, onClose, user }: EditProfileModalProp
   }
 
   return (
-    <AppModal open={isOpen} onClose={onClose} title="编辑个人资料">
-      <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 space-y-4">
-        {sessionExpired && (
-          <div className="p-3 text-sm text-red-700 bg-red-50 border-2 border-red-400 rounded-lg">
-            <div className="flex items-center justify-between">
-              <span>登录状态已过期</span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleReLogin}
-                className="ml-2 text-xs h-6 border-red-300 text-red-600 hover:bg-red-50"
-              >
-                重新登录
-              </Button>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>编辑个人资料</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          {sessionExpired && (
+            <div className="p-3 text-sm text-red-700 bg-red-50 border-2 border-red-400 rounded-lg">
+              <div className="flex items-center justify-between">
+                <span>登录状态已过期</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReLogin}
+                  className="ml-2 text-xs h-6 border-red-300 text-red-600 hover:bg-red-50"
+                >
+                  重新登录
+                </Button>
+              </div>
             </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="nickname" className="text-sm font-medium text-slate-700">
+              昵称 <span className="text-red-500">*</span>
+            </Label>
+            <Input id="nickname" {...form.register('nickname')} placeholder="请输入昵称" />
+            {form.formState.errors.nickname && (
+              <p className="text-xs text-red-600">{form.formState.errors.nickname.message}</p>
+            )}
           </div>
-        )}
 
-        <div className="space-y-2">
-          <Label htmlFor="nickname" className="text-sm font-medium text-slate-700">
-            昵称 <span className="text-red-500">*</span>
-          </Label>
-          <Input id="nickname" {...form.register('nickname')} placeholder="请输入昵称" />
-          {form.formState.errors.nickname && (
-            <p className="text-xs text-red-600">{form.formState.errors.nickname.message}</p>
-          )}
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="phone" className="text-sm font-medium text-slate-700">手机号</Label>
+            <Input id="phone" {...form.register('phone')} placeholder="请输入手机号" />
+            {form.formState.errors.phone && (
+              <p className="text-xs text-red-600">{form.formState.errors.phone.message}</p>
+            )}
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="phone" className="text-sm font-medium text-slate-700">手机号</Label>
-          <Input id="phone" {...form.register('phone')} placeholder="请输入手机号" />
-          {form.formState.errors.phone && (
-            <p className="text-xs text-red-600">{form.formState.errors.phone.message}</p>
-          )}
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="avatar" className="text-sm font-medium text-slate-700">头像URL</Label>
+            <Input id="avatar" {...form.register('avatar')} placeholder="请输入头像URL" />
+            {form.formState.errors.avatar && (
+              <p className="text-xs text-red-600">{form.formState.errors.avatar.message}</p>
+            )}
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="avatar" className="text-sm font-medium text-slate-700">头像URL</Label>
-          <Input id="avatar" {...form.register('avatar')} placeholder="请输入头像URL" />
-          {form.formState.errors.avatar && (
-            <p className="text-xs text-red-600">{form.formState.errors.avatar.message}</p>
-          )}
-        </div>
-
-        <div className="flex items-center justify-end gap-3 pt-4">
-          <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
-            取消
-          </Button>
-          <Button
-            type="submit"
-            disabled={isLoading}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-          >
-            {isLoading ? '保存中...' : '保存'}
-          </Button>
-        </div>
-      </form>
-    </AppModal>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
+              取消
+            </Button>
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+            >
+              {isLoading ? '保存中...' : '保存'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -404,6 +404,7 @@ func registerGinEngine(container *dig.Container) error {
 		resourceH *authHandler.ResourceHandler,
 		thTodoHandler *todoHandler.TodoHandler,
 		jhJournalHandler *journalHandler.JournalHandler,
+		thTemplateHandler *journalHandler.TemplateHandler,
 		nsNewshockHandler *newshockHandler.NewshockHandler,
 		authService *service.AuthService,
 		loginService *service.LoginService,
@@ -423,7 +424,7 @@ func registerGinEngine(container *dig.Container) error {
 			c.JSON(200, gin.H{"status": "healthy"})
 		})
 
-		controllerHttp.RegisterRoutes(engine, cfg, authH, emailH, passwordH, totpH, oauthH, permissionH, permissionResourceH, organizationH, tenantH, userH, resourceH, thTodoHandler, jhJournalHandler, nsNewshockHandler, authService, loginService, permSvc)
+		controllerHttp.RegisterRoutes(engine, cfg, authH, emailH, passwordH, totpH, oauthH, permissionH, permissionResourceH, organizationH, tenantH, userH, resourceH, thTodoHandler, jhJournalHandler, thTemplateHandler, nsNewshockHandler, authService, loginService, permSvc)
 
 		log.Println("Gin engine registered successfully")
 		return engine

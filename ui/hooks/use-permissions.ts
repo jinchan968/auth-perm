@@ -122,6 +122,7 @@ export function usePermissions() {
     loading,
     loaded,
     error,
+    isSuperAdmin,
     fetchResources,
     hasMenu,
     hasButton,
@@ -144,7 +145,7 @@ export function usePermissions() {
     hasButton,
     hasAnyMenu,
     hasAnyButton,
-    isSuperAdmin: usePermissionsStore.getState().isSuperAdmin,
+    isSuperAdmin,
     refetch: fetchResources,
   }
 }

@@ -103,6 +103,9 @@ function handleAuthRedirect(response: Response): Response {
   }
 
   if (response.status === HTTP_STATUS.UNAUTHORIZED) {
+    // 清除失效 token，防止登录页 LoginGuard 再次跳回造成死循环
+    localStorage.removeItem('auth_token')
+    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
     window.location.href = '/login'
     return response
   }

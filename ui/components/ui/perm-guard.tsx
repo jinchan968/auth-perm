@@ -30,11 +30,16 @@ interface PermGuardProps {
  * </PermGuard>
  */
 export function PermGuard({ menu, button, fallback = null, children }: PermGuardProps) {
-  const { hasMenu, hasButton, loading } = usePermissions()
+  const { hasMenu, hasButton, loading, isSuperAdmin } = usePermissions()
 
   // 加载中：不渲染（避免闪烁）
   if (loading) {
     return null
+  }
+
+  // 超管不受权限限制
+  if (isSuperAdmin) {
+    return <>{children}</>
   }
 
   // 检查权限

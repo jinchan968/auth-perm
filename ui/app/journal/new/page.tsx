@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Loader2, ArrowLeft, Tag as TagIcon,
+  Loader2, ArrowLeft, Tag as TagIcon, FileText, ChevronDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,7 +13,7 @@ import { useTenant } from '@/lib/tenant-context'
 import { showError, showSuccess } from '@/lib/toast'
 import * as journalApi from '@/lib/api/journal'
 import type {
-  Tag, Period, Weather, CreateEntryRequest,
+  Tag, Period, Weather, CreateEntryRequest, Template, TemplateListResponse,
 } from '@/types/journal'
 import { PERIODS, WEATHERS, WEEKDAYS, charLen, inferPeriod, formatDate, formatErrMsg } from '@/components/journal/constants'
 import { FormTagPill } from '@/components/journal/journal-entry-card'
@@ -48,6 +48,91 @@ export default function JournalNewPage() {
     if (!tenantId) return
     fetchTags()
   }, [tenantId, fetchTags])
+
+  // Template state
+  const [templates, setTemplates] = useState<Template[]>([])
+  const [templateLoading, setTemplateLoading] = useState(false)
+  const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false)
+  const [templateSearch, setTemplateSearch] = useState('')
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const searchReqIdRef = useRef(0)
+
+  const fetchTemplates = useCallback(async (search?: string) => {
+    if (!tenantId) return
+    const reqId = ++searchReqIdRef.current
+    setTemplateLoading(true)
+    try {
+      const res = await journalApi.listTemplates({
+        tenant_id: tenantId,
+        page_size: 50,
+        name: search || undefined,
+      })
+      if (reqId === searchReqIdRef.current) {
+        setTemplates(res.data || [])
+      }
+    } catch (_e) {
+      // Silently fail - template is optional
+    } finally {
+      if (reqId === searchReqIdRef.current) {
+        setTemplateLoading(false)
+      }
+    }
+  }, [tenantId])
+
+  useEffect(() => {
+    fetchTemplates()
+  }, [fetchTemplates])
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    }
+  }, [])
+
+  // Debounced search
+  const handleTemplateSearch = (value: string) => {
+    setTemplateSearch(value)
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    searchTimerRef.current = setTimeout(() => {
+      fetchTemplates(value)
+    }, 300)
+  }
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setTemplateDropdownOpen(false)
+      }
+    }
+    if (templateDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [templateDropdownOpen])
+
+  const applyTemplate = (template: Template) => {
+    if (template.content) {
+      setFormContent(prev => (prev ? prev + '\n\n' + template.content : template.content || ''))
+    }
+    if (template.name) {
+      setFormTitle(prev => prev || template.name || '')
+    }
+    if (template.tags && template.tags.length > 0) {
+      // Find matching tags
+      const matchingTags = tags.filter(t => template.tags?.includes(t.id)).map(t => t.id)
+      if (matchingTags.length > 0) {
+        setFormTagIds(prev => {
+          const combined = [...prev, ...matchingTags]
+          return Array.from(new Set(combined))
+        })
+      }
+    }
+    setTemplateDropdownOpen(false)
+    setTemplateSearch('')
+    showSuccess(`已应用模板: ${template.name}`)
+  }
 
   const weatherIcon = WEATHERS.find(w => w.value === formWeather)?.icon
 
@@ -237,6 +322,66 @@ export default function JournalNewPage() {
                     placeholder="输入位置描述"
                     maxLength={200}
                   />
+                </div>
+              </div>
+
+              {/* Template Selector */}
+              <div className="relative" ref={dropdownRef}>
+                <label className="block text-sm font-medium text-slate-600 mb-2">
+                  应用模板 <span className="text-slate-300 font-normal">(可选)</span>
+                </label>
+                <div className="relative">
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-slate-200 bg-white hover:border-slate-300 transition-colors text-left"
+                    onClick={() => setTemplateDropdownOpen(!templateDropdownOpen)}
+                  >
+                    <span className="text-sm text-slate-500">
+                      点击选择模板...
+                    </span>
+                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                  </button>
+                  {templateDropdownOpen && (
+                    <div className="absolute z-20 mt-1 w-full bg-white rounded-lg border border-slate-200 shadow-lg max-h-[300px] overflow-hidden">
+                      <div className="p-2 border-b border-slate-100">
+                        <Input
+                          placeholder="搜索模板..."
+                          value={templateSearch}
+                          onChange={e => handleTemplateSearch(e.target.value)}
+                          className="h-8 text-sm"
+                          onClick={e => e.stopPropagation()}
+                        />
+                      </div>
+                      <div className="overflow-y-auto max-h-[240px]">
+                        {templateLoading ? (
+                          <div className="flex justify-center py-4">
+                            <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                          </div>
+                        ) : templates.length === 0 ? (
+                          <div className="py-4 text-center text-sm text-slate-400">
+                            暂无可用模板
+                          </div>
+                        ) : (
+                          templates.map(t => (
+                            <button
+                              key={t.id}
+                              type="button"
+                              className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center gap-2"
+                              onClick={() => applyTemplate(t)}
+                            >
+                              <FileText className="h-4 w-4 text-slate-400" />
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-slate-700 truncate">{t.name}</div>
+                                {t.content && (
+                                  <div className="text-xs text-slate-400 truncate">{t.content.slice(0, 50)}</div>
+                                )}
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
