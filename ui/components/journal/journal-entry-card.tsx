@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import {
   Clock, MapPin, MessageSquarePlus, Pencil, Trash2, X,
 } from 'lucide-react'
@@ -21,23 +20,18 @@ export function JournalEntryCard({
   onEditTags,
   onDelete,
 }: JournalEntryCardProps) {
-  const [hovered, setHovered] = useState(false)
   const periodInfo = PERIODS.find(p => p.value === entry.period)
   const weatherInfo = WEATHERS.find(w => w.value === entry.weather)
   const borderColor = periodInfo?.color ?? '#6366f1'
 
   return (
-    <div
-      className="group relative animate-slide-up"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
+    <div className="group relative animate-slide-up">
       <div
-        className={`
+        className="
           relative rounded-xl overflow-hidden transition-all duration-300
-          ${hovered ? 'shadow-lg shadow-slate-200/60 -translate-y-0.5' : 'shadow-sm'}
+          shadow-sm group-hover:shadow-lg group-hover:shadow-slate-200/60 group-hover:-translate-y-0.5
           bg-white/90 backdrop-blur-sm border border-slate-200/60
-        `}
+        "
       >
         {/* Left accent bar */}
         <div
@@ -74,8 +68,8 @@ export function JournalEntryCard({
               )}
             </div>
 
-            {/* Action buttons - fade in on hover */}
-            <div className={`flex items-center gap-0.5 transition-opacity duration-200 ${hovered ? 'opacity-100' : 'opacity-0'}`}>
+            {/* Action buttons - always visible on mobile, hover on desktop */}
+            <div className="flex items-center gap-0.5 transition-opacity duration-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
               <Button
                 variant="ghost"
                 size="sm"

@@ -24,6 +24,7 @@ type Config struct {
 	Monitoring MonitoringConfig `yaml:"monitoring" mapstructure:"monitoring"`
 	RSS        RSSConfig        `yaml:"rss" mapstructure:"rss"`
 	LLM        LLMConfig        `yaml:"llm" mapstructure:"llm"`
+	OpenCode   OpenCodeConfig   `yaml:"opencode" mapstructure:"opencode"`
 	Stock      StockConfig      `yaml:"stock" mapstructure:"stock"`
 }
 
@@ -144,6 +145,11 @@ type LLMConfig struct {
 	Model   string `yaml:"model" mapstructure:"model" default:"gpt-4o-mini"`
 }
 
+// OpenCodeConfig OpenCode Go 配置
+type OpenCodeConfig struct {
+	APIKey string `yaml:"api_key" mapstructure:"api_key" env:"OPENCODE_API_KEY"`
+}
+
 // StockConfig A股数据采集配置
 type StockConfig struct {
 	Enabled           bool   `yaml:"enabled" mapstructure:"enabled" default:"true" env:"STOCK_SCHEDULER_ENABLED"` // 是否启用财经定时任务（股票采集/RSS/评分等）
@@ -208,6 +214,9 @@ func LoadConfig(configPath string) (*Config, error) {
 		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
 	}
 	if err := viper.BindEnv("llm.model", "LLM_MODEL"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	if err := viper.BindEnv("opencode.api_key", "OPENCODE_API_KEY"); err != nil {
 		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
 	}
 	if err := viper.BindEnv("server.cors_origins", "CORS_ORIGINS"); err != nil {

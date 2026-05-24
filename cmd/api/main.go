@@ -51,7 +51,7 @@ func main() {
 			Addr:         fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
 			Handler:      engine,
 			ReadTimeout:  time.Second * 30,
-			WriteTimeout: time.Second * 30,
+			WriteTimeout: time.Second * 120,
 			IdleTimeout:  time.Second * 60,
 		}
 

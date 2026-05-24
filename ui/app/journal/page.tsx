@@ -19,16 +19,17 @@ import * as journalApi from '@/lib/api/journal'
 import type {
   Entry, Tag,
   AddCorrectionRequest, UpdateTagsRequest, CreateTagRequest, UpdateTagRequest,
-  Template, TemplateListResponse, CreateTemplateRequest, UpdateTemplateRequest,
+  Template, TemplateListResponse,
 } from '@/types/journal'
 import { charLen, formatDate, formatErrMsg, PAGE_SIZE, TAG_COLORS } from '@/components/journal/constants'
 import { JournalEntryCard, FormTagPill } from '@/components/journal/journal-entry-card'
 import { JournalDateNav } from '@/components/journal/journal-date-nav'
 import { JournalEmptyState } from '@/components/journal/journal-empty-state'
+import AIPredictionPanel from '@/components/journal/ai-prediction-panel'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuthStore } from '@/store/auth-store'
 
-type TabType = 'entries' | 'templates'
+type TabType = 'entries' | 'templates' | 'ai_matrix'
 
 export default function JournalPage() {
   const router = useRouter()
@@ -38,7 +39,8 @@ export default function JournalPage() {
   const tenantReady = !!selectedTenantId
 
   // Tab state - read from URL query param
-  const initialTab = searchParams.get('tab') === 'templates' ? 'templates' : 'entries'
+  const urlTab = searchParams.get('tab')
+  const initialTab: TabType = urlTab === 'templates' || urlTab === 'ai_matrix' ? urlTab : 'entries'
   const [activeTab, setActiveTab] = useState<TabType>(initialTab)
 
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date())
@@ -55,10 +57,6 @@ export default function JournalPage() {
   const [templateLoading, setTemplateLoading] = useState(false)
   const [templateNameFilter, setTemplateNameFilter] = useState('')
   const [templateTagFilter, setTemplateTagFilter] = useState('')
-  const [templateFormOpen, setTemplateFormOpen] = useState(false)
-  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null)
-  const [templateForm, setTemplateForm] = useState({ name: '', content: '', tagIds: [] as string[] })
-  const [templateSaving, setTemplateSaving] = useState(false)
   const [deleteTemplateOpen, setDeleteTemplateOpen] = useState(false)
   const [deleteTemplateTarget, setDeleteTemplateTarget] = useState<Template | null>(null)
   const [deleteTemplateSaving, setDeleteTemplateSaving] = useState(false)
@@ -395,6 +393,14 @@ export default function JournalPage() {
                 模板管理
               </Button>
             </PermGuard>
+            <PermGuard button="journal.tab.ai_predictions">
+              <Button
+                variant={activeTab === 'ai_matrix' ? 'default' : 'outline'}
+                onClick={() => handleTabChange('ai_matrix')}
+              >
+                AI矩阵推理
+              </Button>
+            </PermGuard>
           </div>
 
           {/* Tab Content */}
@@ -488,7 +494,7 @@ export default function JournalPage() {
             </div>
           )}
           </>
-        ) : (
+        ) : activeTab === 'templates' ? (
           /* ---- Templates Tab ---- */
           <div className="mt-4 space-y-4">
             {/* Template Toolbar */}
@@ -516,7 +522,7 @@ export default function JournalPage() {
                 )}
                 <Button
                   size="sm"
-                  onClick={() => { setEditingTemplate(null); setTemplateForm({ name: '', content: '', tagIds: [] }); setTemplateFormOpen(true) }}
+                  onClick={() => router.push('/journal/templates/new')}
                   disabled={!tenantReady}
                   className="bg-gradient-to-r from-primary to-accent text-white"
                 >
@@ -563,7 +569,7 @@ export default function JournalPage() {
                         <div className="flex items-center gap-1 ml-3">
                           {t.account_id === user?.id && (
                             <>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingTemplate(t); setTemplateForm({ name: t.name, content: t.content || '', tagIds: t.tags || [] }); setTemplateFormOpen(true) }}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.push(`/journal/templates/new?id=${t.id}`)}>
                                 <Pencil className="h-4 w-4" />
                               </Button>
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => { setDeleteTemplateTarget(t); setDeleteTemplateOpen(true) }}>
@@ -594,7 +600,11 @@ export default function JournalPage() {
               </div>
             )}
           </div>
-        )}
+        ) : activeTab === 'ai_matrix' ? (
+          <div className="mt-4">
+            <AIPredictionPanel tenantId={tenantId} tenantReady={tenantReady} />
+          </div>
+        ) : null}
 
       {/* ---- Correction Dialog ---- */}
       <Dialog open={correctionOpen} onOpenChange={setCorrectionOpen}>
@@ -789,89 +799,6 @@ export default function JournalPage() {
             <Button variant="destructive" onClick={handleDelete} disabled={deleteSaving}>
               {deleteSaving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
               确认删除
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ---- Template Form Dialog ---- */}
-      <Dialog open={templateFormOpen} onOpenChange={setTemplateFormOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editingTemplate ? '编辑模板' : '新建模板'}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div>
-              <label className="text-sm font-medium text-slate-700">名称</label>
-              <Input
-                value={templateForm.name}
-                onChange={e => setTemplateForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="模板名称"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-slate-700">内容</label>
-              <textarea
-                value={templateForm.content}
-                onChange={e => setTemplateForm(f => ({ ...f, content: e.target.value }))}
-                placeholder="模板内容（可选）"
-                className="w-full min-h-[100px] mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-slate-700">标签</label>
-              <div className="flex gap-2 flex-wrap mt-1">
-                {tags.map(t => (
-                  <FormTagPill
-                    key={t.id}
-                    tag={t}
-                    selected={templateForm.tagIds.includes(t.id)}
-                    onToggle={() => {
-                      setTemplateForm(f => ({
-                        ...f,
-                        tagIds: f.tagIds.includes(t.id)
-                          ? f.tagIds.filter(id => id !== t.id)
-                          : [...f.tagIds, t.id],
-                      }))
-                    }}
-                  />
-                ))}
-                {tags.length === 0 && (
-                  <p className="text-xs text-slate-400 py-1">暂无可用标签，请先在标签管理中创建</p>
-                )}
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setTemplateFormOpen(false)} disabled={templateSaving}>取消</Button>
-            <Button onClick={async () => {
-              if (!templateForm.name.trim()) { showError('请输入模板名称'); return }
-              setTemplateSaving(true)
-              try {
-                if (editingTemplate) {
-                      await journalApi.updateTemplate(editingTemplate.id, {
-                        tenant_id: tenantId,
-                        name: templateForm.name.trim() || undefined,
-                        content: templateForm.content,
-                        tags: templateForm.tagIds,
-                      })
-                    } else {
-                      await journalApi.createTemplate({
-                        tenant_id: tenantId,
-                        name: templateForm.name.trim(),
-                        content: templateForm.content || undefined,
-                        tags: templateForm.tagIds.length > 0 ? templateForm.tagIds : undefined,
-                  })
-                }
-                showSuccess(editingTemplate ? '模板已更新' : '模板已创建')
-                setTemplateFormOpen(false)
-                fetchTemplates()
-              } catch (e) { showError(formatErrMsg(e, '操作失败')) }
-              finally { setTemplateSaving(false) }
-            }} disabled={templateSaving}>
-              {templateSaving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              保存
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -33,6 +33,7 @@ func RegisterRoutes(
 	thTodoHandler *todoHandler.TodoHandler,
 	jhJournalHandler *journalHandler.JournalHandler,
 	thTemplateHandler *journalHandler.TemplateHandler,
+	aiPredictionH *journalHandler.AIPredictionHandler,
 	nsNewshockHandler *newshockHandler.NewshockHandler,
 	authService *service.AuthService,
 	loginService *service.LoginService,
@@ -64,7 +65,7 @@ func RegisterRoutes(
 		RegisterTodoRoutes(v1, permMW, thTodoHandler, loginService)
 
 		// 注册札记路由
-		RegisterJournalRoutes(v1, permMW, jhJournalHandler, thTemplateHandler, loginService)
+		RegisterJournalRoutes(v1, permMW, jhJournalHandler, thTemplateHandler, aiPredictionH, loginService)
 
 		// 注册新知路由
 		RegisterNewshockRoutes(v1, permMW, nsNewshockHandler, loginService)
@@ -294,6 +295,7 @@ func RegisterJournalRoutes(
 	permMW gin.HandlerFunc,
 	h *journalHandler.JournalHandler,
 	th *journalHandler.TemplateHandler,
+	aiPredictionH *journalHandler.AIPredictionHandler,
 	loginService *service.LoginService,
 ) {
 	journal := router.Group("/journal")
@@ -320,6 +322,13 @@ func RegisterJournalRoutes(
 		journal.POST("/templates", th.CreateTemplate)
 		journal.PUT("/templates/:id", th.UpdateTemplate)
 		journal.DELETE("/templates/:id", th.DeleteTemplate)
+
+		// AI 预测
+		journal.POST("/ai-predictions", aiPredictionH.CreatePrediction)
+		journal.GET("/ai-predictions", aiPredictionH.ListPredictions)
+		journal.GET("/ai-predictions/models", aiPredictionH.ListModels)
+		journal.GET("/ai-predictions/quotas", aiPredictionH.GetQuotas)
+		journal.GET("/ai-predictions/:id", aiPredictionH.GetPrediction)
 	}
 }
 

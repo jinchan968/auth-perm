@@ -13,6 +13,14 @@ import {
   TemplateListResponse,
   CreateTemplateRequest,
   UpdateTemplateRequest,
+  AIPredictionResponse,
+  CreateAIPredictionRequest,
+  AIPredictionResult,
+  AIPredictionHistoryListResponse,
+  AIPredictionModelsResponse,
+  AIPredictionHistoryItem,
+  AIPredictionDetail,
+  AIPredictionQuotasResponse,
 } from '@/types/journal'
 
 const BASE = '/journal'
@@ -131,4 +139,37 @@ export async function updateTemplate(
 
 export async function deleteTemplate(id: string, tenantId: string): Promise<void> {
   await apiClient.delete(`${BASE}/templates/${id}?tenant_id=${tenantId}`)
+}
+
+// -------- AI Predictions --------
+
+export async function createAIPrediction(
+  req: CreateAIPredictionRequest & { tenant_id: string }
+): Promise<AIPredictionResponse> {
+  const { tenant_id, ...body } = req
+  return apiClient.post<AIPredictionResponse>(`${BASE}/ai-predictions?tenant_id=${tenant_id}`, body)
+}
+
+export async function listAIPredictions(params: {
+  tenant_id: string
+  page?: number
+  page_size?: number
+}): Promise<AIPredictionHistoryListResponse> {
+  const q = new URLSearchParams()
+  q.set('tenant_id', params.tenant_id)
+  if (params.page !== undefined) q.set('page', String(params.page))
+  if (params.page_size !== undefined) q.set('page_size', String(params.page_size))
+  return apiClient.get<AIPredictionHistoryListResponse>(`${BASE}/ai-predictions?${q.toString()}`)
+}
+
+export async function getAIPrediction(id: string, tenantId: string): Promise<AIPredictionDetail> {
+  return apiClient.get<AIPredictionDetail>(`${BASE}/ai-predictions/${id}?tenant_id=${tenantId}`)
+}
+
+export async function getAIPredictionModels(tenantId: string): Promise<AIPredictionModelsResponse> {
+  return apiClient.get<AIPredictionModelsResponse>(`${BASE}/ai-predictions/models?tenant_id=${tenantId}`)
+}
+
+export async function getAIPredictionQuotas(tenantId: string): Promise<AIPredictionQuotasResponse> {
+  return apiClient.get<AIPredictionQuotasResponse>(`${BASE}/ai-predictions/quotas?tenant_id=${tenantId}`)
 }

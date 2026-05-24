@@ -104,6 +104,10 @@ llm:
   api_key: ""
   model: "gpt-4o-mini"
 
+# OpenCode Go 配置
+opencode:
+  api_key: ""  # 从环境变量 OPENCODE_API_KEY 读取
+
 # A股数据采集配置
 stock:
   sync_interval: 24       # 股票列表同步间隔（小时）

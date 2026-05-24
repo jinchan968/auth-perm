@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useAuthStore } from '@/store/auth-store'
+import { usePermissions } from '@/hooks/use-permissions'
 import { ListReturnButton } from '@/components/ui/list-return-button'
 import { showError } from '@/lib/toast'
 import { useNavigationTransition } from '@/components/providers/navigation-transition-provider'
@@ -40,6 +41,7 @@ export default function PermissionDetailPage() {
   const { navigateWithTransition } = useNavigationTransition()
 
   const { user } = useAuthStore()
+  const { isSuperAdmin } = usePermissions()
   const tenantId = user?.tenant_id || ''
 
   const [permission, setPermission] = useState<Permission | null>(null)
@@ -263,17 +265,17 @@ export default function PermissionDetailPage() {
                       {saving ? '保存中...' : '保存'}
                     </Button>
                   </>
-                ) : !permission.is_system ? (
+                ) : !permission.is_system || isSuperAdmin ? (
                   <Button onClick={handleToggleEdit}>
                     <Edit2 className="h-4 w-4 mr-1" />
                     编辑
                   </Button>
                 ) : null}
-                {!permission.is_system && (
+                {!permission.is_system || isSuperAdmin ? (
                   <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
                     {deleting ? '删除中...' : '删除'}
                   </Button>
-                )}
+                ) : null}
               </DetailActionBar>
             }
           />
@@ -367,7 +369,7 @@ export default function PermissionDetailPage() {
               <CardHeader>
                 <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
                   <CardTitle>关联资源</CardTitle>
-                  {!permission.is_system && (
+                  {(!permission.is_system || isSuperAdmin) && (
                     <Button
                       size="sm"
                       onClick={() => setShowResourceForm(!showResourceForm)}
@@ -450,15 +452,15 @@ export default function PermissionDetailPage() {
                             <td className="px-3 py-2 font-mono text-sm">{resource.resource_id}</td>
                             <td className="px-3 py-2">{resource.resource_name}</td>
                             <td className="px-3 py-2 text-right">
-                              {!permission.is_system && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeleteResource(resource.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 text-red-500" />
-                                </Button>
-                              )}
+                            {(!permission.is_system || isSuperAdmin) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteResource(resource.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            )}
                             </td>
                           </tr>
                         ))}

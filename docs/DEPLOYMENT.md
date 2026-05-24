@@ -196,6 +196,9 @@ CORS_ORIGINS=https://{#projectName}.pages.dev
 LLM_BASE_URL=https://api.openai.com/v1
 LLM_API_KEY=sk-xxx
 LLM_MODEL=gpt-4o-mini
+
+# ===== OpenCode AI 预测（可选）=====
+OPENCODE_API_KEY=sk-xxx
 ```
 
 ### 3.5 创建 systemd 服务
@@ -437,6 +440,7 @@ redis-cli -h your-redis.upstash.io -p 6379 -a password --tls PING
 | `STOCK_SCHEDULER_ENABLED` | 是否启用财经定时任务（worker 应设为 false） | worker 必设 |
 | `LLM_BASE_URL` | LLM API 地址 | 可选 |
 | `LLM_API_KEY` | LLM API 密钥 | 可选 |
+| `OPENCODE_API_KEY` | OpenCode AI 预测模型 API 密钥 | 可选 |
 
 ### Cloudflare Pages
 

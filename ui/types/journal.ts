@@ -105,3 +105,66 @@ export interface UpdateTemplateRequest {
   content?: string
   tags?: string[]
 }
+
+// -------- AI Prediction --------
+
+export interface AIPredictionResult {
+  model_id: string
+  model_name: string
+  content: string
+  duration_ms: number
+  error?: string
+}
+
+export interface CreateAIPredictionRequest {
+  question: string
+  system_prompt?: string
+  models?: string[]
+  reasoning_mode?: 'low' | 'medium' | 'high'
+}
+
+export interface AIPredictionResponse {
+  results: AIPredictionResult[]
+  prediction_id: string
+}
+
+export interface AIPredictionHistoryItem {
+  id: string
+  question: string
+  created_at: string
+}
+
+export interface AIPredictionHistoryListResponse {
+  data: AIPredictionHistoryItem[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface AIModelInfo {
+  id: string
+  name: string
+}
+
+export interface AIPredictionDetail {
+  id: string
+  question: string
+  system_prompt: string
+  reasoning_mode: string
+  results: AIPredictionResult[]
+  model_snapshot: string[]
+  created_at: string
+}
+
+export interface AIPredictionModelsResponse {
+  defaults: string[]
+  replaceable: AIModelInfo[]
+  all: AIModelInfo[]
+  default_system_prompt: string
+  daily_limit: number
+}
+
+export interface AIPredictionQuotasResponse {
+  daily_limit: number
+  remaining: Record<string, number>
+}

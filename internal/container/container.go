@@ -16,6 +16,7 @@ import (
 	"auth-perm/internal/domain/cache"
 	"auth-perm/internal/domain/journal"
 	journalHandler "auth-perm/internal/domain/journal/handler"
+	"auth-perm/internal/infra/opencode"
 	"auth-perm/internal/domain/newshock"
 	newshockHandler "auth-perm/internal/domain/newshock/handler"
 	newshockService "auth-perm/internal/domain/newshock/service"
@@ -139,7 +140,14 @@ func BuildWorkerContainer(cfg *config.Config) (*dig.Container, error) {
 	return container, nil
 }
 
-// registerInfra 注册基础设施依赖：config、LLM、DB、Redis、cache、code_gen
+// registerOpenCode 注册 OpenCode Go 客户端
+func registerOpenCode(container *dig.Container, cfg *config.Config) error {
+	return container.Provide(func() *opencode.Client {
+		return opencode.NewClient(cfg.OpenCode.APIKey)
+	})
+}
+
+// registerInfra 注册基础设施依赖：config、LLM、DB、Redis、cache、code_gen、opencode
 func registerInfra(container *dig.Container, cfg *config.Config) error {
 	// 注册配置
 	if err := container.Provide(func() *config.Config {
@@ -172,6 +180,11 @@ func registerInfra(container *dig.Container, cfg *config.Config) error {
 
 	// 注册Code生成器
 	if err := registerCodeGenerator(container); err != nil {
+		return err
+	}
+
+	// 注册OpenCode客户端
+	if err := registerOpenCode(container, cfg); err != nil {
 		return err
 	}
 
@@ -405,6 +418,7 @@ func registerGinEngine(container *dig.Container) error {
 		thTodoHandler *todoHandler.TodoHandler,
 		jhJournalHandler *journalHandler.JournalHandler,
 		thTemplateHandler *journalHandler.TemplateHandler,
+		aiPredictionH *journalHandler.AIPredictionHandler,
 		nsNewshockHandler *newshockHandler.NewshockHandler,
 		authService *service.AuthService,
 		loginService *service.LoginService,
@@ -424,7 +438,7 @@ func registerGinEngine(container *dig.Container) error {
 			c.JSON(200, gin.H{"status": "healthy"})
 		})
 
-		controllerHttp.RegisterRoutes(engine, cfg, authH, emailH, passwordH, totpH, oauthH, permissionH, permissionResourceH, organizationH, tenantH, userH, resourceH, thTodoHandler, jhJournalHandler, thTemplateHandler, nsNewshockHandler, authService, loginService, permSvc)
+		controllerHttp.RegisterRoutes(engine, cfg, authH, emailH, passwordH, totpH, oauthH, permissionH, permissionResourceH, organizationH, tenantH, userH, resourceH, thTodoHandler, jhJournalHandler, thTemplateHandler, aiPredictionH, nsNewshockHandler, authService, loginService, permSvc)
 
 		log.Println("Gin engine registered successfully")
 		return engine
