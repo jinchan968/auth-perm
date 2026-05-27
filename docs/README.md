@@ -23,6 +23,11 @@
 - [`CACHE_DESIGN.md`](./CACHE_DESIGN.md) — 权限缓存双层设计、失效矩阵与数据不一致场景排查。
 - [`USER_MANAGEMENT_IMPLEMENTATION.md`](./USER_MANAGEMENT_IMPLEMENTATION.md) — 用户管理实现说明。
 - [`USER_MANAGEMENT_QUICKSTART.md`](./USER_MANAGEMENT_QUICKSTART.md) — 用户管理快速开始。
+- [`WORKFLOW_DESIGN.md`](./WORKFLOW_DESIGN.md) — AI 工作流编排工具设计文档（综合最优方案）。
+- [`WORKFLOW_DESIGN-impl.md`](./WORKFLOW_DESIGN-impl.md) — AI 工作流编排工具实施计划（7 步明细，含每文件每接口）。
+- [`WORKFLOW_DESIGN-ds.md`](./WORKFLOW_DESIGN-ds.md) — AI 工作流编排工具设计文档（ds 视角）。
+- [`WORKFLOW_DESIGN-glm.md`](./WORKFLOW_DESIGN-glm.md) — AI 工作流编排工具设计文档（glm 视角）。
+- [`WORKFLOW_TODO.md`](./WORKFLOW_TODO.md) — 未完成事项与改进建议。
 
 ### 历史排查 / 临时专题
 - [`IMPLEMENTATION_SUMMARY.md`](./IMPLEMENTATION_SUMMARY.md)

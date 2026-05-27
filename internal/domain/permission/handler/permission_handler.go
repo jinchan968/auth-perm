@@ -292,8 +292,13 @@ func (h *PermissionHandler) CreatePermission(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "请求参数错误", err.Error())
 		return
 	}
+	accountID, err := controllerUtil.GetAccountID(c)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, "未认证", err.Error())
+		return
+	}
 	result, err := h.permissionService.CreatePermission(c.Request.Context(), &param.CreatePermissionParams{
-		TenantID: req.TenantID, Code: req.Code, Name: req.Name, Description: req.Description, IsSystem: req.IsSystem,
+		TenantID: req.TenantID, Code: req.Code, Name: req.Name, Description: req.Description, IsSystem: req.IsSystem, AccountID: accountID,
 	})
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "创建权限失败", err.Error())
@@ -366,9 +371,15 @@ func (h *PermissionHandler) CreateRole(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "请求参数错误", err.Error())
 		return
 	}
+	accountID, err := controllerUtil.GetAccountID(c)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, "未认证", err.Error())
+		return
+	}
 	result, err := h.permissionService.CreateRole(c.Request.Context(), &param.CreateRoleParams{
 		TenantID: req.TenantID, OrgID: req.OrgID, Code: req.Code, Name: req.Name,
 		Description: req.Description, Priority: req.Priority, IsSystem: req.IsSystem,
+		AccountID: accountID,
 	})
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "创建角色失败", err.Error())

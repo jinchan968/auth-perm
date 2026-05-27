@@ -9,6 +9,7 @@ type CreatePermissionParams struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	IsSystem    bool   `json:"is_system"`
+	AccountID   string `json:"-"`
 }
 
 // Validate 验证创建权限参数
@@ -124,6 +125,7 @@ type CreateRoleParams struct {
 	Description string `json:"description"`
 	Priority    int    `json:"priority"`
 	IsSystem    bool   `json:"is_system"`
+	AccountID   string `json:"-"`
 }
 
 // Validate 验证创建角色参数

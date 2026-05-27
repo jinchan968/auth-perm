@@ -8,6 +8,7 @@ import (
 	journalHandler "auth-perm/internal/domain/journal/handler"
 	newshockHandler "auth-perm/internal/domain/newshock/handler"
 	permHandler "auth-perm/internal/domain/permission/handler"
+	workflowHandler "auth-perm/internal/domain/workflow/handler"
 	permissionService "auth-perm/internal/domain/permission/service"
 	tenantHandler "auth-perm/internal/domain/tenant/handler"
 	todoHandler "auth-perm/internal/domain/todo/handler"
@@ -35,6 +36,8 @@ func RegisterRoutes(
 	thTemplateHandler *journalHandler.TemplateHandler,
 	aiPredictionH *journalHandler.AIPredictionHandler,
 	nsNewshockHandler *newshockHandler.NewshockHandler,
+	wfWorkflowHandler *workflowHandler.WorkflowHandler,
+	wfWSHandler *workflowHandler.WorkflowWSHandler,
 	authService *service.AuthService,
 	loginService *service.LoginService,
 	permService *permissionService.PermissionService,
@@ -69,6 +72,9 @@ func RegisterRoutes(
 
 		// 注册新知路由
 		RegisterNewshockRoutes(v1, permMW, nsNewshockHandler, loginService)
+
+		// 注册工作流路由
+		RegisterWorkflowRoutes(v1, permMW, wfWorkflowHandler, wfWSHandler, loginService)
 	}
 }
 
@@ -403,5 +409,45 @@ func RegisterNewshockRoutes(
 		ns.POST("/events", h.CreateEvent)
 		ns.PUT("/events/:id", h.UpdateEvent)
 		ns.DELETE("/events/:id", h.DeleteEvent)
+	}
+}
+
+// RegisterWorkflowRoutes 注册工作流路由
+func RegisterWorkflowRoutes(
+	router *gin.RouterGroup,
+	permMW gin.HandlerFunc,
+	h *workflowHandler.WorkflowHandler,
+	wsh *workflowHandler.WorkflowWSHandler,
+	loginService *service.LoginService,
+) {
+	workflow := router.Group("/workflow")
+	workflow.Use(middleware.AuthMiddleware(loginService))
+	workflow.Use(permMW)
+	{
+		workflow.GET("", h.ListWorkflows)
+		workflow.POST("", h.CreateWorkflow)
+		workflow.GET("/templates", h.ListTemplates)
+		workflow.GET("/:id", h.GetWorkflow)
+		workflow.PUT("/:id", h.UpdateWorkflow)
+		workflow.DELETE("/:id", h.DeleteWorkflow)
+		workflow.POST("/:id/execute", h.ExecuteWorkflow)
+		workflow.POST("/:id/validate", h.ValidateWorkflow)
+		workflow.POST("/:id/clone", h.CloneWorkflow)
+		workflow.GET("/:workflowId/runs", h.ListRuns)
+	}
+
+	runs := router.Group("/workflow/:workflowId/runs")
+	runs.Use(middleware.AuthMiddleware(loginService))
+	runs.Use(permMW)
+	{
+		runs.GET("/:runId", h.GetRun)
+		runs.GET("/:runId/nodes", h.GetRunNodes)
+		runs.POST("/:runId/cancel", h.CancelRun)
+	}
+
+	ws := router.Group("/ws")
+	ws.Use(middleware.AuthMiddleware(loginService))
+	{
+		ws.GET("/run/:runId", wsh.HandleWS)
 	}
 }

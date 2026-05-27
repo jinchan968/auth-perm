@@ -681,6 +681,16 @@ func (s *PermissionService) CreatePermission(ctx context.Context, params *param.
 		return nil, errors.NewValidationError(err.Error())
 	}
 
+	if params.IsSystem {
+		isSuperAdmin, err := s.CheckAnyRole(ctx, params.AccountID, []string{permissionConstant.RoleCodeSuperAdmin})
+		if err != nil {
+			return nil, errors.WrapBizError(err, "验证超管身份失败")
+		}
+		if !isSuperAdmin {
+			return nil, errors.NewValidationError("仅超管可创建系统权限")
+		}
+	}
+
 	// 自动生成权限代码
 	code := params.Code
 	if code == "" {
@@ -889,6 +899,16 @@ func (s *PermissionService) ListPermissions(ctx context.Context, params *param.L
 func (s *PermissionService) CreateRole(ctx context.Context, params *param.CreateRoleParams) (*dto.RoleDTO, error) {
 	if err := params.Validate(); err != nil {
 		return nil, errors.NewValidationError(err.Error())
+	}
+
+	if params.IsSystem {
+		isSuperAdmin, err := s.CheckAnyRole(ctx, params.AccountID, []string{permissionConstant.RoleCodeSuperAdmin})
+		if err != nil {
+			return nil, errors.WrapBizError(err, "验证超管身份失败")
+		}
+		if !isSuperAdmin {
+			return nil, errors.NewValidationError("仅超管可创建系统角色")
+		}
 	}
 
 	// 自动生成角色代码

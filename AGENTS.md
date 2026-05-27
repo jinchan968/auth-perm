@@ -11,6 +11,11 @@
 - [权限系统实现说明](./docs/PERMISSION_SYSTEM_IMPLEMENTATION.md)
 - [用户管理实现说明](./docs/USER_MANAGEMENT_IMPLEMENTATION.md)
 - [用户管理快速开始](./docs/USER_MANAGEMENT_QUICKSTART.md)
+- [AI 工作流编排设计](./docs/WORKFLOW_DESIGN.md) — Eino + ReactFlow 工作流设计文档（综合最优方案）
+- [AI 工作流编排实施计划](./docs/WORKFLOW_DESIGN-impl.md) — 7 步明细实施文档（含每张表/每个接口/每个方法）
+- [AI 工作流编排设计-ds](./docs/WORKFLOW_DESIGN-ds.md) — Eino + ReactFlow 工作流设计文档（ds）
+- [AI 工作流编排设计-glm](./docs/WORKFLOW_DESIGN-glm.md) — Eino + ReactFlow 工作流设计文档（glm）
+- [AI 工作流编排 TODO](./docs/WORKFLOW_TODO.md) — 未完成事项与改进建议
 
 ## 项目速览
 - 后端：Go + Gin + GORM + Redis

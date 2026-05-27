@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
+import { usePermissions } from '@/hooks/use-permissions'
 import {
   Select,
   SelectContent,
@@ -29,11 +31,15 @@ export default function NewPermissionPage() {
   // 使用统一的租户上下文
   const { tenants, selectedTenantId, setSelectedTenantId, tenantId, loading: tenantLoading } = useTenant()
 
+  const { isSuperAdmin } = usePermissions()
+
   const [saving, setSaving] = useState(false)
 
   const [formData, setFormData] = useState({
+    code: '',
     name: '',
     description: '',
+    is_system: false,
   })
 
   const handleSave = async () => {
@@ -46,8 +52,10 @@ export default function NewPermissionPage() {
     try {
       await createPermission({
         tenant_id: tenantId,
+        code: formData.code || undefined,
         name: formData.name,
         description: formData.description,
+        is_system: formData.is_system,
       })
       navigateWithTransition(permissionsListHref)
     } catch (err) {
@@ -115,6 +123,16 @@ export default function NewPermissionPage() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="code">权限代码</Label>
+                <Input
+                  id="code"
+                  placeholder="如: journal.read"
+                  value={formData.code}
+                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="name">权限名称 *</Label>
                 <Input
                   id="name"
@@ -133,6 +151,20 @@ export default function NewPermissionPage() {
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 />
               </div>
+
+              {isSuperAdmin && (
+                <div className="flex items-center justify-between space-x-2 pt-1">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="is_system">系统权限</Label>
+                    <p className="text-sm text-muted-foreground">系统权限不可编辑或删除</p>
+                  </div>
+                  <Switch
+                    id="is_system"
+                    checked={formData.is_system}
+                    onCheckedChange={(checked) => setFormData({ ...formData, is_system: checked })}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
     </ShellLayout>
