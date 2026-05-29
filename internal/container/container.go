@@ -16,7 +16,8 @@ import (
 	"auth-perm/internal/domain/cache"
 	"auth-perm/internal/domain/journal"
 	journalHandler "auth-perm/internal/domain/journal/handler"
-	"auth-perm/internal/infra/opencode"
+	"auth-perm/internal/domain/multimodal"
+	multimodalHandler "auth-perm/internal/domain/multimodal/handler"
 	"auth-perm/internal/domain/newshock"
 	newshockHandler "auth-perm/internal/domain/newshock/handler"
 	newshockService "auth-perm/internal/domain/newshock/service"
@@ -34,6 +35,7 @@ import (
 	infraCache "auth-perm/internal/infra/cache"
 	"auth-perm/internal/infra/code_gen"
 	"auth-perm/internal/infra/llm"
+	"auth-perm/internal/infra/
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/dig"
@@ -305,6 +307,9 @@ func registerDomains(container *dig.Container) error {
 	if err := workflow.RegisterWorkflowDomain(container); err != nil {
 		return err
 	}
+	if err := multimodal.RegisterMultimodalDomain(container); err != nil {
+		return err
+	}
 
 	log.Println("Domain modules registered successfully")
 	return nil
@@ -427,6 +432,7 @@ func registerGinEngine(container *dig.Container) error {
 		nsNewshockHandler *newshockHandler.NewshockHandler,
 		wfWorkflowHandler *workflowHandler.WorkflowHandler,
 		wfWSHandler *workflowHandler.WorkflowWSHandler,
+		mmMultimodalHandler *multimodalHandler.MultimodalHandler,
 		authService *service.AuthService,
 		loginService *service.LoginService,
 		permSvc *permissionService.PermissionService,
@@ -445,7 +451,7 @@ func registerGinEngine(container *dig.Container) error {
 			c.JSON(200, gin.H{"status": "healthy"})
 		})
 
-		controllerHttp.RegisterRoutes(engine, cfg, authH, emailH, passwordH, totpH, oauthH, permissionH, permissionResourceH, organizationH, tenantH, userH, resourceH, thTodoHandler, jhJournalHandler, thTemplateHandler, aiPredictionH, nsNewshockHandler, wfWorkflowHandler, wfWSHandler, authService, loginService, permSvc)
+		controllerHttp.RegisterRoutes(engine, cfg, authH, emailH, passwordH, totpH, oauthH, permissionH, permissionResourceH, organizationH, tenantH, userH, resourceH, thTodoHandler, jhJournalHandler, thTemplateHandler, aiPredictionH, nsNewshockHandler, wfWorkflowHandler, wfWSHandler, mmMultimodalHandler, authService, loginService, permSvc)
 
 		log.Println("Gin engine registered successfully")
 		return engine

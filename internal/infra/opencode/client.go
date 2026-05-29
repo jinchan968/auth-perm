@@ -38,9 +38,70 @@ type chatRequest struct {
 	ReasoningEffort string        `json:"reasoning_effort,omitempty"`
 }
 
+// ContentPart represents a single content part in a multimodal message.
+type ContentPart struct {
+	Type     string    `json:"type"`
+	Text     string    `json:"text,omitempty"`
+	ImageURL *ImageURL `json:"image_url,omitempty"`
+}
+
+// ImageURL holds a data URL or HTTP URL for image content.
+type ImageURL struct {
+	URL string `json:"url"`
+}
+
+// MessageContent can serialize as either a plain string or a []ContentPart array,
+// supporting both text-only and multimodal OpenAI-compatible requests.
+type MessageContent struct {
+	raw   string
+	parts []ContentPart
+}
+
+// NewTextContent creates a plain-text message content (backward compatible).
+func NewTextContent(text string) MessageContent {
+	return MessageContent{raw: text}
+}
+
+// NewMultimodalContent creates a multimodal message content with text and/or images.
+func NewMultimodalContent(parts ...ContentPart) MessageContent {
+	return MessageContent{parts: parts}
+}
+
+func (mc MessageContent) MarshalJSON() ([]byte, error) {
+	if mc.parts != nil {
+		return json.Marshal(mc.parts)
+	}
+	return json.Marshal(mc.raw)
+}
+
+func (mc *MessageContent) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		mc.raw = s
+		mc.parts = nil
+		return nil
+	}
+	mc.raw = ""
+	return json.Unmarshal(data, &mc.parts)
+}
+
+// Text extracts the plain text from either mode.
+func (mc MessageContent) Text() string {
+	if mc.raw != "" {
+		return mc.raw
+	}
+	var sb strings.Builder
+	for _, p := range mc.parts {
+		if p.Type == "text" {
+			sb.WriteString(p.Text)
+		}
+	}
+	return sb.String()
+}
+
 type chatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role    string         `json:"role"`
+	Content MessageContent `json:"content"`
 }
 
 type chatResponse struct {
@@ -60,8 +121,8 @@ type messagesRequest struct {
 }
 
 type messagesContent struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role    string         `json:"role"`
+	Content MessageContent `json:"content"`
 }
 
 type messagesResponse struct {
@@ -80,15 +141,26 @@ func (c *Client) Enabled() bool {
 
 // Chat 发送聊天请求。useMessagesEndpoint 为 true 时走 /messages 端点，否则走 /chat/completions。
 func (c *Client) Chat(ctx context.Context, modelID, systemPrompt, userPrompt string, useMessagesEndpoint bool, reasoningMode string) (string, error) {
+	userMsg := NewTextContent(userPrompt)
+	return c.doChatWithRetry(ctx, modelID, systemPrompt, userMsg, useMessagesEndpoint, reasoningMode)
+}
+
+// ChatMultimodal sends a multimodal chat request with text and optional images.
+func (c *Client) ChatMultimodal(ctx context.Context, modelID, systemPrompt string, userParts []ContentPart, useMessagesEndpoint bool, reasoningMode string) (string, error) {
+	userMsg := NewMultimodalContent(userParts...)
+	return c.doChatWithRetry(ctx, modelID, systemPrompt, userMsg, useMessagesEndpoint, reasoningMode)
+}
+
+func (c *Client) doChatWithRetry(ctx context.Context, modelID, systemPrompt string, userContent MessageContent, useMessagesEndpoint bool, reasoningMode string) (string, error) {
 	const maxAttempts = 2
 	var lastErr error
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		var content string
 		var err error
 		if useMessagesEndpoint {
-			content, err = c.chatMessages(ctx, modelID, systemPrompt, userPrompt)
+			content, err = c.doMessagesRequest(ctx, modelID, systemPrompt, userContent)
 		} else {
-			content, err = c.chatCompletions(ctx, modelID, systemPrompt, userPrompt, reasoningMode)
+			content, err = c.doCompletionsRequest(ctx, modelID, systemPrompt, userContent, reasoningMode)
 		}
 		if err == nil {
 			return content, nil
@@ -103,14 +175,13 @@ func (c *Client) Chat(ctx context.Context, modelID, systemPrompt, userPrompt str
 	return "", lastErr
 }
 
-func (c *Client) chatCompletions(ctx context.Context, modelID, systemPrompt, userPrompt string, reasoningMode string) (string, error) {
-	messages := []chatMessage{
-		{Role: "system", Content: systemPrompt},
-		{Role: "user", Content: userPrompt},
-	}
+func (c *Client) doCompletionsRequest(ctx context.Context, modelID, systemPrompt string, userContent MessageContent, reasoningMode string) (string, error) {
 	reqBody := chatRequest{
-		Model:    modelID,
-		Messages: messages,
+		Model: modelID,
+		Messages: []chatMessage{
+			{Role: "system", Content: NewTextContent(systemPrompt)},
+			{Role: "user", Content: userContent},
+		},
 	}
 	if reasoningMode != "" {
 		reqBody.ReasoningEffort = reasoningMode
@@ -155,16 +226,16 @@ func (c *Client) chatCompletions(ctx context.Context, modelID, systemPrompt, use
 		return "", fmt.Errorf("[%s] no choices returned", modelID)
 	}
 
-	return chatResp.Choices[0].Message.Content, nil
+	return chatResp.Choices[0].Message.Content.Text(), nil
 }
 
-func (c *Client) chatMessages(ctx context.Context, modelID, systemPrompt, userPrompt string) (string, error) {
+func (c *Client) doMessagesRequest(ctx context.Context, modelID, systemPrompt string, userContent MessageContent) (string, error) {
 	reqBody := messagesRequest{
 		Model:     modelID,
 		MaxTokens: 4096,
 		System:    systemPrompt,
 		Messages: []messagesContent{
-			{Role: "user", Content: userPrompt},
+			{Role: "user", Content: userContent},
 		},
 	}
 

@@ -873,13 +873,14 @@ func (s *PermissionService) ListPermissions(ctx context.Context, params *param.L
 	}
 
 	// 分页
+	total := len(filtered)
 	start := (params.Page - 1) * params.PageSize
 	end := start + params.PageSize
-	if start > len(filtered) {
+	if start > total {
 		filtered = []*permissionDM.PermissionDO{}
 	} else {
-		if end > len(filtered) {
-			end = len(filtered)
+		if end > total {
+			end = total
 		}
 		filtered = filtered[start:end]
 	}
@@ -890,7 +891,7 @@ func (s *PermissionService) ListPermissions(ctx context.Context, params *param.L
 		dtos = append(dtos, p.ToDTO())
 	}
 
-	return dtos, int64(len(filtered)), nil
+	return dtos, int64(total), nil
 }
 
 // ==================== Role 管理 ====================
@@ -1150,13 +1151,14 @@ func (s *PermissionService) ListRoles(ctx context.Context, params *param.ListRol
 	}
 
 	// 分页
+	total := len(filtered)
 	start := (params.Page - 1) * params.PageSize
 	end := start + params.PageSize
-	if start > len(filtered) {
+	if start > total {
 		filtered = []*permissionDM.RoleDO{}
 	} else {
-		if end > len(filtered) {
-			end = len(filtered)
+		if end > total {
+			end = total
 		}
 		filtered = filtered[start:end]
 	}
@@ -1173,7 +1175,7 @@ func (s *PermissionService) ListRoles(ctx context.Context, params *param.ListRol
 		dtos = append(dtos, roleDTO)
 	}
 
-	return dtos, int64(len(filtered)), nil
+	return dtos, int64(total), nil
 }
 
 // ==================== Role-Permission 关联管理 ====================

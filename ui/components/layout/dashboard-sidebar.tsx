@@ -3,7 +3,7 @@
 
 import { Button } from '@/components/ui/button'
 import { PermGuard } from '@/components/ui/perm-guard'
-import { Home, LayoutDashboard, Building2, Shield, CheckSquare, BookOpen } from 'lucide-react'
+import { Home, LayoutDashboard, Building2, Shield, CheckSquare, BookOpen, Images, GitBranch } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 interface DashboardSidebarProps {
@@ -19,6 +19,8 @@ export function DashboardSidebar({ pathname }: DashboardSidebarProps) {
   const isPermissionsActive = pathname.startsWith('/permissions')
   const isTodosActive = pathname.startsWith('/todos')
   const isJournalActive = pathname.startsWith('/journal')
+  const isMultimodalActive = pathname.startsWith('/multimodal')
+  const isWorkflowActive = pathname.startsWith('/workflow')
 
   return (
     <aside className="w-64 bg-white/95 backdrop-blur-xl border-r border-slate-200/20 shadow-sm min-h-screen">
@@ -106,6 +108,36 @@ export function DashboardSidebar({ pathname }: DashboardSidebarProps) {
           >
             <BookOpen className="h-4 w-4 mr-2" />
             札记
+          </Button>
+        </PermGuard>
+
+        <PermGuard menu="multimodal">
+          <Button
+            variant={isMultimodalActive ? "secondary" : "ghost"}
+            className={`w-full justify-start mt-2 transition-all duration-200 ease-in-out ${
+              isMultimodalActive
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80 hover:shadow-sm hover:translate-x-0.5'
+            }`}
+            onClick={() => router.push('/multimodal')}
+          >
+            <Images className="h-4 w-4 mr-2" />
+            多模态
+          </Button>
+        </PermGuard>
+
+        <PermGuard menu="workflow">
+          <Button
+            variant={isWorkflowActive ? "secondary" : "ghost"}
+            className={`w-full justify-start mt-2 transition-all duration-200 ease-in-out ${
+              isWorkflowActive
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80 hover:shadow-sm hover:translate-x-0.5'
+            }`}
+            onClick={() => router.push('/workflow')}
+          >
+            <GitBranch className="h-4 w-4 mr-2" />
+            工作流
           </Button>
         </PermGuard>
       </div>

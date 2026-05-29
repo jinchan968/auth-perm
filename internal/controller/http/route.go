@@ -6,12 +6,13 @@ import (
 	authHandler "auth-perm/internal/domain/auth/handler"
 	"auth-perm/internal/domain/auth/service"
 	journalHandler "auth-perm/internal/domain/journal/handler"
+	multimodalHandler "auth-perm/internal/domain/multimodal/hand
 	newshockHandler "auth-perm/internal/domain/newshock/handler"
 	permHandler "auth-perm/internal/domain/permission/handler"
-	workflowHandler "auth-perm/internal/domain/workflow/handler"
 	permissionService "auth-perm/internal/domain/permission/service"
 	tenantHandler "auth-perm/internal/domain/tenant/handler"
 	todoHandler "auth-perm/internal/domain/todo/handler"
+
 
 	"github.com/gin-gonic/gin"
 )
@@ -38,6 +39,7 @@ func RegisterRoutes(
 	nsNewshockHandler *newshockHandler.NewshockHandler,
 	wfWorkflowHandler *workflowHandler.WorkflowHandler,
 	wfWSHandler *workflowHandler.WorkflowWSHandler,
+	mmMultimodalHandler *multimodalHandler.MultimodalHandler,
 	authService *service.AuthService,
 	loginService *service.LoginService,
 	permService *permissionService.PermissionService,
@@ -75,6 +77,9 @@ func RegisterRoutes(
 
 		// 注册工作流路由
 		RegisterWorkflowRoutes(v1, permMW, wfWorkflowHandler, wfWSHandler, loginService)
+
+		// 注册多模态路由
+		RegisterMultimodalRoutes(v1, permMW, mmMultimodalHandler, loginService)
 	}
 }
 
@@ -433,21 +438,32 @@ func RegisterWorkflowRoutes(
 		workflow.POST("/:id/execute", h.ExecuteWorkflow)
 		workflow.POST("/:id/validate", h.ValidateWorkflow)
 		workflow.POST("/:id/clone", h.CloneWorkflow)
-		workflow.GET("/:workflowId/runs", h.ListRuns)
-	}
+		workflow.GET("/:id/runs", h.ListRuns)
 
-	runs := router.Group("/workflow/:workflowId/runs")
-	runs.Use(middleware.AuthMiddleware(loginService))
-	runs.Use(permMW)
-	{
-		runs.GET("/:runId", h.GetRun)
-		runs.GET("/:runId/nodes", h.GetRunNodes)
-		runs.POST("/:runId/cancel", h.CancelRun)
+		workflow.GET("/:id/runs/:runId", h.GetRun)
+		workflow.GET("/:id/runs/:runId/nodes", h.GetRunNodes)
+		workflow.POST("/:id/runs/:runId/cancel", h.CancelRun)
 	}
 
 	ws := router.Group("/ws")
 	ws.Use(middleware.AuthMiddleware(loginService))
 	{
 		ws.GET("/run/:runId", wsh.HandleWS)
+	}
+}
+
+// RegisterMultimodalRoutes 注册多模态路由
+func RegisterMultimodalRoutes(
+	router *gin.RouterGroup,
+	permMW gin.HandlerFunc,
+	h *multimodalHandler.MultimodalHandler,
+	loginService *service.LoginService,
+) {
+	mm := router.Group("/multimodal")
+	mm.Use(middleware.AuthMiddleware(loginService))
+	mm.Use(permMW)
+	{
+		mm.POST("/recognize", h.RecognizeImage)
+		mm.POST("/generate", h.GenerateImage)
 	}
 }

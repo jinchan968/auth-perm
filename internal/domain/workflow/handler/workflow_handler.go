@@ -230,7 +230,7 @@ func (h *WorkflowHandler) ListTemplates(c *gin.Context) {
 }
 
 func (h *WorkflowHandler) ListRuns(c *gin.Context) {
-	workflowID := c.Param("workflowId")
+	workflowID := c.Param("id")
 	tenantID := c.Query("tenant_id")
 	if tenantID == "" {
 		response.Error(c, http.StatusBadRequest, "tenant_id 不能为空", "")
