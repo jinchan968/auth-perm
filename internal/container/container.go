@@ -35,7 +35,7 @@ import (
 	infraCache "auth-perm/internal/infra/cache"
 	"auth-perm/internal/infra/code_gen"
 	"auth-perm/internal/infra/llm"
-	"auth-perm/internal/infra/
+	"auth-perm/internal/infra/opencode"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/dig"

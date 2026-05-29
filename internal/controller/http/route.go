@@ -6,13 +6,13 @@ import (
 	authHandler "auth-perm/internal/domain/auth/handler"
 	"auth-perm/internal/domain/auth/service"
 	journalHandler "auth-perm/internal/domain/journal/handler"
-	multimodalHandler "auth-perm/internal/domain/multimodal/hand
+	multimodalHandler "auth-perm/internal/domain/multimodal/handler"
 	newshockHandler "auth-perm/internal/domain/newshock/handler"
 	permHandler "auth-perm/internal/domain/permission/handler"
 	permissionService "auth-perm/internal/domain/permission/service"
 	tenantHandler "auth-perm/internal/domain/tenant/handler"
 	todoHandler "auth-perm/internal/domain/todo/handler"
-
+	workflowHandler "auth-perm/internal/domain/workflow/handler"
 
 	"github.com/gin-gonic/gin"
 )
