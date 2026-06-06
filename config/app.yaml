@@ -108,6 +108,12 @@ llm:
 opencode:
   api_key: ""  # 从环境变量 OPENCODE_API_KEY 读取
 
+# 图片生成配置（OpenAI Images 兼容接口）
+image_generation:
+  base_url: "https://api.openai.com/v1"
+  api_key: ""
+  model: "gpt-image-2"
+
 # A股数据采集配置
 stock:
   sync_interval: 24       # 股票列表同步间隔（小时）

@@ -7,8 +7,9 @@ import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { PermGuard } from '@/components/ui/perm-guard'
 import RecognizePanel from '@/components/multimodal/recognize-panel'
 import GeneratePanel from '@/components/multimodal/generate-panel'
+import ImageGeneratePanel from '@/components/multimodal/image-generate-panel'
 
-type TabType = 'recognize' | 'generate'
+type TabType = 'recognize' | 'prompt' | 'image'
 
 export default function MultimodalPage() {
   const [activeTab, setActiveTab] = useState<TabType>('recognize')
@@ -33,18 +34,28 @@ export default function MultimodalPage() {
         </PermGuard>
         <PermGuard button="multimodal.tab.generate">
           <Button
-            variant={activeTab === 'generate' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('generate')}
+            variant={activeTab === 'prompt' ? 'default' : 'outline'}
+            onClick={() => setActiveTab('prompt')}
           >
             生成提示词
+          </Button>
+        </PermGuard>
+        <PermGuard button="multimodal.tab.generate">
+          <Button
+            variant={activeTab === 'image' ? 'default' : 'outline'}
+            onClick={() => setActiveTab('image')}
+          >
+            生成图片
           </Button>
         </PermGuard>
       </div>
 
       {activeTab === 'recognize' ? (
         <RecognizePanel />
-      ) : (
+      ) : activeTab === 'prompt' ? (
         <GeneratePanel />
+      ) : (
+        <ImageGeneratePanel />
       )}
     </ShellLayout>
   )

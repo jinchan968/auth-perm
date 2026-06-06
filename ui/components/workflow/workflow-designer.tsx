@@ -7,6 +7,10 @@ const WorkflowCanvas = dynamic(
   { ssr: false }
 )
 
-export default function WorkflowDesigner() {
-  return <WorkflowCanvas />
+interface WorkflowDesignerProps {
+  onWorkflowChange?: (id: string | null) => void
+}
+
+export default function WorkflowDesigner({ onWorkflowChange }: WorkflowDesignerProps) {
+  return <WorkflowCanvas onWorkflowChange={onWorkflowChange} />
 }

@@ -465,5 +465,6 @@ func RegisterMultimodalRoutes(
 	{
 		mm.POST("/recognize", h.RecognizeImage)
 		mm.POST("/generate", h.GenerateImage)
+		mm.POST("/image-generate", h.GenerateActualImage)
 	}
 }

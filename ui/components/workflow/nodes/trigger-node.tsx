@@ -1,8 +1,9 @@
+import { memo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { Play } from 'lucide-react'
 import { getStatusColor } from './node-utils'
 
-export default function TriggerNode({ data, selected }: NodeProps) {
+export default memo(function TriggerNode({ data, selected }: NodeProps) {
   const status = (data as Record<string, string | undefined>)?.status
   const statusColor = getStatusColor(status)
 
@@ -20,4 +21,4 @@ export default function TriggerNode({ data, selected }: NodeProps) {
       <Handle type="source" position={Position.Right} />
     </div>
   )
-}
+})

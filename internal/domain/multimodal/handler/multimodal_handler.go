@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"auth-perm/internal/common/dto/response"
 	"auth-perm/internal/controller/util"
@@ -70,6 +71,42 @@ func (h *MultimodalHandler) GenerateImage(c *gin.Context) {
 	result, err := h.svc.GenerateImage(c.Request.Context(), tenantID, req.Prompt, req.Style)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "生成提示词失败", err.Error())
+		return
+	}
+
+	response.Success(c, result)
+}
+
+func (h *MultimodalHandler) GenerateActualImage(c *gin.Context) {
+	tenantID, err := util.GetTenantID(c)
+	if err != nil || tenantID == "" {
+		response.Error(c, http.StatusBadRequest, "租户ID不能为空", "")
+		return
+	}
+
+	var req vo.ImageGenerateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "参数错误", err.Error())
+		return
+	}
+
+	req.Prompt = strings.TrimSpace(req.Prompt)
+	if req.Prompt == "" {
+		response.Error(c, http.StatusBadRequest, "prompt 不能为空", "")
+		return
+	}
+	if !vo.IsValidImageSize(req.Size) {
+		response.Error(c, http.StatusBadRequest, "size 参数无效", "")
+		return
+	}
+	if !vo.IsValidImageQuality(req.Quality) {
+		response.Error(c, http.StatusBadRequest, "quality 参数无效", "")
+		return
+	}
+
+	result, err := h.svc.GenerateActualImage(c.Request.Context(), tenantID, &req)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "生成图片失败", err.Error())
 		return
 	}
 

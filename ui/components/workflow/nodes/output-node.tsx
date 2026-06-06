@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { Workflow } from 'lucide-react'
 import { getStatusColor } from './node-utils'
@@ -8,7 +9,7 @@ const formatLabels: Record<string, string> = {
   markdown: 'Markdown',
 }
 
-export default function OutputNode({ data, selected }: NodeProps) {
+export default memo(function OutputNode({ data, selected }: NodeProps) {
   const d = data as Record<string, string | undefined>
   const statusColor = getStatusColor(d.status)
 
@@ -28,4 +29,4 @@ export default function OutputNode({ data, selected }: NodeProps) {
       <Handle type="target" position={Position.Left} />
     </div>
   )
-}
+})

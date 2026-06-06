@@ -1,5 +1,11 @@
 import { apiClient } from './client'
-import type { RecognizeImageRequest, GenerateImageRequest, MultimodalResponse } from '@/types/multimodal'
+import type {
+  GenerateImageRequest,
+  ImageGenerateRequest,
+  ImageGenerateResponse,
+  MultimodalResponse,
+  RecognizeImageRequest,
+} from '@/types/multimodal'
 
 const BASE = '/multimodal'
 
@@ -20,5 +26,15 @@ export function generateImage(
   return apiClient.post<MultimodalResponse>(
     `${BASE}/generate?tenant_id=${tenantId}`,
     { prompt: data.prompt, style: data.style }
+  )
+}
+
+export function generateActualImage(
+  tenantId: string,
+  data: ImageGenerateRequest
+): Promise<ImageGenerateResponse> {
+  return apiClient.post<ImageGenerateResponse>(
+    `${BASE}/image-generate?tenant_id=${tenantId}`,
+    { prompt: data.prompt, size: data.size, quality: data.quality }
   )
 }

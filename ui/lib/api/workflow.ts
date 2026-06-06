@@ -6,8 +6,8 @@ const BASE = '/workflow'
 export async function listWorkflows(params: { tenant_id: string; page?: number; size?: number; type?: string }) {
   const query = new URLSearchParams()
   query.set('tenant_id', params.tenant_id)
-  if (params.page) query.set('page', String(params.page))
-  if (params.size) query.set('size', String(params.size))
+  if (params.page !== undefined) query.set('page', String(params.page))
+  if (params.size !== undefined) query.set('size', String(params.size))
   if (params.type) query.set('type', params.type)
   return apiClient.get<WorkflowListResponse>(`${BASE}?${query.toString()}`)
 }
@@ -72,8 +72,8 @@ export async function listTemplates(tenant_id: string) {
 export async function listRuns(workflowId: string, tenantId: string, params: { page?: number; size?: number }) {
   const query = new URLSearchParams()
   query.set('tenant_id', tenantId)
-  if (params.page) query.set('page', String(params.page))
-  if (params.size) query.set('size', String(params.size))
+  if (params.page !== undefined) query.set('page', String(params.page))
+  if (params.size !== undefined) query.set('size', String(params.size))
   return apiClient.get<{ data: WorkflowRun[]; total: number; page: number; size: number }>(
     `${BASE}/${workflowId}/runs?${query.toString()}`
   )

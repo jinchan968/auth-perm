@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { GitMerge } from 'lucide-react'
 import { getStatusColor } from './node-utils'
@@ -8,7 +9,7 @@ const strategyLabels: Record<string, string> = {
   join: '自定义分隔',
 }
 
-export default function MergeNode({ data, selected }: NodeProps) {
+export default memo(function MergeNode({ data, selected }: NodeProps) {
   const d = data as Record<string, string | undefined>
   const statusColor = getStatusColor(d.status)
 
@@ -29,4 +30,4 @@ export default function MergeNode({ data, selected }: NodeProps) {
       <Handle type="source" position={Position.Right} />
     </div>
   )
-}
+})

@@ -12,20 +12,21 @@ import (
 
 // Config 应用配置结构
 type Config struct {
-	Server     ServerConfig     `yaml:"server" mapstructure:"server"`
-	Database   DatabaseConfig   `yaml:"database" mapstructure:"database"`
-	Redis      RedisConfig      `yaml:"redis" mapstructure:"redis"`
-	Cache      CacheConfig      `yaml:"cache" mapstructure:"cache"`
-	Token      TokenConfig      `yaml:"token"  mapstructure:"token"`
-	Log        LogConfig        `yaml:"log" mapstructure:"log"`
-	Tenant     TenantConfig     `yaml:"tenant" mapstructure:"tenant"`
-	OAuth      OAuthConfig      `yaml:"oauth" mapstructure:"oauth"`
-	SMTP       SMTPConfig       `yaml:"smtp" mapstructure:"smtp"`
-	Monitoring MonitoringConfig `yaml:"monitoring" mapstructure:"monitoring"`
-	RSS        RSSConfig        `yaml:"rss" mapstructure:"rss"`
-	LLM        LLMConfig        `yaml:"llm" mapstructure:"llm"`
-	OpenCode   OpenCodeConfig   `yaml:"opencode" mapstructure:"opencode"`
-	Stock      StockConfig      `yaml:"stock" mapstructure:"stock"`
+	Server     ServerConfig          `yaml:"server" mapstructure:"server"`
+	Database   DatabaseConfig        `yaml:"database" mapstructure:"database"`
+	Redis      RedisConfig           `yaml:"redis" mapstructure:"redis"`
+	Cache      CacheConfig           `yaml:"cache" mapstructure:"cache"`
+	Token      TokenConfig           `yaml:"token"  mapstructure:"token"`
+	Log        LogConfig             `yaml:"log" mapstructure:"log"`
+	Tenant     TenantConfig          `yaml:"tenant" mapstructure:"tenant"`
+	OAuth      OAuthConfig           `yaml:"oauth" mapstructure:"oauth"`
+	SMTP       SMTPConfig            `yaml:"smtp" mapstructure:"smtp"`
+	Monitoring MonitoringConfig      `yaml:"monitoring" mapstructure:"monitoring"`
+	RSS        RSSConfig             `yaml:"rss" mapstructure:"rss"`
+	LLM        LLMConfig             `yaml:"llm" mapstructure:"llm"`
+	OpenCode   OpenCodeConfig        `yaml:"opencode" mapstructure:"opencode"`
+	ImageGen   ImageGenerationConfig `yaml:"image_generation" mapstructure:"image_generation"`
+	Stock      StockConfig           `yaml:"stock" mapstructure:"stock"`
 }
 
 // ServerConfig 服务器配置
@@ -150,6 +151,13 @@ type OpenCodeConfig struct {
 	APIKey string `yaml:"api_key" mapstructure:"api_key" env:"OPENCODE_API_KEY"`
 }
 
+// ImageGenerationConfig 图片生成配置（OpenAI Images 兼容接口）
+type ImageGenerationConfig struct {
+	BaseURL string `yaml:"base_url" mapstructure:"base_url" env:"IMAGE_GENERATION_BASE_URL"`
+	APIKey  string `yaml:"api_key" mapstructure:"api_key" env:"IMAGE_GENERATION_API_KEY"`
+	Model   string `yaml:"model" mapstructure:"model" env:"IMAGE_GENERATION_MODEL" default:"gpt-image-2"`
+}
+
 // StockConfig A股数据采集配置
 type StockConfig struct {
 	Enabled           bool   `yaml:"enabled" mapstructure:"enabled" default:"true" env:"STOCK_SCHEDULER_ENABLED"` // 是否启用财经定时任务（股票采集/RSS/评分等）
@@ -217,6 +225,15 @@ func LoadConfig(configPath string) (*Config, error) {
 		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
 	}
 	if err := viper.BindEnv("opencode.api_key", "OPENCODE_API_KEY"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	if err := viper.BindEnv("image_generation.base_url", "IMAGE_GENERATION_BASE_URL"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	if err := viper.BindEnv("image_generation.api_key", "IMAGE_GENERATION_API_KEY"); err != nil {
+		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
+	}
+	if err := viper.BindEnv("image_generation.model", "IMAGE_GENERATION_MODEL"); err != nil {
 		return nil, errors.NewInternalErrorWithDetails("绑定环境变量失败", err.Error(), err)
 	}
 	if err := viper.BindEnv("server.cors_origins", "CORS_ORIGINS"); err != nil {
@@ -288,6 +305,12 @@ func LoadConfig(configPath string) (*Config, error) {
 	}
 	if config.LLM.Model == "" {
 		config.LLM.Model = "gpt-4o-mini"
+	}
+	if config.ImageGen.BaseURL == "" {
+		config.ImageGen.BaseURL = "https://api.openai.com/v1"
+	}
+	if config.ImageGen.Model == "" {
+		config.ImageGen.Model = "gpt-image-2"
 	}
 
 	// 验证必需的配置项
