@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { Save, Check, Trash2, Loader2 } from 'lucide-react'
 import { getRole, getRolePermissions, assignPermissionsToRole, deleteRole } from '@/lib/api/role'
-import { listPermissions as listPermApi } from '@/lib/api/permission'
+import { listAllPermissions } from '@/lib/api/permission'
 import { Role, PermissionListItem } from '@/types/permission'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -52,11 +52,11 @@ export default function RolePermissionsPage() {
       try {
         const [roleData, permissionsData, assignedData] = await Promise.all([
           getRole(roleId, selectedTenantId),
-          listPermApi({ tenant_id: selectedTenantId, size: 1000 }),
+          listAllPermissions({ tenant_id: selectedTenantId }),
           getRolePermissions(roleId, selectedTenantId),
         ])
         setRole(roleData)
-        setAllPermissions(permissionsData.data || [])
+        setAllPermissions(permissionsData)
         setAssignedPermissionIds(assignedData.map((p) => p.id))
       } catch (err) {
         showError(err instanceof Error ? err.message : 'Failed to fetch data')

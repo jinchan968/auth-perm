@@ -22,10 +22,37 @@ export async function listPermissions(params: {
   searchParams.set('tenant_id', params.tenant_id)
   if (params.keyword) searchParams.set('keyword', params.keyword)
   if (params.page) searchParams.set('page', params.page.toString())
-  if (params.size) searchParams.set('size', params.size.toString())
+  if (params.size) searchParams.set('page_size', params.size.toString())
 
   const data = await apiClient.get<PermissionListResponse>(`${API_BASE}?${searchParams.toString()}`)
   return data
+}
+
+export async function listAllPermissions(params: {
+  tenant_id: string
+  keyword?: string
+  size?: number
+}): Promise<PermissionListItem[]> {
+  const pageSize = params.size || 100
+  const firstPage = await listPermissions({ ...params, page: 1, size: pageSize })
+  const permissions = [...(firstPage.data || [])]
+  const totalPages = Math.ceil((firstPage.total || permissions.length) / (firstPage.size || pageSize))
+
+  if (totalPages <= 1) {
+    return permissions
+  }
+
+  const restPages = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, index) =>
+      listPermissions({ ...params, page: index + 2, size: pageSize })
+    )
+  )
+
+  restPages.forEach((page) => {
+    permissions.push(...(page.data || []))
+  })
+
+  return permissions
 }
 
 // Get permission by ID

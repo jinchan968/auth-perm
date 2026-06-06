@@ -1,18 +1,39 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ShellLayout } from '@/components/layout/shell-layout'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { PermGuard } from '@/components/ui/perm-guard'
+import { usePermissions } from '@/hooks/use-permissions'
 import RecognizePanel from '@/components/multimodal/recognize-panel'
 import GeneratePanel from '@/components/multimodal/generate-panel'
 import ImageGeneratePanel from '@/components/multimodal/image-generate-panel'
 
 type TabType = 'recognize' | 'prompt' | 'image'
 
+const tabPermissions: Record<TabType, string> = {
+  recognize: 'multimodal.tab.recognize',
+  prompt: 'multimodal.tab.generate',
+  image: 'multimodal.tab.image_generate',
+}
+
 export default function MultimodalPage() {
   const [activeTab, setActiveTab] = useState<TabType>('recognize')
+  const { hasButton, isSuperAdmin, loading } = usePermissions()
+
+  const visibleTabs = useMemo<TabType[]>(() => {
+    const tabs: TabType[] = ['recognize', 'prompt', 'image']
+    if (isSuperAdmin) return tabs
+    return tabs.filter((tab) => hasButton(tabPermissions[tab]))
+  }, [hasButton, isSuperAdmin])
+
+  useEffect(() => {
+    if (loading || visibleTabs.length === 0 || visibleTabs.includes(activeTab)) return
+    setActiveTab(visibleTabs[0])
+  }, [activeTab, loading, visibleTabs])
+
+  const currentTab = visibleTabs.includes(activeTab) ? activeTab : visibleTabs[0]
 
   return (
     <ShellLayout pathname="/multimodal">
@@ -40,7 +61,7 @@ export default function MultimodalPage() {
             生成提示词
           </Button>
         </PermGuard>
-        <PermGuard button="multimodal.tab.generate">
+        <PermGuard button="multimodal.tab.image_generate">
           <Button
             variant={activeTab === 'image' ? 'default' : 'outline'}
             onClick={() => setActiveTab('image')}
@@ -50,9 +71,9 @@ export default function MultimodalPage() {
         </PermGuard>
       </div>
 
-      {activeTab === 'recognize' ? (
+      {visibleTabs.length === 0 && !loading ? null : currentTab === 'recognize' ? (
         <RecognizePanel />
-      ) : activeTab === 'prompt' ? (
+      ) : currentTab === 'prompt' ? (
         <GeneratePanel />
       ) : (
         <ImageGeneratePanel />

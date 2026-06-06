@@ -24,7 +24,7 @@ export async function listRoles(params: {
   searchParams.set('tenant_id', params.tenant_id)
   if (params.keyword) searchParams.set('keyword', params.keyword)
   if (params.page) searchParams.set('page', params.page.toString())
-  if (params.size) searchParams.set('size', params.size.toString())
+  if (params.size) searchParams.set('page_size', params.size.toString())
 
   const data = await apiClient.get<RoleListResponse>(`${API_BASE}?${searchParams.toString()}`)
   return data
