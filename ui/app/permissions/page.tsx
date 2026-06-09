@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { listPermissions, createPermission } from '@/lib/api/permission'
 import { listRoles, createRole } from '@/lib/api/role'
@@ -33,6 +33,7 @@ type TabType = 'permissions' | 'roles' | 'users'
 
 function PermissionsPageContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const { user } = useAuthStore()
 
   // 使用统一的租户上下文
@@ -357,6 +358,14 @@ function PermissionsPageContent() {
                 onClick={() => handleTabChange('users')}
               >
                 用户列表
+              </Button>
+            </PermGuard>
+            <PermGuard button="invitations.list">
+              <Button
+                variant="outline"
+                onClick={() => router.push('/permissions/invitations')}
+              >
+                邀请码
               </Button>
             </PermGuard>
           </div>

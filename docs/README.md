@@ -23,6 +23,8 @@
 - [`CACHE_DESIGN.md`](./CACHE_DESIGN.md) — 权限缓存双层设计、失效矩阵与数据不一致场景排查。
 - [`USER_MANAGEMENT_IMPLEMENTATION.md`](./USER_MANAGEMENT_IMPLEMENTATION.md) — 用户管理实现说明。
 - [`USER_MANAGEMENT_QUICKSTART.md`](./USER_MANAGEMENT_QUICKSTART.md) — 用户管理快速开始。
+- [`NOVEL_READER_REQUIREMENTS.md`](./NOVEL_READER_REQUIREMENTS.md) — 小说阅读前端与后续编辑/规则约束模式需求说明。
+- [`NOVEL_FRONTEND_DEPLOYMENT.md`](./NOVEL_FRONTEND_DEPLOYMENT.md) — 小说公开阅读前端部署到 Cloudflare Pages 的准备清单。
 - [`WORKFLOW_DESIGN.md`](./WORKFLOW_DESIGN.md) — AI 工作流编排工具设计文档（综合最优方案）。
 - [`WORKFLOW_DESIGN-impl.md`](./WORKFLOW_DESIGN-impl.md) — AI 工作流编排工具实施计划（7 步明细，含每文件每接口）。
 - [`WORKFLOW_DESIGN-ds.md`](./WORKFLOW_DESIGN-ds.md) — AI 工作流编排工具设计文档（ds 视角）。
@@ -30,6 +32,7 @@
 - [`WORKFLOW_TODO.md`](./WORKFLOW_TODO.md) — 未完成事项与改进建议。
 
 ### 历史排查 / 临时专题
+- [`DEPLOYMENT.md`](./DEPLOYMENT.md) — 当前项目部署指南，包含后端、Worker 与 `./ui` Cloudflare Pages 部署。
 - [`IMPLEMENTATION_SUMMARY.md`](./IMPLEMENTATION_SUMMARY.md)
 - [`FIX_NEW_USER_BUTTON_ERROR.md`](./FIX_NEW_USER_BUTTON_ERROR.md)
 
@@ -52,4 +55,3 @@
 ## 当前仓库特别说明
 - 根目录 `README.md` 已收敛为“项目入口 + 常用命令 + 文档索引”的轻量说明；更细的架构、流程与协作规则仍以本目录文档为准。
 - 当前仓库已确认的规范入口是 `AGENTS.md + docs/*.md`，而不是隐藏目录形式的 `.claude/`；但协作思想仍可沿用“共享规则短、长说明下沉、本地偏好分离”的做法。
-

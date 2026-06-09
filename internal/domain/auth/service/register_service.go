@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	stdErr "errors"
 
 	"auth-perm/internal/common/errors"
 	authConstant "auth-perm/internal/domain/auth/constant"
@@ -15,9 +16,11 @@ import (
 
 // RegisterService 注册服务
 type RegisterService struct {
-	userRepo    *repo.UserRepo
-	accountRepo *repo.AccountRepo
-	auditRepo   *repo.AuditLogRepo
+	userRepo       *repo.UserRepo
+	accountRepo    *repo.AccountRepo
+	auditRepo      *repo.AuditLogRepo
+	invitationRepo *repo.RegistrationInvitationRepo
+	invitationSvc  *RegistrationInvitationService
 }
 
 // NewRegisterService 创建注册服务
@@ -25,11 +28,15 @@ func NewRegisterService(
 	userRepo *repo.UserRepo,
 	accountRepo *repo.AccountRepo,
 	auditRepo *repo.AuditLogRepo,
+	invitationRepo *repo.RegistrationInvitationRepo,
+	invitationSvc *RegistrationInvitationService,
 ) *RegisterService {
 	return &RegisterService{
-		userRepo:    userRepo,
-		accountRepo: accountRepo,
-		auditRepo:   auditRepo,
+		userRepo:       userRepo,
+		accountRepo:    accountRepo,
+		auditRepo:      auditRepo,
+		invitationRepo: invitationRepo,
+		invitationSvc:  invitationSvc,
 	}
 }
 
@@ -68,6 +75,96 @@ func (s *RegisterService) Register(ctx context.Context, params *param.RegisterPa
 	return s.createNewUserAndAccount(creationParams)
 }
 
+// RegisterWithInvitation 公开注册入口：必须使用有效邀请码，并在同一事务中消费。
+func (s *RegisterService) RegisterWithInvitation(ctx context.Context, params *param.RegisterParams, inviteCode string) (*dto.UserDTO, *dto.AccountDTO, error) {
+	if err := params.Validate(); err != nil {
+		return nil, nil, errors.NewValidationError(err.Error())
+	}
+	if inviteCode == "" {
+		return nil, nil, errors.NewValidationError("邀请码不能为空")
+	}
+
+	var user *dto.UserDTO
+	var accountDTO *dto.AccountDTO
+	var userDO *dm.UserDO
+	var accountDO *dm.AccountDO
+	var userID string
+
+	err := s.userRepo.GetDB().Transaction(func(tx *gorm.DB) error {
+		invitation, err := s.invitationSvc.findForRegistrationWithTx(ctx, tx, inviteCode)
+		if err != nil {
+			return err
+		}
+
+		if params.TenantID != "" && params.TenantID != invitation.TenantID {
+			return errors.NewValidationError("租户 ID 与邀请码不匹配")
+		}
+		params.TenantID = invitation.TenantID
+		accountType := params.IdentifierType.ToAccountType()
+
+		existingUser, existingAccount, err := s.findExistingUserAndAccountWithTx(ctx, tx, params.Username, params.Identifier, params.TenantID)
+		if err != nil {
+			return errors.WrapBizError(err, "查找用户失败")
+		}
+		if existingUser != nil {
+			if existingAccount != nil {
+				return errors.NewBusinessError("该账户已注册")
+			}
+			accountDTO = dto.NewAccountDTO(existingUser.ID, params.TenantID, accountType)
+			if err := s.accountRepo.SaveWithTx(ctx, tx, dm.AccountFromDTO(accountDTO)); err != nil {
+				return errors.WrapBizError(err, "创建账户失败")
+			}
+			userDO = existingUser
+			accountDO = dm.AccountFromDTO(accountDTO)
+			userID = existingUser.ID
+		} else {
+			userID = uuid.New().String()
+			user, err = dto.NewUserDTO(params.Username, params.IdentifierType, params.Identifier)
+			if err != nil {
+				return errors.WrapBizError(err, "创建用户失败")
+			}
+			user.WithNewID(userID)
+			if err := user.SetPassword(params.Password); err != nil {
+				return errors.WrapBizError(err, "设置密码失败")
+			}
+			if err := s.userRepo.SaveWithTx(ctx, tx, dm.UserFromDTO(user)); err != nil {
+				return errors.WrapBizError(err, "保存用户失败")
+			}
+
+			accountDTO = dto.NewAccountDTO(userID, params.TenantID, accountType)
+			if err := s.accountRepo.SaveWithTx(ctx, tx, dm.AccountFromDTO(accountDTO)); err != nil {
+				return errors.WrapBizError(err, "创建账户失败")
+			}
+			userDO = dm.UserFromDTO(user)
+			accountDO = dm.AccountFromDTO(accountDTO)
+		}
+
+		if err := s.invitationRepo.MarkUsedWithTx(ctx, tx, invitation.ID, accountDTO.ID); err != nil {
+			return errors.WrapBizError(err, "消费邀请码失败")
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	s.auditRepo.LogAsync(&dto.AuditLogEntryDTO{
+		Action:       authConstant.ActionRegister,
+		ResourceType: authConstant.AuditResourceUser,
+		ResourceID:   userID,
+		NewValues: dto.AuditLogValuesDTO{
+			ChangedFields: map[string]interface{}{
+				"username":   params.Username,
+				"tenant_id":  params.TenantID,
+				"identifier": params.Identifier,
+			},
+		},
+		Success: true,
+	})
+
+	return userDO.ToDTO(), accountDO.ToDTO(), nil
+}
+
 // findExistingUserAndAccount 查找现有用户和账户（使用JOIN优化查询）
 func (s *RegisterService) findExistingUserAndAccount(ctx context.Context, username, identifier, tenantID string) (*dm.UserDO, *dm.AccountDO, error) {
 	// 通过用户名查找用户
@@ -94,6 +191,35 @@ func (s *RegisterService) findExistingUserAndAccount(ctx context.Context, userna
 	}
 
 	return existingUser, existingAccount, nil
+}
+
+func (s *RegisterService) findExistingUserAndAccountWithTx(ctx context.Context, tx *gorm.DB, username, identifier, tenantID string) (*dm.UserDO, *dm.AccountDO, error) {
+	var existingUser dm.UserDO
+	err := tx.WithContext(ctx).Where("username = ?", username).First(&existingUser).Error
+	if err != nil {
+		if stdErr.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil, nil
+		}
+		return nil, nil, err
+	}
+
+	if !s.isIdentifierMatch(&existingUser, identifier) {
+		return &existingUser, nil, errors.NewBusinessError("用户名已存在")
+	}
+
+	var existingAccount dm.AccountDO
+	err = tx.WithContext(ctx).
+		Where("user_id = ?", existingUser.ID).
+		Where("tenant_id = ?", tenantID).
+		Take(&existingAccount).Error
+	if err != nil {
+		if stdErr.Is(err, gorm.ErrRecordNotFound) {
+			return &existingUser, nil, nil
+		}
+		return nil, nil, err
+	}
+
+	return &existingUser, &existingAccount, nil
 }
 
 // isIdentifierMatch 检查标识符是否匹配用户

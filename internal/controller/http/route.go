@@ -8,6 +8,7 @@ import (
 	journalHandler "auth-perm/internal/domain/journal/handler"
 	multimodalHandler "auth-perm/internal/domain/multimodal/handler"
 	newshockHandler "auth-perm/internal/domain/newshock/handler"
+	novelHandler "auth-perm/internal/domain/novel/handler"
 	permHandler "auth-perm/internal/domain/permission/handler"
 	permissionService "auth-perm/internal/domain/permission/service"
 	tenantHandler "auth-perm/internal/domain/tenant/handler"
@@ -37,6 +38,7 @@ func RegisterRoutes(
 	thTemplateHandler *journalHandler.TemplateHandler,
 	aiPredictionH *journalHandler.AIPredictionHandler,
 	nsNewshockHandler *newshockHandler.NewshockHandler,
+	nvNovelHandler *novelHandler.NovelHandler,
 	wfWorkflowHandler *workflowHandler.WorkflowHandler,
 	wfWSHandler *workflowHandler.WorkflowWSHandler,
 	mmMultimodalHandler *multimodalHandler.MultimodalHandler,
@@ -75,11 +77,67 @@ func RegisterRoutes(
 		// 注册新知路由
 		RegisterNewshockRoutes(v1, permMW, nsNewshockHandler, loginService)
 
+		// 注册小说路由
+		RegisterNovelRoutes(v1, permMW, nvNovelHandler, loginService)
+
 		// 注册工作流路由
 		RegisterWorkflowRoutes(v1, permMW, wfWorkflowHandler, wfWSHandler, loginService)
 
 		// 注册多模态路由
 		RegisterMultimodalRoutes(v1, permMW, mmMultimodalHandler, loginService)
+	}
+}
+
+// RegisterNovelRoutes 注册小说路由
+func RegisterNovelRoutes(
+	router *gin.RouterGroup,
+	permMW gin.HandlerFunc,
+	h *novelHandler.NovelHandler,
+	loginService *service.LoginService,
+) {
+	public := router.Group("/novels")
+	{
+		public.GET("", h.ListPublicNovels)
+		public.GET("/:id", h.GetPublicNovel)
+		public.GET("/:id/chapters/:slug", h.GetPublicChapterBySlug)
+	}
+
+	novels := router.Group("/novel-admin")
+	novels.Use(middleware.AuthMiddleware(loginService))
+	novels.Use(permMW)
+	{
+		novels.POST("/import-md-bundle/inspect", h.InspectMarkdownBundle)
+		novels.GET("/mine", h.ListNovels)
+		novels.POST("", h.CreateNovel)
+		novels.GET("/:id/manage", h.GetNovel)
+		novels.PUT("/:id", h.UpdateNovel)
+		novels.DELETE("/:id", h.DeleteNovel)
+
+		novels.GET("/:id/volumes", h.ListVolumes)
+		novels.POST("/:id/volumes", h.CreateVolume)
+		novels.PUT("/volumes/:id", h.UpdateVolume)
+
+		novels.GET("/:id/units", h.ListUnits)
+		novels.POST("/:id/units", h.CreateUnit)
+		novels.PUT("/units/:id", h.UpdateUnit)
+
+		novels.GET("/:id/chapters", h.ListChapters)
+		novels.POST("/:id/chapters", h.CreateChapter)
+		novels.POST("/:id/chapters/import-md", h.ImportMarkdownChapter)
+		novels.PATCH("/:id/chapters/status", h.BatchUpdateChapterStatus)
+		novels.POST("/:id/import-md-bundle", h.ImportMarkdownBundle)
+		novels.GET("/chapters/:id", h.GetChapter)
+		novels.PUT("/chapters/:id", h.UpdateChapter)
+		novels.PATCH("/chapters/:id/status", h.UpdateChapterStatus)
+		novels.GET("/chapters/:id/versions", h.ListChapterVersions)
+
+		novels.GET("/:id/codex", h.ListCodexEntries)
+		novels.POST("/:id/codex", h.CreateCodexEntry)
+		novels.PUT("/:id/codex/:entryId", h.UpdateCodexEntry)
+
+		novels.GET("/:id/conflicts", h.ListRuleConflicts)
+		novels.POST("/:id/conflicts", h.CreateRuleConflict)
+		novels.PATCH("/conflicts/:id", h.ResolveRuleConflict)
 	}
 }
 
@@ -157,6 +215,13 @@ func RegisterAuthRoutes(
 		authenticated.POST("/2fa/backup-code", totpH.TOTPBackupCode)
 		authenticated.GET("/2fa/status", totpH.TOTPStatus)
 		authenticated.POST("/2fa/change-secret", totpH.TOTPChangeSecret)
+
+		invitations := authenticated.Group("/invitations")
+		{
+			invitations.GET("", authH.ListInvitations)
+			invitations.POST("", authH.CreateInvitation)
+			invitations.POST("/:id/invalidate", authH.InvalidateInvitation)
+		}
 	}
 }
 

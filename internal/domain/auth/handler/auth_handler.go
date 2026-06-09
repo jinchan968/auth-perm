@@ -8,6 +8,7 @@ import (
 	authConstant "auth-perm/internal/domain/auth/constant"
 	"auth-perm/internal/domain/auth/param"
 	"auth-perm/internal/domain/auth/service"
+	authVo "auth-perm/internal/domain/auth/vo"
 	"net/http"
 	"strings"
 
@@ -19,6 +20,7 @@ type AuthHandler struct {
 	authService        *service.AuthService
 	loginService       *service.LoginService
 	registerService    *service.RegisterService
+	invitationService  *service.RegistrationInvitationService
 	sessionService     *service.SessionService
 	emailService       *service.EmailService
 	totpService        *service.TOTPService
@@ -34,6 +36,7 @@ func NewAuthHandler(
 	authService *service.AuthService,
 	loginService *service.LoginService,
 	registerService *service.RegisterService,
+	invitationService *service.RegistrationInvitationService,
 	sessionService *service.SessionService,
 	emailService *service.EmailService,
 	totpService *service.TOTPService,
@@ -47,6 +50,7 @@ func NewAuthHandler(
 		authService:        authService,
 		loginService:       loginService,
 		registerService:    registerService,
+		invitationService:  invitationService,
 		sessionService:     sessionService,
 		emailService:       emailService,
 		totpService:        totpService,
@@ -100,13 +104,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "参数错误", err.Error())
 		return
 	}
-	user, account, err := h.registerService.Register(c.Request.Context(), registerParams)
+	user, account, err := h.registerService.RegisterWithInvitation(c.Request.Context(), registerParams, req.InviteCode)
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "注册失败", err.Error())
 		return
 	}
 	identifier, _ := req.GetIdentifier()
-	loginParams := param.NewLoginParams(identifier, req.Password, "", c.GetHeader("User-Agent"), extractClientIP(c), req.TenantID, false)
+	loginParams := param.NewLoginParams(identifier, req.Password, "", c.GetHeader("User-Agent"), extractClientIP(c), account.TenantID, false)
 	loginUser, loginAccount, err := h.loginService.Login(c.Request.Context(), loginParams)
 	if err != nil {
 		userResp := &controllerVo.UserResponse{}
@@ -116,7 +120,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		response.Success(c, gin.H{"message": "注册成功，请手动登录", "user": userResp, "account": accountResp})
 		return
 	}
-	sessionParams := param.NewSessionTokenParams(c.Request.Context(), loginUser, loginAccount, extractClientIP(c), c.GetHeader("User-Agent"), req.TenantID, false)
+	sessionParams := param.NewSessionTokenParams(c.Request.Context(), loginUser, loginAccount, extractClientIP(c), c.GetHeader("User-Agent"), account.TenantID, false)
 	loginResult, err := h.loginService.CreateSessionAndToken(sessionParams)
 	if err != nil {
 		userResp := &controllerVo.UserResponse{}
@@ -131,6 +135,55 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	loginResp := &controllerVo.LoginResponse{}
 	loginResp.FromUserDTO(loginResult.User, loginResult.Account, loginResult.Token, "注册并登录成功", loginResult.Session.GetExpiresAt())
 	response.Success(c, loginResp)
+}
+
+func (h *AuthHandler) ListInvitations(c *gin.Context) {
+	page, pageSize, _ := controllerUtil.GetPaginationParams(c)
+	result, err := h.invitationService.List(c.Request.Context(), c.Query("tenant_id"), c.GetString("tenant_id"), c.Query("status"), page, pageSize, c.GetBool("is_super_admin"))
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "获取邀请码列表失败", err.Error())
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *AuthHandler) CreateInvitation(c *gin.Context) {
+	accountID, err := controllerUtil.GetAccountID(c)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, "未认证", err.Error())
+		return
+	}
+
+	var req authVo.CreateInvitationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "请求参数错误", err.Error())
+		return
+	}
+
+	baseURL := c.GetHeader("Origin")
+	if baseURL == "" {
+		baseURL = c.GetHeader("Referer")
+	}
+
+	result, err := h.invitationService.Create(c.Request.Context(), req.TenantID, accountID, c.GetString("tenant_id"), c.GetBool("is_super_admin"), req.ExpiresAt, baseURL)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "生成邀请码失败", err.Error())
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *AuthHandler) InvalidateInvitation(c *gin.Context) {
+	accountID, err := controllerUtil.GetAccountID(c)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, "未认证", err.Error())
+		return
+	}
+	if err := h.invitationService.Invalidate(c.Request.Context(), c.Param("id"), accountID, c.GetString("tenant_id"), c.GetBool("is_super_admin")); err != nil {
+		response.Error(c, http.StatusBadRequest, "失效邀请码失败", err.Error())
+		return
+	}
+	response.Success(c, gin.H{"message": "邀请码已失效"})
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {

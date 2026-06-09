@@ -3,7 +3,7 @@
 
 import { Button } from '@/components/ui/button'
 import { PermGuard } from '@/components/ui/perm-guard'
-import { Home, LayoutDashboard, Building2, Shield, CheckSquare, BookOpen, Images, GitBranch } from 'lucide-react'
+import { Home, LayoutDashboard, Building2, Shield, CheckSquare, BookOpen, Images, GitBranch, LibraryBig } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 interface DashboardSidebarProps {
@@ -21,6 +21,7 @@ export function DashboardSidebar({ pathname }: DashboardSidebarProps) {
   const isJournalActive = pathname.startsWith('/journal')
   const isMultimodalActive = pathname.startsWith('/multimodal')
   const isWorkflowActive = pathname.startsWith('/workflow')
+  const isNovelActive = pathname.startsWith('/novels')
 
   return (
     <aside className="w-64 bg-white/95 backdrop-blur-xl border-r border-slate-200/20 shadow-sm min-h-screen">
@@ -108,6 +109,21 @@ export function DashboardSidebar({ pathname }: DashboardSidebarProps) {
           >
             <BookOpen className="h-4 w-4 mr-2" />
             札记
+          </Button>
+        </PermGuard>
+
+        <PermGuard menu="novel">
+          <Button
+            variant={isNovelActive ? "secondary" : "ghost"}
+            className={`w-full justify-start mt-2 transition-all duration-200 ease-in-out ${
+              isNovelActive
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
+                : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100/80 hover:shadow-sm hover:translate-x-0.5'
+            }`}
+            onClick={() => router.push('/novels')}
+          >
+            <LibraryBig className="h-4 w-4 mr-2" />
+            小说管理
           </Button>
         </PermGuard>
 

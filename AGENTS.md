@@ -11,6 +11,8 @@
 - [权限系统实现说明](./docs/PERMISSION_SYSTEM_IMPLEMENTATION.md)
 - [用户管理实现说明](./docs/USER_MANAGEMENT_IMPLEMENTATION.md)
 - [用户管理快速开始](./docs/USER_MANAGEMENT_QUICKSTART.md)
+- [小说阅读前端需求说明](./docs/NOVEL_READER_REQUIREMENTS.md) — `./novel` 只读、编辑、规则约束三阶段需求
+- [小说前端部署清单](./docs/NOVEL_FRONTEND_DEPLOYMENT.md) — `./novel` 公开阅读站部署到 Cloudflare Pages 的准备事项
 - [AI 工作流编排设计](./docs/WORKFLOW_DESIGN.md) — Eino + ReactFlow 工作流设计文档（综合最优方案）
 - [AI 工作流编排实施计划](./docs/WORKFLOW_DESIGN-impl.md) — 7 步明细实施文档（含每张表/每个接口/每个方法）
 - [AI 工作流编排设计-ds](./docs/WORKFLOW_DESIGN-ds.md) — Eino + ReactFlow 工作流设计文档（ds）
@@ -23,8 +25,8 @@
   - Worker（定时任务）入口：`./cmd/worker/main.go`
 - 依赖装配：`./internal/container/`（`BuildAPIContainer` / `BuildWorkerContainer`）
 - HTTP 路由：`./internal/controller/http/route.go`
-- 领域模块：`./internal/domain/{auth,permission,tenant,todo,journal,newshock,cache}`
-- 前端：Next.js App Router，主目录为 `./ui/`；Newshock 前端为 `./newshock/`
+- 领域模块：`./internal/domain/{auth,permission,tenant,todo,journal,newshock,novel,cache}`
+- 前端：Next.js App Router，主目录为 `./ui/`；Newshock 前端为 `./newshock/`；小说阅读前端为 `./novel/`
 - 前端权限控制：`./ui/hooks/use-permissions.ts` + `./ui/components/ui/perm-guard.tsx`
 
 ## 必守规则

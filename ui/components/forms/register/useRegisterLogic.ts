@@ -14,6 +14,7 @@ interface RegisterForm {
   username: string
   password: string
   confirm_password: string
+  invite_code: string
 }
 
 interface RegisterResponse {
@@ -43,6 +44,7 @@ export function useRegisterLogic() {
         username: data.username,
         password: data.password,
         confirm_password: data.confirm_password,
+        invite_code: data.invite_code.trim(),
       }
 
       const response = await fetch('/api/auth/public/register', {

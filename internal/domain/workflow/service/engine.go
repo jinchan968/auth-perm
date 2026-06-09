@@ -64,9 +64,13 @@ func (e *Engine) Execute(ctx context.Context, runID string, flowJSON string, inp
 	for _, node := range graph.Nodes {
 		nodeMap[node.ID] = node
 	}
+	conditionTargets, err := buildConditionTargets(graph.Edges, nodeMap)
+	if err != nil {
+		return nil, err
+	}
 
 	for _, node := range graph.Nodes {
-		if err := e.registerNode(g, node, runID); err != nil {
+		if err := e.registerNode(g, node, runID, conditionTargets[node.ID]); err != nil {
 			return nil, fmt.Errorf("register node %s: %w", node.ID, err)
 		}
 	}
@@ -76,7 +80,21 @@ func (e *Engine) Execute(ctx context.Context, runID string, flowJSON string, inp
 		if sourceNode.Type == constant.NodeTypeCondition {
 			continue
 		}
-		g.AddEdge(edge.Source, edge.Target)
+		if err := g.AddEdge(edge.Source, edge.Target); err != nil {
+			return nil, fmt.Errorf("add edge %s -> %s: %w", edge.Source, edge.Target, err)
+		}
+	}
+	for _, node := range graph.Nodes {
+		switch node.Type {
+		case constant.NodeTypeTrigger:
+			if err := g.AddEdge(compose.START, node.ID); err != nil {
+				return nil, fmt.Errorf("add start edge to %s: %w", node.ID, err)
+			}
+		case constant.NodeTypeOutput:
+			if err := g.AddEdge(node.ID, compose.END); err != nil {
+				return nil, fmt.Errorf("add end edge from %s: %w", node.ID, err)
+			}
+		}
 	}
 
 	runnable, err := g.Compile(ctx, compose.WithGraphName("workflow_"+runID))
@@ -92,7 +110,40 @@ func (e *Engine) Execute(ctx context.Context, runID string, flowJSON string, inp
 	return result, nil
 }
 
-func (e *Engine) registerNode(g *compose.Graph[string, *NodeOutput], node vo.FlowNode, runID string) error {
+func buildConditionTargets(edges []vo.FlowEdge, nodeMap map[string]vo.FlowNode) (map[string]map[string]string, error) {
+	targets := make(map[string]map[string]string)
+	for _, edge := range edges {
+		sourceNode, ok := nodeMap[edge.Source]
+		if !ok || sourceNode.Type != constant.NodeTypeCondition {
+			continue
+		}
+
+		handle := conditionEdgeHandle(edge.SourceHandle)
+		if handle == "" {
+			return nil, fmt.Errorf("condition edge %s -> %s missing source handle", edge.Source, edge.Target)
+		}
+		if _, ok := targets[edge.Source]; !ok {
+			targets[edge.Source] = make(map[string]string)
+		}
+		if previousTarget, ok := targets[edge.Source][handle]; ok && previousTarget != edge.Target {
+			return nil, fmt.Errorf("condition handle %s on node %s has multiple targets", handle, edge.Source)
+		}
+		targets[edge.Source][handle] = edge.Target
+	}
+	return targets, nil
+}
+
+func conditionEdgeHandle(sourceHandle *string) string {
+	if sourceHandle == nil {
+		return ""
+	}
+	if *sourceHandle == "__default" {
+		return "default"
+	}
+	return *sourceHandle
+}
+
+func (e *Engine) registerNode(g *compose.Graph[string, *NodeOutput], node vo.FlowNode, runID string, conditionTargets map[string]string) error {
 	switch node.Type {
 	case constant.NodeTypeTrigger:
 		g.AddLambdaNode(node.ID, compose.InvokableLambda(func(ctx context.Context, input string) (*NodeOutput, error) {
@@ -132,11 +183,25 @@ func (e *Engine) registerNode(g *compose.Graph[string, *NodeOutput], node vo.Flo
 		if err := json.Unmarshal(node.Data, &condData); err != nil {
 			return err
 		}
-		handleNames := make(map[string]bool)
-		for _, branch := range condData.Branches {
-			handleNames[branch.Handle] = true
+		if err := g.AddPassthroughNode(node.ID); err != nil {
+			return err
 		}
-		handleNames[condData.DefaultHandle] = true
+		if condData.DefaultHandle == "" {
+			condData.DefaultHandle = "default"
+		}
+		endNodes := make(map[string]bool)
+		for _, branch := range condData.Branches {
+			targetID, ok := conditionTargets[branch.Handle]
+			if !ok {
+				return fmt.Errorf("condition branch handle %s has no target", branch.Handle)
+			}
+			endNodes[targetID] = true
+		}
+		defaultTargetID, ok := conditionTargets[condData.DefaultHandle]
+		if !ok {
+			return fmt.Errorf("condition default handle %s has no target", condData.DefaultHandle)
+		}
+		endNodes[defaultTargetID] = true
 
 		branchFunc := compose.NewGraphBranch(
 			func(ctx context.Context, in *NodeOutput) (string, error) {
@@ -146,14 +211,16 @@ func (e *Engine) registerNode(g *compose.Graph[string, *NodeOutput], node vo.Flo
 						continue
 					}
 					if matched {
-						return branch.Handle, nil
+						return conditionTargets[branch.Handle], nil
 					}
 				}
-				return condData.DefaultHandle, nil
+				return defaultTargetID, nil
 			},
-			handleNames,
+			endNodes,
 		)
-		g.AddBranch(node.ID, branchFunc)
+		if err := g.AddBranch(node.ID, branchFunc); err != nil {
+			return err
+		}
 
 	case constant.NodeTypeTransform:
 		var data struct {
@@ -339,8 +406,9 @@ func (e *Engine) executeMerge(results []*NodeOutput, strategy, delimiter string)
 
 // collectPredecessorResults 收集当前节点所有前驱节点的执行结果
 // TODO: Eino Graph 的 lambda 只接收单条边的输入，不暴露前驱上下文。
-//       需要改造引擎为每个节点输出缓存到 run-level map，并在闭包中传入节点前驱列表。
-//       当前实现下 merge/output 节点只能拿到单条边的输入，多路汇聚功能不完整。
+//
+//	需要改造引擎为每个节点输出缓存到 run-level map，并在闭包中传入节点前驱列表。
+//	当前实现下 merge/output 节点只能拿到单条边的输入，多路汇聚功能不完整。
 func collectPredecessorResults(ctx context.Context) []*NodeOutput {
 	return nil
 }
@@ -357,12 +425,12 @@ func (e *Engine) writeNodeStart(runID, nodeID, nodeType, input string) {
 		inputJSON = []byte("{}")
 	}
 	e.nodeRepo.Create(&dm.WorkflowRunNodeDO{
-		RunID:      runID,
-		NodeID:     nodeID,
-		NodeType:   nodeType,
-		Status:     constant.StatusRunning,
-		InputJSON:  string(inputJSON),
-		StartedAt:  &now,
+		RunID:     runID,
+		NodeID:    nodeID,
+		NodeType:  nodeType,
+		Status:    constant.StatusRunning,
+		InputJSON: string(inputJSON),
+		StartedAt: &now,
 	})
 }
 
@@ -402,5 +470,3 @@ func (e *Engine) writeNodeEnd(runID, nodeID, nodeType, output, errStr string, du
 		DurationMs: int(durationMs),
 	})
 }
-
-

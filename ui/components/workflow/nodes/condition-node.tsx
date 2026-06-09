@@ -7,7 +7,9 @@ export default memo(function ConditionNode({ data, selected }: NodeProps) {
   const d = data as Record<string, string | undefined>
   const statusColor = getStatusColor(d.status)
   const branches = (d.branches as Array<{ handle: string; label?: string }> | undefined) || []
-  const defaultHandle = d.default_handle as string | undefined
+  const defaultHandle = (d.default_handle as string | undefined) || 'default'
+  const handleCount = branches.length + 1
+  const minHeight = Math.max(72, 42 + handleCount * 24)
 
   const handles = [
     ...branches.map((b, i) => (
@@ -19,17 +21,13 @@ export default memo(function ConditionNode({ data, selected }: NodeProps) {
         style={{ top: `${30 + i * 24}px` }}
       />
     )),
-    ...(defaultHandle
-      ? [
-          <Handle
-            key={defaultHandle}
-            type="source"
-            position={Position.Right}
-            id={defaultHandle}
-            style={{ top: `${30 + branches.length * 24}px` }}
-          />,
-        ]
-      : [<Handle key="__default" type="source" position={Position.Right} id="__default" style={{ top: '30px' }} />]),
+    <Handle
+      key={defaultHandle}
+      type="source"
+      position={Position.Right}
+      id={defaultHandle}
+      style={{ top: `${30 + branches.length * 24}px` }}
+    />,
   ]
 
   return (
@@ -37,6 +35,7 @@ export default memo(function ConditionNode({ data, selected }: NodeProps) {
       className={`bg-white rounded-lg border-2 p-3 min-w-[200px] shadow-sm ${statusColor} ${
         selected ? 'ring-2 ring-primary' : ''
       }`}
+      style={{ minHeight }}
     >
       <div className="flex items-center gap-2 mb-2">
         <GitFork className="h-4 w-4 text-amber-500" />

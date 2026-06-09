@@ -43,8 +43,100 @@ const nodeTypes = {
   output: OutputNode,
 }
 
+const DEFAULT_CONDITION_HANDLE = 'default'
+
 interface WorkflowCanvasProps {
   onWorkflowChange?: (id: string | null) => void
+}
+
+type ConditionBranchData = { handle?: string }
+
+function createNodeData(type: string): Record<string, unknown> {
+  if (type === 'condition') {
+    return {
+      label: type,
+      branches: [],
+      default_handle: DEFAULT_CONDITION_HANDLE,
+    }
+  }
+  return { label: type }
+}
+
+function getConditionBranchHandles(node: Node): string[] {
+  const branches = (node.data.branches as ConditionBranchData[] | undefined) || []
+  return branches.map((branch) => branch.handle).filter((handle): handle is string => Boolean(handle))
+}
+
+function getConditionDefaultHandle(node: Node): string {
+  return (node.data.default_handle as string | undefined) || DEFAULT_CONDITION_HANDLE
+}
+
+function syncConditionEdges(previousNode: Node | null, nextNode: Node, edges: Edge[]): Edge[] {
+  if (!previousNode || previousNode.type !== 'condition' || nextNode.type !== 'condition') {
+    return edges
+  }
+
+  const oldBranches = getConditionBranchHandles(previousNode)
+  const newBranches = getConditionBranchHandles(nextNode)
+  const handleMap = new Map<string, string>()
+  const oldHandles = new Set<string>()
+
+  oldBranches.forEach((oldHandle, index) => {
+    oldHandles.add(oldHandle)
+    const newHandle = newBranches[index]
+    if (newHandle) {
+      handleMap.set(oldHandle, newHandle)
+    }
+  })
+
+  const oldDefault = getConditionDefaultHandle(previousNode)
+  const newDefault = getConditionDefaultHandle(nextNode)
+  oldHandles.add(oldDefault)
+  oldHandles.add('__default')
+  handleMap.set(oldDefault, newDefault)
+  handleMap.set('__default', newDefault)
+
+  return edges.reduce<Edge[]>((nextEdges, edge) => {
+    if (edge.source !== nextNode.id || !edge.sourceHandle) {
+      nextEdges.push(edge)
+      return nextEdges
+    }
+
+    const mappedHandle = handleMap.get(edge.sourceHandle)
+    if (mappedHandle) {
+      nextEdges.push({ ...edge, sourceHandle: mappedHandle })
+      return nextEdges
+    }
+
+    if (!oldHandles.has(edge.sourceHandle)) {
+      nextEdges.push(edge)
+    }
+    return nextEdges
+  }, [])
+}
+
+function normalizeLoadedGraph(graph: FlowGraph): { nodes: Node[]; edges: Edge[] } {
+  const normalizedNodes = ((graph.nodes || []) as Node[]).map((node) => {
+    if (node.type !== 'condition') return node
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        branches: node.data.branches || [],
+        default_handle: node.data.default_handle || DEFAULT_CONDITION_HANDLE,
+      },
+    }
+  })
+
+  const conditionIds = new Set(normalizedNodes.filter((node) => node.type === 'condition').map((node) => node.id))
+  const normalizedEdges = ((graph.edges || []) as Edge[]).map((edge) => {
+    if (conditionIds.has(edge.source) && edge.sourceHandle === '__default') {
+      return { ...edge, sourceHandle: DEFAULT_CONDITION_HANDLE }
+    }
+    return edge
+  })
+
+  return { nodes: normalizedNodes, edges: normalizedEdges }
 }
 
 export default function WorkflowCanvas({ onWorkflowChange }: WorkflowCanvasProps) {
@@ -134,7 +226,7 @@ function WorkflowCanvasInner({ onWorkflowChange }: WorkflowCanvasProps) {
         id: nextNodeId(type),
         type,
         position,
-        data: { label: type },
+        data: createNodeData(type),
       }
       setNodes((nds) => [...nds, newNode])
       setSelectedNode(null)
@@ -176,6 +268,9 @@ function WorkflowCanvasInner({ onWorkflowChange }: WorkflowCanvasProps) {
   }, [firstNodeId, fitView])
 
   const handleReset = useCallback(() => {
+    if (dirty && !window.confirm('当前工作流有未保存修改，确认新建/重置吗？')) {
+      return
+    }
     setNodes([])
     setEdges([])
     setSelectedNode(null)
@@ -184,23 +279,40 @@ function WorkflowCanvasInner({ onWorkflowChange }: WorkflowCanvasProps) {
     setDirty(false)
     idCounterRef.current = 0
     onWorkflowChange?.(null)
-  }, [setNodes, setEdges, onWorkflowChange])
+  }, [dirty, setNodes, setEdges, onWorkflowChange])
 
   const handleConfigUpdate = useCallback((updatedNode: Node) => {
-    setNodes((nds) => nds.map((n) => (n.id === updatedNode.id ? updatedNode : n)))
-    setSelectedNode(updatedNode)
+    const previousNode = nodes.find((node) => node.id === updatedNode.id) || null
+    const nextNode = previousNode
+      ? { ...previousNode, data: updatedNode.data }
+      : updatedNode
+    setNodes((nds) => nds.map((n) => (n.id === nextNode.id ? nextNode : n)))
+    setEdges((eds) => syncConditionEdges(previousNode, nextNode, eds))
+    setSelectedNode(nextNode)
     setDirty(true)
-  }, [setNodes])
+  }, [nodes, setEdges, setNodes])
+
+  useEffect(() => {
+    if (!selectedNode) return
+    const currentNode = nodes.find((node) => node.id === selectedNode.id)
+    if (!currentNode) {
+      setSelectedNode(null)
+      return
+    }
+    if (currentNode !== selectedNode) {
+      setSelectedNode(currentNode)
+    }
+  }, [nodes, selectedNode])
 
   const loadWorkflow = useCallback(
     (workflow: Workflow) => {
       if (dirty && !window.confirm('当前工作流有未保存修改，确认切换吗？')) {
         return
       }
-      const graph = workflow.flow_json
+      const graph = normalizeLoadedGraph(workflow.flow_json)
       suppressDirtyRef.current = true
-      setNodes((graph.nodes || []) as Node[])
-      setEdges((graph.edges || []) as Edge[])
+      setNodes(graph.nodes)
+      setEdges(graph.edges)
       setSelectedNode(null)
       setWorkflowId(workflow.id)
       setCurrentWorkflow(workflow)
@@ -280,13 +392,22 @@ function WorkflowCanvasInner({ onWorkflowChange }: WorkflowCanvasProps) {
   }, [saveWorkflow])
 
   const handleValidate = useCallback(async () => {
-    if (!tenantId || !workflowId) {
+    if (!tenantId) {
+      showError('请先选择租户')
+      return
+    }
+    let targetWorkflowId = workflowId
+    if (dirty || !targetWorkflowId) {
+      const saved = await saveWorkflow()
+      targetWorkflowId = saved?.id || null
+    }
+    if (!targetWorkflowId) {
       showError('请先保存工作流')
       return
     }
     setValidating(true)
     try {
-      const result = await validateWorkflow(workflowId, tenantId)
+      const result = await validateWorkflow(targetWorkflowId, tenantId)
       if (result.valid) {
         showSuccess('校验通过')
       } else {
@@ -298,7 +419,7 @@ function WorkflowCanvasInner({ onWorkflowChange }: WorkflowCanvasProps) {
     } finally {
       setValidating(false)
     }
-  }, [tenantId, workflowId])
+  }, [tenantId, workflowId, dirty, saveWorkflow])
 
   const handleRun = useCallback(async () => {
     if (!tenantId) {

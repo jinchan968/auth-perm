@@ -41,6 +41,7 @@ type RegisterRequest struct {
 	Username        string `json:"username" binding:"required,min=3,max=50"`
 	Password        string `json:"password" binding:"required,min=6"`
 	ConfirmPassword string `json:"confirm_password" binding:"required"`
+	InviteCode      string `json:"invite_code"`
 	Nickname        string `json:"nickname,omitempty"`
 	TenantID        string `json:"tenant_id,omitempty"`
 }

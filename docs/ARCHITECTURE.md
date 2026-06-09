@@ -5,7 +5,7 @@
 ## 1. 系统概览
 - 后端：Go + Gin + GORM + Redis。
 - 前端：Next.js App Router + React Query + Zustand。
-- 关键主题：认证、权限、租户、Todo、Newshock。
+- 关键主题：认证、权限、租户、Todo、Newshock、Novel。
 - 启动入口：
   - `./cmd/api/main.go` — HTTP API 服务
   - `./cmd/worker/main.go` — 定时任务服务（调度器）
@@ -72,6 +72,7 @@ HTTP 服务和定时任务已拆分为两个独立进程，共享同一套依赖
 - `todo`：分类、待办项、调度器。
 - `journal`：日记模块。
 - `newshock`：投资雷达（事件、主题、股票、RSS 采集、AI 评分、Polymarket 同步）。
+- `novel`：小说阅读、章节编辑、人物/百科/地理/三观规则约束资料库。
 - `cache`：通用缓存抽象层。
 
 ### 3.3 新增后端能力的最低检查清单
@@ -127,6 +128,7 @@ HTTP 服务和定时任务已拆分为两个独立进程，共享同一套依赖
 | 租户 | `./internal/domain/tenant/`、`./ui/lib/api/tenant.ts`、`./ui/types/tenant.ts`、`./ui/app/tenants/`、`./ui/components/tenants/` |
 | Todo | `./internal/domain/todo/`、`./ui/lib/api/todo.ts`、`./ui/types/todo.ts`、`./ui/app/todos/` |
 | Newshock | `./internal/domain/newshock/`、`./newshock/lib/api.ts`、`./newshock/app/` |
+| Novel | `./internal/domain/novel/`、`./novel/lib/api/`、`./novel/app/` |
 | 定时任务 | `./cmd/worker/main.go`、`./internal/container/container.go`（BuildWorkerContainer）、各 domain 的 scheduler |
 | 中间件 / 路由保护 | `./internal/controller/middleware/`、`./internal/controller/http/route.go`、`./ui/middleware.ts` |
 
@@ -152,4 +154,3 @@ HTTP 服务和定时任务已拆分为两个独立进程，共享同一套依赖
 - 构建 / 测试 / 启动方式变化：更新 `DEVELOPMENT.md`。
 - 代理协作流程变化：更新 `AGENT_WORKFLOWS.md`。
 - 权限、用户、租户专题变化：更新相应专题文档。
-

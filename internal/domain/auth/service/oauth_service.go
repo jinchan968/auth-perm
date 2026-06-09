@@ -11,7 +11,6 @@ import (
 	"auth-perm/internal/domain/auth/dto"
 	"auth-perm/internal/domain/auth/param"
 	"auth-perm/internal/domain/auth/repo"
-	"github.com/google/uuid"
 )
 
 // OAuthService OAuth认证服务
@@ -53,55 +52,15 @@ func (s *OAuthService) LoginWithOAuth(ctx context.Context, params *param.LoginWi
 	// 查找OAuth账户
 	account, err := s.accountRepo.FindByOAuth(ctx, params.Provider, params.OAuthID)
 	if err != nil {
+		if errors.IsNotFoundError(err) {
+			return nil, nil, errors.NewBusinessError("邀请模式下不支持 OAuth 自动注册，请先使用邀请码完成注册")
+		}
 		return nil, nil, errors.WrapBizError(err, "查找OAuth账户失败")
 	}
 
 	// 账户不存在，创建新账户
 	if account == nil {
-		// 根据OAuth提供商确定标识类型
-		var identifierType authConstant.IdentifierType
-		switch params.Provider {
-		case authConstant.OAuthProviderGitHub:
-			identifierType = authConstant.IdentifierTypeGitHub
-		case authConstant.OAuthProviderGoogle:
-			identifierType = authConstant.IdentifierTypeGoogle
-		case authConstant.OAuthProviderWeChat:
-			identifierType = authConstant.IdentifierTypeWeChat
-		default:
-			return nil, nil, errors.NewValidationError("不支持的OAuth提供商")
-		}
-
-		// 创建账户
-		accountID := uuid.New().String()
-		account = dm.NewAccount(accountID, "", authConstant.AccountType("")) // OAuth账户无邮箱
-		account.OAuthProvider = params.Provider
-		account.OAuthID = params.OAuthID
-
-		// 创建用户（使用OAuth提供商作为标识类型，OAuthID作为标识值）
-		user, err := dto.NewUserDTO(params.Username, identifierType, params.OAuthID)
-		if err != nil {
-			return nil, nil, errors.WrapBizError(err, "创建用户失败")
-		}
-		if err := s.userRepo.Save(ctx, dm.UserFromDTO(user)); err != nil {
-			return nil, nil, errors.WrapBizError(err, "保存用户失败")
-		}
-
-		// 关联用户和账户
-		account.UserID = user.GetID()
-
-		// 保存账户
-		if err := s.accountRepo.Save(ctx, account); err != nil {
-			return nil, nil, errors.WrapBizError(err, "创建OAuth账户失败")
-		}
-
-		accountDTO := account.ToDTO()
-		accountDTO.VerifyEmail() // OAuth登录默认邮箱已验证
-
-		if err := s.accountRepo.Save(ctx, dm.AccountFromDTO(accountDTO)); err != nil {
-			return nil, nil, errors.WrapBizError(err, "保存OAuth账户失败")
-		}
-
-		return user, accountDTO, nil
+		return nil, nil, errors.NewBusinessError("邀请模式下不支持 OAuth 自动注册，请先使用邀请码完成注册")
 	}
 
 	// 账户已存在，更新最后登录时间
@@ -136,6 +95,9 @@ func (s *OAuthService) GitHubOAuthCallback(ctx context.Context, params *param.Gi
 	// 2. 检查用户是否已存在
 	existingUserDO, err := s.userRepo.FindByEmail(ctx, userInfo.Email)
 	if err != nil {
+		if errors.IsNotFoundError(err) {
+			return nil, nil, nil, errors.NewBusinessError("邀请模式下不支持 OAuth 自动注册，请先使用邀请码完成注册")
+		}
 		return nil, nil, nil, errors.WrapBizError(err, "查找用户失败")
 	}
 
@@ -163,14 +125,7 @@ func (s *OAuthService) GitHubOAuthCallback(ctx context.Context, params *param.Gi
 			return nil, nil, nil, errors.NewBusinessError("未找到GitHub账户")
 		}
 	} else {
-		// 2b. 用户不存在，注册新用户
-		loginParams := param.NewLoginWithOAuthParams(authConstant.OAuthProviderGitHub, userInfo.ProviderID, userInfo.Name)
-		newUser, newAccount, err := s.LoginWithOAuth(ctx, loginParams)
-		if err != nil {
-			return nil, nil, nil, errors.WrapBizError(err, "OAuth登录失败")
-		}
-		user = newUser
-		account = newAccount
+		return nil, nil, nil, errors.NewBusinessError("邀请模式下不支持 OAuth 自动注册，请先使用邀请码完成注册")
 	}
 
 	// 3. 创建会话
@@ -200,6 +155,9 @@ func (s *OAuthService) GoogleOAuthCallback(ctx context.Context, params *param.Go
 	// 2. 检查用户是否已存在
 	existingUserDO, err := s.userRepo.FindByEmail(ctx, userInfo.Email)
 	if err != nil {
+		if errors.IsNotFoundError(err) {
+			return nil, nil, nil, errors.NewBusinessError("邀请模式下不支持 OAuth 自动注册，请先使用邀请码完成注册")
+		}
 		return nil, nil, nil, errors.WrapBizError(err, "查找用户失败")
 	}
 
@@ -227,14 +185,7 @@ func (s *OAuthService) GoogleOAuthCallback(ctx context.Context, params *param.Go
 			return nil, nil, nil, errors.NewBusinessError("未找到Google账户")
 		}
 	} else {
-		// 2b. 用户不存在，注册新用户
-		loginParams := param.NewLoginWithOAuthParams(authConstant.OAuthProviderGoogle, userInfo.ProviderID, userInfo.Name)
-		newUser, newAccount, err := s.LoginWithOAuth(ctx, loginParams)
-		if err != nil {
-			return nil, nil, nil, errors.WrapBizError(err, "OAuth登录失败")
-		}
-		user = newUser
-		account = newAccount
+		return nil, nil, nil, errors.NewBusinessError("邀请模式下不支持 OAuth 自动注册，请先使用邀请码完成注册")
 	}
 
 	// 3. 创建会话
@@ -264,6 +215,9 @@ func (s *OAuthService) WeChatOAuthCallback(ctx context.Context, params *param.We
 	// 2. 检查用户是否已存在（使用虚拟邮箱查找）
 	existingUserDO, err := s.userRepo.FindByEmail(ctx, userInfo.Email)
 	if err != nil {
+		if errors.IsNotFoundError(err) {
+			return nil, nil, nil, errors.NewBusinessError("邀请模式下不支持 OAuth 自动注册，请先使用邀请码完成注册")
+		}
 		return nil, nil, nil, errors.WrapBizError(err, "查找用户失败")
 	}
 
@@ -291,14 +245,7 @@ func (s *OAuthService) WeChatOAuthCallback(ctx context.Context, params *param.We
 			return nil, nil, nil, errors.NewBusinessError("未找到微信账户")
 		}
 	} else {
-		// 2b. 用户不存在，注册新用户
-		loginParams := param.NewLoginWithOAuthParams(authConstant.OAuthProviderWeChat, userInfo.ProviderID, userInfo.Name)
-		newUser, newAccount, err := s.LoginWithOAuth(ctx, loginParams)
-		if err != nil {
-			return nil, nil, nil, errors.WrapBizError(err, "微信OAuth登录失败")
-		}
-		user = newUser
-		account = newAccount
+		return nil, nil, nil, errors.NewBusinessError("邀请模式下不支持 OAuth 自动注册，请先使用邀请码完成注册")
 	}
 
 	// 3. 创建会话

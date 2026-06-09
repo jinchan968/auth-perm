@@ -15,6 +15,7 @@ export interface RegisterRequest {
   username: string
   password: string
   confirm_password: string
+  invite_code: string
 }
 
 // 后端登录响应结构 (LoginResponse)

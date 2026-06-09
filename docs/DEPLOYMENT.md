@@ -383,6 +383,12 @@ Cloudflare Pages 自动分配 `https://{#projectName}.pages.dev` 域名，需添
 CORS_ORIGINS=https://{#projectName}.pages.dev
 ```
 
+### 5.5 小说公开阅读前端
+
+`./novel` 是独立的小说公开阅读站，不要求登录即可访问。它与 `./ui` 管理后台的部署边界不同，建议单独创建 Cloudflare Pages 项目或独立域名，并确保不会被 `./ui` 的登录态或 Cloudflare Access 策略拦截。
+
+详细准备清单见 `./docs/NOVEL_FRONTEND_DEPLOYMENT.md`。
+
 ---
 
 ## 六、整体验证

@@ -180,13 +180,43 @@ func matchAPIPath(requestPath string, requestMethod string, allowedPaths []strin
 			}
 		}
 
-		// 3. 路径参数匹配（忽略 UUID/ID 段，做前缀匹配）
-		if strings.HasPrefix(requestPath, allowedPath+"/") {
+		// 3. 路径参数匹配（例如 /items/:id/action）
+		if matchPathPattern(requestPath, allowedPath) {
+			return true
+		}
+
+		// 4. 前缀匹配（兼容旧资源配置）
+		if !strings.Contains(allowedPath, "/:") && strings.HasPrefix(requestPath, allowedPath+"/") {
 			return true
 		}
 	}
 
 	return false
+}
+
+func matchPathPattern(requestPath, allowedPath string) bool {
+	if !strings.Contains(allowedPath, "/:") {
+		return false
+	}
+
+	requestParts := strings.Split(strings.Trim(requestPath, "/"), "/")
+	allowedParts := strings.Split(strings.Trim(allowedPath, "/"), "/")
+	if len(requestParts) != len(allowedParts) {
+		return false
+	}
+
+	for i, allowedPart := range allowedParts {
+		if strings.HasPrefix(allowedPart, ":") {
+			if requestParts[i] == "" {
+				return false
+			}
+			continue
+		}
+		if requestParts[i] != allowedPart {
+			return false
+		}
+	}
+	return true
 }
 
 // resolveUsernameFromContext 从 gin context 获取 username

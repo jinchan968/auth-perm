@@ -200,6 +200,7 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = this.buildUrl(endpoint)
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
 
     // 合并配置
     const config: RequestInit = {
@@ -208,6 +209,9 @@ class ApiClient {
         ...options.headers,
       },
       ...options,
+    }
+    if (isFormData && config.headers && typeof config.headers === 'object' && !Array.isArray(config.headers)) {
+      delete (config.headers as Record<string, string>)['Content-Type']
     }
 
     if (typeof window !== 'undefined') {
@@ -268,6 +272,18 @@ class ApiClient {
         ...options.headers,
       },
       body: data ? JSON.stringify(data) : undefined,
+    })
+  }
+
+  async postForm<T>(
+    endpoint: string,
+    formData: FormData,
+    options: RequestInit = {}
+  ): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      ...options,
+      body: formData,
     })
   }
 

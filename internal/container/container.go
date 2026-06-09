@@ -21,6 +21,8 @@ import (
 	"auth-perm/internal/domain/newshock"
 	newshockHandler "auth-perm/internal/domain/newshock/handler"
 	newshockService "auth-perm/internal/domain/newshock/service"
+	"auth-perm/internal/domain/novel"
+	novelHandler "auth-perm/internal/domain/novel/handler"
 	"auth-perm/internal/domain/permission"
 	permHandler "auth-perm/internal/domain/permission/handler"
 	permissionService "auth-perm/internal/domain/permission/service"
@@ -304,6 +306,9 @@ func registerDomains(container *dig.Container) error {
 	if err := newshock.RegisterNewshockDomain(container); err != nil {
 		return err
 	}
+	if err := novel.RegisterNovelDomain(container); err != nil {
+		return err
+	}
 	if err := workflow.RegisterWorkflowDomain(container); err != nil {
 		return err
 	}
@@ -322,6 +327,7 @@ func registerHandlers(container *dig.Container) error {
 		authService *service.AuthService,
 		loginService *service.LoginService,
 		registerService *service.RegisterService,
+		invitationService *service.RegistrationInvitationService,
 		sessionService *service.SessionService,
 		emailService *service.EmailService,
 		totpService *service.TOTPService,
@@ -331,7 +337,7 @@ func registerHandlers(container *dig.Container) error {
 		deviceService service.DeviceService,
 		securityLogService *service.SecurityLogService,
 	) *authHandler.AuthHandler {
-		return authHandler.NewAuthHandler(authService, loginService, registerService, sessionService, emailService, totpService, security, oauthService, passwordService, deviceService, securityLogService)
+		return authHandler.NewAuthHandler(authService, loginService, registerService, invitationService, sessionService, emailService, totpService, security, oauthService, passwordService, deviceService, securityLogService)
 	}); err != nil {
 		return err
 	}
@@ -430,6 +436,7 @@ func registerGinEngine(container *dig.Container) error {
 		thTemplateHandler *journalHandler.TemplateHandler,
 		aiPredictionH *journalHandler.AIPredictionHandler,
 		nsNewshockHandler *newshockHandler.NewshockHandler,
+		nvNovelHandler *novelHandler.NovelHandler,
 		wfWorkflowHandler *workflowHandler.WorkflowHandler,
 		wfWSHandler *workflowHandler.WorkflowWSHandler,
 		mmMultimodalHandler *multimodalHandler.MultimodalHandler,
@@ -451,7 +458,7 @@ func registerGinEngine(container *dig.Container) error {
 			c.JSON(200, gin.H{"status": "healthy"})
 		})
 
-		controllerHttp.RegisterRoutes(engine, cfg, authH, emailH, passwordH, totpH, oauthH, permissionH, permissionResourceH, organizationH, tenantH, userH, resourceH, thTodoHandler, jhJournalHandler, thTemplateHandler, aiPredictionH, nsNewshockHandler, wfWorkflowHandler, wfWSHandler, mmMultimodalHandler, authService, loginService, permSvc)
+		controllerHttp.RegisterRoutes(engine, cfg, authH, emailH, passwordH, totpH, oauthH, permissionH, permissionResourceH, organizationH, tenantH, userH, resourceH, thTodoHandler, jhJournalHandler, thTemplateHandler, aiPredictionH, nsNewshockHandler, nvNovelHandler, wfWorkflowHandler, wfWSHandler, mmMultimodalHandler, authService, loginService, permSvc)
 
 		log.Println("Gin engine registered successfully")
 		return engine

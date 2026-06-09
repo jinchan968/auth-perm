@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Mail, Phone, User, Lock } from 'lucide-react'
+import { KeyRound, Mail, Phone, User, Lock } from 'lucide-react'
 import { useEffect } from 'react'
 import { IdentifierTypeSelector } from './IdentifierTypeSelector'
 
@@ -19,6 +19,7 @@ const registerSchema = z.object({
   username: z.string().min(3, '用户名至少3位'),
   password: z.string().min(6, '密码至少6位'),
   confirm_password: z.string().min(6, '请确认密码'),
+  invite_code: z.string().trim().min(1, '请填写邀请码'),
 }).refine((data) => {
   if (data.identifier_type === 'email' && !data.email) {
     return false
@@ -48,12 +49,19 @@ export function RegisterFormUI({ error, onSubmit, onClearError }: RegisterFormUI
     resolver: zodResolver(registerSchema),
     defaultValues: {
       identifier_type: 'email' as 'email' | 'phone',
+      invite_code: '',
     },
   })
 
   useEffect(() => {
     if (!form.getValues('identifier_type')) {
       form.setValue('identifier_type', 'email')
+    }
+
+    const params = new URLSearchParams(window.location.search)
+    const inviteCode = params.get('invite_code')?.trim()
+    if (inviteCode && !form.getValues('invite_code')) {
+      form.setValue('invite_code', inviteCode)
     }
   }, [form])
 
@@ -85,6 +93,30 @@ export function RegisterFormUI({ error, onSubmit, onClearError }: RegisterFormUI
         <IdentifierTypeSelector
           errors={form.formState.errors.identifier_type}
         />
+
+      {/* 邀请码输入 */}
+      <div className="space-y-1.5">
+        <Label htmlFor="invite_code" className="text-xs font-medium text-slate-700 dark:text-slate-200">
+          邀请码
+        </Label>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <KeyRound className="h-4 w-4 text-slate-400" />
+          </div>
+          <Input
+            id="invite_code"
+            {...form.register('invite_code')}
+            className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-300 text-slate-900 placeholder-slate-400 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+            placeholder="请输入邀请码"
+          />
+          {form.formState.errors.invite_code && (
+            <p className="mt-1.5 text-xs text-red-600 flex items-center">
+              <div className="w-1 h-1 rounded-full bg-red-600 mr-1.5" />
+              {form.formState.errors.invite_code.message}
+            </p>
+          )}
+        </div>
+      </div>
 
       {/* 邮箱输入 */}
       {(identifierType === 'email' || !identifierType) && (

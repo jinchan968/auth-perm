@@ -40,6 +40,7 @@ func ValidateFlowGraph(graph *vo.FlowGraph) []ValidationError {
 	adj := make(map[string][]string)
 	inDegree := make(map[string]int)
 	nodeMap := make(map[string]vo.FlowNode)
+	conditionHandles := make(map[string]map[string]bool)
 
 	for _, node := range graph.Nodes {
 		nodeMap[node.ID] = node
@@ -49,6 +50,21 @@ func ValidateFlowGraph(graph *vo.FlowGraph) []ValidationError {
 	for _, edge := range graph.Edges {
 		adj[edge.Source] = append(adj[edge.Source], edge.Target)
 		inDegree[edge.Target]++
+		if sourceNode, ok := nodeMap[edge.Source]; ok && sourceNode.Type == constant.NodeTypeCondition {
+			handle := conditionEdgeHandle(edge.SourceHandle)
+			if handle == "" {
+				errs = append(errs, ValidationError{
+					NodeID:  edge.Source,
+					Message: "condition 出边缺少分支 handle",
+					Level:   "error",
+				})
+				continue
+			}
+			if _, ok := conditionHandles[edge.Source]; !ok {
+				conditionHandles[edge.Source] = make(map[string]bool)
+			}
+			conditionHandles[edge.Source][handle] = true
+		}
 	}
 
 	if triggerCount == 1 && outputCount > 0 {
@@ -96,6 +112,7 @@ func ValidateFlowGraph(graph *vo.FlowGraph) []ValidationError {
 					Level:   "error",
 				})
 			}
+			validateConditionHandles(node, conditionHandles[node.ID], &errs)
 		}
 	}
 
@@ -151,6 +168,45 @@ func ValidateFlowGraph(graph *vo.FlowGraph) []ValidationError {
 	}
 
 	return errs
+}
+
+func validateConditionHandles(node vo.FlowNode, connectedHandles map[string]bool, errs *[]ValidationError) {
+	var data vo.ConditionNodeData
+	if err := json.Unmarshal(node.Data, &data); err != nil {
+		*errs = append(*errs, ValidationError{
+			NodeID:  node.ID,
+			Message: "condition 配置解析失败",
+			Level:   "error",
+		})
+		return
+	}
+	if data.DefaultHandle == "" {
+		data.DefaultHandle = "default"
+	}
+	for _, branch := range data.Branches {
+		if branch.Handle == "" {
+			*errs = append(*errs, ValidationError{
+				NodeID:  node.ID,
+				Message: "condition 分支缺少 handle",
+				Level:   "error",
+			})
+			continue
+		}
+		if !connectedHandles[branch.Handle] {
+			*errs = append(*errs, ValidationError{
+				NodeID:  node.ID,
+				Message: "condition 分支未连接: " + branch.Handle,
+				Level:   "error",
+			})
+		}
+	}
+	if !connectedHandles[data.DefaultHandle] {
+		*errs = append(*errs, ValidationError{
+			NodeID:  node.ID,
+			Message: "condition 默认分支未连接: " + data.DefaultHandle,
+			Level:   "error",
+		})
+	}
 }
 
 func bfsReachable(start string, adj map[string][]string) map[string]bool {

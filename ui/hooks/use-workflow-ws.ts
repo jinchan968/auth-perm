@@ -30,7 +30,8 @@ export function useWorkflowWS({ runId, tenantId, token, onMessage, onConnect, on
   const connect = useCallback(() => {
     if (!runId || !token) return
 
-    const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080'}/api/v1/ws/run/${runId}?token=${token}&tenant_id=${tenantId}`
+    const query = new URLSearchParams({ token, tenant_id: tenantId })
+    const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080'}/api/v1/ws/run/${encodeURIComponent(runId)}?${query.toString()}`
     const ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {

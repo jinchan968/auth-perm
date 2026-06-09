@@ -5,9 +5,10 @@ import (
 
 	"auth-perm/config"
 	"auth-perm/internal/common/dto/response"
+	authService "auth-perm/internal/domain/auth/service"
+	permissionConstant "auth-perm/internal/domain/permission/constant"
 	permissionParam "auth-perm/internal/domain/permission/param"
 	permissionService "auth-perm/internal/domain/permission/service"
-	"auth-perm/internal/domain/auth/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -56,8 +57,9 @@ func AdminPermissionMiddleware(cfg *config.Config, ps *permissionService.Permiss
 	}
 }
 
-// SuperAdminPermissionMiddleware 超级管理员权限检查中间件
-func SuperAdminPermissionMiddleware(ps *permissionService.PermissionService) gin.HandlerFunc {
+// SuperAdminPermissionMiddleware 超级管理员权限检查中间件。
+// 检查顺序：配置超管 → 角色体系 super_admin。普通 admin 角色不放行。
+func SuperAdminPermissionMiddleware(cfg *config.Config, ps *permissionService.PermissionService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		accountID, exists := c.Get("account_id")
 		if !exists || accountID == "" {
@@ -66,8 +68,17 @@ func SuperAdminPermissionMiddleware(ps *permissionService.PermissionService) gin
 			return
 		}
 
-		params := permissionParam.NewIsSystemAdminParams(accountID.(string))
-		isSuperAdmin, err := ps.IsSystemAdmin(c.Request.Context(), params)
+		if cfg.Server.SuperAdmin != "" {
+			if username, ok := c.Get("username"); ok {
+				if usernameStr, ok2 := username.(string); ok2 && usernameStr == cfg.Server.SuperAdmin {
+					c.Set("is_super_admin", true)
+					c.Next()
+					return
+				}
+			}
+		}
+
+		isSuperAdmin, err := ps.CheckAnyRole(c.Request.Context(), accountID.(string), []string{permissionConstant.RoleCodeSuperAdmin})
 		if err != nil {
 			response.Error(c, http.StatusInternalServerError, "权限检查失败", err.Error())
 			c.Abort()
@@ -86,7 +97,7 @@ func SuperAdminPermissionMiddleware(ps *permissionService.PermissionService) gin
 }
 
 // AdminMiddlewareWithLoginService FUTURE: 使用LoginService的管理员中间件
-func AdminMiddlewareWithLoginService(loginService *service.LoginService) gin.HandlerFunc {
+func AdminMiddlewareWithLoginService(loginService *authService.LoginService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
 	}

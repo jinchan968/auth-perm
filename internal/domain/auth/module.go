@@ -39,6 +39,11 @@ func RegisterAuthDomain(container *dig.Container) error {
 	}); err != nil {
 		return err
 	}
+	if err := container.Provide(func(db *gorm.DB) *repo.RegistrationInvitationRepo {
+		return repo.NewRegistrationInvitationRepo(db)
+	}); err != nil {
+		return err
+	}
 	if err := container.Provide(func(db *gorm.DB) repo.DeviceTrustRepo {
 		return repo.NewDeviceTrustRepo(db)
 	}); err != nil {
@@ -228,13 +233,26 @@ func RegisterAuthDomain(container *dig.Container) error {
 		return err
 	}
 
+	// 注册邀请码服务
+	if err := container.Provide(func(
+		invitationRepo *repo.RegistrationInvitationRepo,
+	) *service.RegistrationInvitationService {
+		invitationSvc := service.NewRegistrationInvitationService(invitationRepo)
+		log.Println("RegistrationInvitationService registered successfully")
+		return invitationSvc
+	}); err != nil {
+		return err
+	}
+
 	// 注册注册服务
 	if err := container.Provide(func(
 		userRepo *repo.UserRepo,
 		accountRepo *repo.AccountRepo,
 		auditRepo *repo.AuditLogRepo,
+		invitationRepo *repo.RegistrationInvitationRepo,
+		invitationSvc *service.RegistrationInvitationService,
 	) *service.RegisterService {
-		registerSvc := service.NewRegisterService(userRepo, accountRepo, auditRepo)
+		registerSvc := service.NewRegisterService(userRepo, accountRepo, auditRepo, invitationRepo, invitationSvc)
 		log.Println("RegisterService registered successfully")
 		return registerSvc
 	}); err != nil {
