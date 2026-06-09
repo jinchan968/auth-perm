@@ -3,6 +3,7 @@ import { SiteHeader } from "@/components/site-header"
 import { listNovels, NovelApiError } from "@/lib/api/novel"
 
 export const dynamic = "force-dynamic"
+export const runtime = "edge"
 
 export default async function HomePage() {
   try {

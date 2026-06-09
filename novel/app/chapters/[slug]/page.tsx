@@ -9,6 +9,7 @@ type LegacyChapterPageProps = {
 }
 
 export const dynamic = "force-dynamic"
+export const runtime = "edge"
 
 export async function generateMetadata(): Promise<Metadata> {
   return {

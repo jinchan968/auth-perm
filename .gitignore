@@ -6,6 +6,8 @@
 *.dylib
 bin/
 .bin/
+.vercel
+.vercel/
 auth-perm
 
 # Next.js build output

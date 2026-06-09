@@ -11,6 +11,7 @@ type NovelPageProps = {
 }
 
 export const dynamic = "force-dynamic"
+export const runtime = "edge"
 
 export async function generateMetadata({ params }: NovelPageProps): Promise<Metadata> {
   const novel = await getNovel(params.id).catch(() => undefined)

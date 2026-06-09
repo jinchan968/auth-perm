@@ -15,6 +15,7 @@ type ChapterPageProps = {
 }
 
 export const dynamic = "force-dynamic"
+export const runtime = "edge"
 
 export async function generateMetadata({ params }: ChapterPageProps): Promise<Metadata> {
   const [novel, chapter] = await Promise.all([

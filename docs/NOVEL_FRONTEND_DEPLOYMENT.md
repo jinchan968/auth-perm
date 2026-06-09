@@ -62,13 +62,19 @@ CORS_ORIGINS=https://{#uiProjectName}.pages.dev,https://{#novelProjectName}.page
 - `./ui/wrangler.toml` 中配置了 `nodejs_compat`。
 - `./docs/DEPLOYMENT.md` 中已有 Cloudflare Pages 的构建命令与输出目录。
 
-`./novel` 在部署前建议补齐同类配置：
+`./novel` 在部署前需要补齐同类配置：
 
 - 在 `./novel/package.json` 增加 `@cloudflare/next-on-pages` 开发依赖，或在 Cloudflare 构建命令中使用 `npx @cloudflare/next-on-pages@1`。
 - 新增 `./novel/wrangler.toml`，至少包含：
 
 ```toml
 compatibility_flags = ["nodejs_compat"]
+```
+
+同时，所有非静态页面必须声明 Edge Runtime，否则 `@cloudflare/next-on-pages` 会在构建时拒绝生成 Pages 产物：
+
+```ts
+export const runtime = "edge"
 ```
 
 ## 三、Cloudflare Pages 配置
