@@ -37,6 +37,7 @@ func DefaultConfig() Config {
 			constant.HeaderContentType,
 			constant.HeaderAccept,
 			constant.HeaderAuthorization,
+			constant.HeaderAuthToken,
 			constant.HeaderTenantID,
 			constant.HeaderRequestID,
 		},

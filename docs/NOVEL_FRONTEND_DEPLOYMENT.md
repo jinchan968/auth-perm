@@ -185,6 +185,24 @@ curl "https://api.{#domain}/api/v1/novels/{#novelId}/chapters/{#chapterSlug}"
 
 Cloudflare Pages 支持在项目的 Deployments 页面回滚到之前的成功部署。回滚前先确认是否只是环境变量或后端 CORS 配置问题，避免回滚前端但问题仍在后端。
 
+### 管理端 zip 导入 504
+
+`./ui` 管理端部署到 Cloudflare Pages 后，小说 zip 识别和确认导入属于文件上传接口。上传接口不要经过 `https://{#uiDomain}/api` 这层 Pages Function 代理，否则请求体会先在 Pages Function 中缓冲，再转发到后端；章节较多时还会叠加后端同步解压、解析和写库耗时，容易在 Cloudflare 或 Nginx 层触发 504。
+
+当前 `./ui/lib/api/novel.ts` 中的 Markdown 文件上传接口会优先直连 `NEXT_PUBLIC_API_URL`：
+
+- `POST /api/v1/novel-admin/import-md-bundle/inspect`
+- `POST /api/v1/novel-admin/:id/import-md-bundle`
+- `POST /api/v1/novel-admin/:id/chapters/import-md`
+
+上线时需要同步确认：
+
+- `./ui` 的 `NEXT_PUBLIC_API_URL` 指向后端域名，例如 `https://api.{#domain}/api/v1`。
+- 后端 `CORS_ORIGINS` 包含管理端域名，例如 `https://app.{#domain}`。
+- 后端 CORS `Allow-Headers` 包含 `x-auth-token`，否则直连上传会在浏览器预检阶段失败。
+- Nginx 上传限制和超时能覆盖实际 zip 大小与导入耗时，例如 `client_max_body_size`、`proxy_read_timeout`、`proxy_send_timeout`。
+- 如果确认导入仍超过网关超时，应把导入改成异步任务：上传后立即返回任务 ID，后端后台导入，前端轮询进度。
+
 ## 八、参考资料
 
 - `./docs/DEPLOYMENT.md`：当前项目已有部署指南。

@@ -177,6 +177,7 @@ const (
 	HeaderContentType   = "Content-Type"
 	HeaderAccept        = "Accept"
 	HeaderAuthorization = "Authorization"
+	HeaderAuthToken     = "x-auth-token"
 	HeaderTenantID      = "X-Tenant-ID"
 	HeaderRequestID     = "X-Request-ID"
 

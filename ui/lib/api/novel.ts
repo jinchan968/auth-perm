@@ -1,4 +1,4 @@
-import { apiClient } from './client'
+import { ApiError, apiClient } from './client'
 import type {
   CreateNovelRequest,
   MarkdownBundleImportResult,
@@ -16,6 +16,66 @@ import type {
 } from '@/types/novel'
 
 const BASE = '/novel-admin'
+const DIRECT_API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api'
+
+function buildDirectApiUrl(endpoint: string): string {
+  const cleanBase = DIRECT_API_BASE_URL.replace(/\/+$/, '')
+  const cleanEndpoint = endpoint.replace(/^\/+/, '')
+  return `${cleanBase}/${cleanEndpoint}`
+}
+
+function getBrowserAuthToken(): string | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  return localStorage.getItem('auth_token')
+}
+
+async function handleDirectUploadResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    let message = `请求失败: ${response.status} ${response.statusText}`
+    let details: unknown
+
+    try {
+      details = await response.json()
+      if (details && typeof details === 'object') {
+        const payload = details as { msg?: string; message?: string; error?: string; code?: string }
+        const summary = payload.msg || payload.message || ''
+        const detail = payload.error || ''
+        message = summary && detail && summary !== detail ? `${summary}: ${detail}` : summary || detail || message
+        throw new ApiError(message, response.status, payload.code, details)
+      }
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error
+      }
+    }
+
+    throw new ApiError(message, response.status, 'UPLOAD_ERROR', details)
+  }
+
+  const payload = await response.json()
+  if (payload && typeof payload === 'object' && 'data' in payload) {
+    return payload.data as T
+  }
+  return payload as T
+}
+
+async function postFormDirect<T>(endpoint: string, formData: FormData): Promise<T> {
+  const headers = new Headers({ Accept: 'application/json' })
+  const token = getBrowserAuthToken()
+  if (token) {
+    headers.set('x-auth-token', token)
+  }
+
+  const response = await fetch(buildDirectApiUrl(endpoint), {
+    method: 'POST',
+    headers,
+    body: formData,
+  })
+
+  return handleDirectUploadResponse<T>(response)
+}
 
 export function listMyNovels(tenantId: string): Promise<NovelListResponse> {
   return apiClient.get<NovelListResponse>(`${BASE}/mine?tenant_id=${tenantId}&page=1&page_size=100`)
@@ -62,7 +122,7 @@ export function inspectMarkdownBundle(
 ): Promise<MarkdownBundleInspectResult> {
   const formData = new FormData()
   formData.append('file', file)
-  return apiClient.postForm<MarkdownBundleInspectResult>(
+  return postFormDirect<MarkdownBundleInspectResult>(
     `${BASE}/import-md-bundle/inspect?tenant_id=${tenantId}`,
     formData,
   )
@@ -75,7 +135,7 @@ export function importMarkdownBundle(
 ): Promise<MarkdownBundleImportResult> {
   const formData = new FormData()
   formData.append('file', file)
-  return apiClient.postForm<MarkdownBundleImportResult>(
+  return postFormDirect<MarkdownBundleImportResult>(
     `${BASE}/${novelId}/import-md-bundle?tenant_id=${tenantId}`,
     formData,
   )
@@ -109,7 +169,7 @@ export function importMarkdownChapter(
   if (payload.sortOrder) formData.append('sort_order', String(payload.sortOrder))
   formData.append('file', payload.file)
 
-  return apiClient.postForm<Chapter>(
+  return postFormDirect<Chapter>(
     `${BASE}/${novelId}/chapters/import-md?tenant_id=${tenantId}`,
     formData,
   )
