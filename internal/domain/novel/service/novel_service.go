@@ -7,8 +7,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
+
+	"github.com/google/uuid"
 
 	"auth-perm/internal/common/errors"
 	"auth-perm/internal/domain/novel/constant"
@@ -18,12 +21,30 @@ import (
 	"auth-perm/internal/domain/novel/vo"
 )
 
+type novelImportTask struct {
+	mu       sync.Mutex
+	TaskID   string
+	NovelID  string
+	Status   constant.ImportTaskStatus
+	Progress *vo.ImportTaskProgressVO
+	Result   *vo.MarkdownBundleImportResultVO
+	Err      string
+	CreatedAt time.Time
+}
+
 type NovelService struct {
-	novelRepo *repo.NovelRepo
+	novelRepo   *repo.NovelRepo
+	importTasks sync.Map
+	taskTTL     time.Duration
 }
 
 func NewNovelService(novelRepo *repo.NovelRepo) *NovelService {
-	return &NovelService{novelRepo: novelRepo}
+	s := &NovelService{
+		novelRepo: novelRepo,
+		taskTTL:   30 * time.Minute,
+	}
+	go s.cleanupExpiredTasks()
+	return s
 }
 
 func (s *NovelService) ListNovels(ctx context.Context, p *repo.QueryParams) (*vo.ListResult[vo.NovelVO], error) {
@@ -404,6 +425,10 @@ func (s *NovelService) ImportMarkdownChapter(ctx context.Context, novelID, accou
 }
 
 func (s *NovelService) ImportMarkdownBundle(ctx context.Context, novelID, accountID, tenantID string, req *dto.ImportMarkdownBundleRequest) (*vo.MarkdownBundleImportResultVO, error) {
+	return s.ImportMarkdownBundleWithProgress(ctx, novelID, accountID, tenantID, req, nil)
+}
+
+func (s *NovelService) ImportMarkdownBundleWithProgress(ctx context.Context, novelID, accountID, tenantID string, req *dto.ImportMarkdownBundleRequest, onProgress func(processed int)) (*vo.MarkdownBundleImportResultVO, error) {
 	if _, err := s.novelRepo.FindNovelByIDAndAccount(ctx, novelID, accountID, tenantID); err != nil {
 		return nil, err
 	}
@@ -438,6 +463,9 @@ func (s *NovelService) ImportMarkdownBundle(ctx context.Context, novelID, accoun
 			case "updated":
 				result.Updated++
 			}
+			if onProgress != nil {
+				onProgress(index + 1)
+			}
 		}
 		return nil
 	})
@@ -445,6 +473,89 @@ func (s *NovelService) ImportMarkdownBundle(ctx context.Context, novelID, accoun
 		return nil, err
 	}
 	return result, nil
+}
+
+func (s *NovelService) ImportMarkdownBundleAsync(novelID, accountID, tenantID string, req *dto.ImportMarkdownBundleRequest) string {
+	taskID := uuid.New().String()
+	task := &novelImportTask{
+		TaskID:    taskID,
+		NovelID:   novelID,
+		Status:    constant.ImportTaskStatusPending,
+		Progress:  &vo.ImportTaskProgressVO{Total: len(req.Files)},
+		CreatedAt: time.Now(),
+	}
+	s.importTasks.Store(taskID, task)
+
+	go func() {
+		task.mu.Lock()
+		task.Status = constant.ImportTaskStatusProcessing
+		task.mu.Unlock()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+
+		result, err := s.ImportMarkdownBundleWithProgress(ctx, novelID, accountID, tenantID, req, func(processed int) {
+			task.mu.Lock()
+			task.Progress.Processed = processed
+			task.mu.Unlock()
+		})
+		task.mu.Lock()
+		defer task.mu.Unlock()
+		if err != nil {
+			task.Status = constant.ImportTaskStatusFailed
+			task.Err = err.Error()
+		} else {
+			task.Status = constant.ImportTaskStatusSuccess
+			task.Result = result
+			task.Progress.Processed = task.Progress.Total
+		}
+	}()
+
+	return taskID
+}
+
+func (s *NovelService) GetImportTask(ctx context.Context, taskID, accountID, tenantID string) (*vo.ImportTaskVO, error) {
+	raw, ok := s.importTasks.Load(taskID)
+	if !ok {
+		return nil, errors.NewNotFoundError("导入任务不存在")
+	}
+	task := raw.(*novelImportTask)
+
+	if task.NovelID != "" {
+		novel, err := s.novelRepo.FindNovelByIDAndAccount(ctx, task.NovelID, accountID, tenantID)
+		if err != nil || novel == nil {
+			return nil, errors.NewNotFoundError("导入任务不存在")
+		}
+	}
+
+	task.mu.Lock()
+	defer task.mu.Unlock()
+	return &vo.ImportTaskVO{
+		TaskID:   task.TaskID,
+		NovelID:  task.NovelID,
+		Status:   task.Status,
+		Progress: task.Progress,
+		Result:   task.Result,
+		Error:    task.Err,
+	}, nil
+}
+
+func (s *NovelService) cleanupExpiredTasks() {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		s.importTasks.Range(func(key, value any) bool {
+			task := value.(*novelImportTask)
+			task.mu.Lock()
+			age := time.Since(task.CreatedAt)
+			isTerminal := task.Status == constant.ImportTaskStatusSuccess || task.Status == constant.ImportTaskStatusFailed
+			task.mu.Unlock()
+			if isTerminal && age > s.taskTTL {
+				s.importTasks.Delete(key)
+			}
+			return true
+		})
+	}
 }
 
 func (s *NovelService) InspectMarkdownBundle(ctx context.Context, req *dto.InspectMarkdownBundleRequest) (*vo.MarkdownBundleInspectResultVO, error) {

@@ -126,6 +126,7 @@ func RegisterNovelRoutes(
 		novels.POST("/:id/chapters/import-md", h.ImportMarkdownChapter)
 		novels.PATCH("/:id/chapters/status", h.BatchUpdateChapterStatus)
 		novels.POST("/:id/import-md-bundle", h.ImportMarkdownBundle)
+		novels.GET("/import-tasks/:taskId", h.GetImportTask)
 		novels.GET("/chapters/:id", h.GetChapter)
 		novels.PUT("/chapters/:id", h.UpdateChapter)
 		novels.PATCH("/chapters/:id/status", h.UpdateChapterStatus)

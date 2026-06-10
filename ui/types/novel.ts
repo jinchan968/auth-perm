@@ -1,5 +1,13 @@
 export type NovelStatus = 'draft' | 'serial' | 'completed' | 'archived'
 export type ChapterStatus = 'draft' | 'review' | 'published' | 'locked'
+export type ImportTaskStatusValue = 'pending' | 'processing' | 'success' | 'failed'
+
+export const IMPORT_TASK_STATUS = {
+  PENDING: 'pending',
+  PROCESSING: 'processing',
+  SUCCESS: 'success',
+  FAILED: 'failed',
+} as const satisfies Record<string, ImportTaskStatusValue>
 
 export interface NovelListItem {
   id: string
@@ -131,6 +139,20 @@ export interface MarkdownBundleImportResult {
   updated: number
   skipped: number
   items: MarkdownBundleImportItem[]
+}
+
+export interface ImportTaskProgress {
+  total: number
+  processed: number
+}
+
+export interface ImportTaskStatus {
+  task_id: string
+  novel_id: string
+  status: ImportTaskStatusValue
+  progress?: ImportTaskProgress
+  result?: MarkdownBundleImportResult
+  error?: string
 }
 
 export interface BatchChapterStatusUpdateResult {

@@ -5,6 +5,7 @@ type ChapterStatus string
 type CodexKind string
 type RuleConflictLevel string
 type RuleConflictStatus string
+type ImportTaskStatus string
 
 const (
 	NovelStatusDraft     NovelStatus = "draft"
@@ -37,4 +38,11 @@ const (
 	RuleConflictStatusOpen     RuleConflictStatus = "open"
 	RuleConflictStatusResolved RuleConflictStatus = "resolved"
 	RuleConflictStatusWaived   RuleConflictStatus = "waived"
+)
+
+const (
+	ImportTaskStatusPending    ImportTaskStatus = "pending"
+	ImportTaskStatusProcessing ImportTaskStatus = "processing"
+	ImportTaskStatusSuccess    ImportTaskStatus = "success"
+	ImportTaskStatusFailed     ImportTaskStatus = "failed"
 )

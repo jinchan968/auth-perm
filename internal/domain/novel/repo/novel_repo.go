@@ -128,16 +128,40 @@ func (r *NovelRepo) ListNovels(ctx context.Context, p *QueryParams) ([]*dm.Novel
 }
 
 func (r *NovelRepo) DeleteNovel(ctx context.Context, id, accountID, tenantID string) error {
-	result := r.db.WithContext(ctx).
-		Where("id = ? AND account_id = ? AND tenant_id = ?", id, accountID, tenantID).
-		Delete(&dm.NovelDO{})
-	if result.Error != nil {
-		return errors.WrapBizError(result.Error, "删除小说失败")
-	}
-	if result.RowsAffected == 0 {
-		return errors.NewNotFoundErrorF("小说不存在: %s", id)
-	}
-	return nil
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var count int64
+		if err := tx.Model(&dm.NovelDO{}).Where("id = ? AND account_id = ? AND tenant_id = ?", id, accountID, tenantID).Count(&count).Error; err != nil {
+			return errors.WrapBizError(err, "删除小说失败")
+		}
+		if count == 0 {
+			return errors.NewNotFoundErrorF("小说不存在: %s", id)
+		}
+
+		if err := tx.Unscoped().Where("novel_id = ?", id).Delete(&dm.NovelRuleConflictDO{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Unscoped().Where("novel_id = ?", id).Delete(&dm.NovelCodexEntryDO{}).Error; err != nil {
+			return err
+		}
+		chapterSubQuery := tx.Model(&dm.NovelChapterDO{}).Select("id").Where("novel_id = ?", id)
+		if err := tx.Where("chapter_id IN (?)", chapterSubQuery).Delete(&dm.NovelChapterVersionDO{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Unscoped().Where("novel_id = ?", id).Delete(&dm.NovelChapterDO{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Unscoped().Where("novel_id = ?", id).Delete(&dm.NovelUnitDO{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Unscoped().Where("novel_id = ?", id).Delete(&dm.NovelVolumeDO{}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Unscoped().Where("id = ? AND account_id = ? AND tenant_id = ?", id, accountID, tenantID).Delete(&dm.NovelDO{}).Error; err != nil {
+			return errors.WrapBizError(err, "删除小说失败")
+		}
+		return nil
+	})
 }
 
 func (r *NovelRepo) CreateVolume(ctx context.Context, volume *dm.NovelVolumeDO) error {

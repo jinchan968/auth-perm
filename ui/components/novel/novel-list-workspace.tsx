@@ -1,15 +1,15 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BookOpen, Eye, FileArchive, RefreshCw, Search } from 'lucide-react'
+import { BookOpen, Eye, FileArchive, RefreshCw, Search, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { showError } from '@/lib/toast'
+import { showError, showSuccess } from '@/lib/toast'
 import { useTenant } from '@/lib/tenant-context'
-import { listMyNovels } from '@/lib/api/novel'
+import { deleteNovel, listMyNovels } from '@/lib/api/novel'
 import type { NovelListItem, NovelStatus } from '@/types/novel'
 
 const statusLabels: Record<NovelStatus, string> = {
@@ -58,6 +58,17 @@ export function NovelListWorkspace() {
     if (!tenantId) return
     refreshNovels()
   }, [tenantId, refreshNovels])
+
+  const handleDelete = async (id: string, title: string) => {
+    if (!confirm(`确定删除「${title}」？将一并删除所有章节、版本、元信息，不可恢复。`)) return
+    try {
+      await deleteNovel(tenantId, id)
+      showSuccess('已删除')
+      refreshNovels()
+    } catch (err) {
+      showError(err instanceof Error ? err.message : '删除失败')
+    }
+  }
 
   const filteredNovels = useMemo(() => {
     const query = keyword.trim().toLowerCase()
@@ -202,6 +213,9 @@ export function NovelListWorkspace() {
                           <Button variant="outline" size="sm" onClick={() => goImport(novel.id)}>
                             <FileArchive className="h-4 w-4" />
                             导入
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleDelete(novel.id, novel.title)}>
+                            <Trash2 className="h-4 w-4 text-red-500" />
                           </Button>
                         </div>
                       </td>

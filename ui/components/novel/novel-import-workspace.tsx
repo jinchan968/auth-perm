@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, BookOpen, FileArchive, FileText, RefreshCw, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -19,6 +19,7 @@ import { showError, showSuccess } from '@/lib/toast'
 import { useTenant } from '@/lib/tenant-context'
 import {
   createNovel,
+  getImportTask,
   importMarkdownBundle,
   importMarkdownChapter,
   inspectMarkdownBundle,
@@ -34,6 +35,7 @@ import type {
   Unit,
   Volume,
 } from '@/types/novel'
+import { IMPORT_TASK_STATUS } from '@/types/novel'
 
 const statusLabels: Record<string, string> = {
   draft: '草稿',
@@ -65,6 +67,7 @@ export function NovelImportWorkspace() {
   const [bundleImported, setBundleImported] = useState(false)
   const [importResult, setImportResult] = useState<MarkdownBundleImportResult | null>(null)
   const [requestedNovelId, setRequestedNovelId] = useState('')
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [volumes, setVolumes] = useState<Volume[]>([])
   const [units, setUnits] = useState<Unit[]>([])
@@ -112,6 +115,12 @@ export function NovelImportWorkspace() {
       setNovelsLoading(false)
     }
   }, [requestedNovelId, tenantId])
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearTimeout(pollRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     if (!tenantId) return
@@ -214,14 +223,31 @@ export function NovelImportWorkspace() {
 
     setImporting(true)
     try {
-      const result = await importMarkdownBundle(tenantId, selectedNovelId, zipFile)
-      setImportResult(result)
-      setBundleImported(true)
-      showSuccess(`导入完成：新增 ${result.created}，更新 ${result.updated}，跳过 ${result.skipped}`)
-      await refreshNovels(selectedNovelId)
+      const { task_id } = await importMarkdownBundle(tenantId, selectedNovelId, zipFile)
+
+      const poll = async () => {
+        try {
+          const task = await getImportTask(task_id)
+          if (task.status === IMPORT_TASK_STATUS.SUCCESS && task.result) {
+            setImportResult(task.result)
+            setBundleImported(true)
+            showSuccess(`导入完成：新增 ${task.result.created}，更新 ${task.result.updated}，跳过 ${task.result.skipped}`)
+            setImporting(false)
+            await refreshNovels(selectedNovelId)
+          } else if (task.status === IMPORT_TASK_STATUS.FAILED) {
+            showError(task.error || '导入失败')
+            setImporting(false)
+          } else {
+            pollRef.current = setTimeout(poll, 2000)
+          }
+        } catch {
+          showError('获取导入状态失败')
+          setImporting(false)
+        }
+      }
+      poll()
     } catch (err) {
       showError(err instanceof Error ? err.message : '导入 zip 失败')
-    } finally {
       setImporting(false)
     }
   }

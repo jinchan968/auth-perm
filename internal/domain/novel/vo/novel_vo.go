@@ -130,6 +130,20 @@ type MarkdownBundleImportResultVO struct {
 	Items    []*MarkdownBundleImportItemVO `json:"items"`
 }
 
+type ImportTaskVO struct {
+	TaskID   string                          `json:"task_id"`
+	NovelID  string                          `json:"novel_id"`
+	Status   constant.ImportTaskStatus       `json:"status"`
+	Progress *ImportTaskProgressVO           `json:"progress,omitempty"`
+	Result   *MarkdownBundleImportResultVO   `json:"result,omitempty"`
+	Error    string                          `json:"error,omitempty"`
+}
+
+type ImportTaskProgressVO struct {
+	Total     int `json:"total"`
+	Processed int `json:"processed"`
+}
+
 type MarkdownBundleInspectItemVO struct {
 	Path         string                 `json:"path"`
 	VolumeTitle  string                 `json:"volume_title"`

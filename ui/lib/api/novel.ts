@@ -3,6 +3,7 @@ import type {
   CreateNovelRequest,
   MarkdownBundleImportResult,
   MarkdownBundleInspectResult,
+  ImportTaskStatus,
   NovelDetail,
   NovelListItem,
   NovelListResponse,
@@ -132,13 +133,21 @@ export function importMarkdownBundle(
   tenantId: string,
   novelId: string,
   file: File,
-): Promise<MarkdownBundleImportResult> {
+): Promise<{ task_id: string; status: string }> {
   const formData = new FormData()
   formData.append('file', file)
-  return postFormDirect<MarkdownBundleImportResult>(
+  return postFormDirect<{ task_id: string; status: string }>(
     `${BASE}/${novelId}/import-md-bundle?tenant_id=${tenantId}`,
     formData,
   )
+}
+
+export function getImportTask(taskId: string): Promise<ImportTaskStatus> {
+  return apiClient.get<ImportTaskStatus>(`${BASE}/import-tasks/${taskId}`)
+}
+
+export function deleteNovel(tenantId: string, novelId: string): Promise<void> {
+  return apiClient.delete(`${BASE}/${novelId}?tenant_id=${tenantId}`)
 }
 
 export interface ImportMarkdownChapterPayload {

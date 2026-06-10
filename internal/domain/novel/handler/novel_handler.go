@@ -382,12 +382,25 @@ func (h *NovelHandler) ImportMarkdownBundle(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.ImportMarkdownBundle(c.Request.Context(), c.Param("id"), auth.AccountID, tenantID, req)
-	if err != nil {
-		response.ErrorWithMessage(c, err, "批量导入 Markdown 失败")
+	taskID := h.svc.ImportMarkdownBundleAsync(c.Param("id"), auth.AccountID, tenantID, req)
+	response.Success(c, gin.H{"task_id": taskID, "status": "pending"})
+}
+
+func (h *NovelHandler) GetImportTask(c *gin.Context) {
+	auth, ok := authInfo(c)
+	if !ok {
 		return
 	}
-	response.Success(c, result)
+	tenantID, ok := requireTenantID(c)
+	if !ok {
+		return
+	}
+	task, err := h.svc.GetImportTask(c.Request.Context(), c.Param("taskId"), auth.AccountID, tenantID)
+	if err != nil {
+		response.ErrorWithMessage(c, err, "获取任务状态失败")
+		return
+	}
+	response.Success(c, task)
 }
 
 func (h *NovelHandler) InspectMarkdownBundle(c *gin.Context) {
